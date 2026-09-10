@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
@@ -33,6 +34,13 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/dashboard', function () {
         return Inertia::render('Admin/Dashboard');
     })->name('dashboard');
+
+    // Customer CRM Routes
+    Route::resource('customers', CustomerController::class);
+    Route::post('customers/{customer}/connections/{connection}/package', [CustomerController::class, 'changePackage'])
+        ->name('customers.change-package');
+    Route::post('pppoe/{credential}/reveal-password', [CustomerController::class, 'revealPppoePassword'])
+        ->name('pppoe.reveal-password');
 });
 
 // Staff Domain (/staff)
@@ -40,6 +48,10 @@ Route::middleware(['auth', 'role:admin,staff'])->prefix('staff')->name('staff.')
     Route::get('/dashboard', function () {
         return Inertia::render('Staff/Dashboard');
     })->name('dashboard');
+
+    // Staff Customer Search & Quick View
+    Route::get('/customers', [CustomerController::class, 'index'])->name('customers.index');
+    Route::get('/customers/{customer}', [CustomerController::class, 'show'])->name('customers.show');
 });
 
 // Shared Profile
