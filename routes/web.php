@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\BillingController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\ProfileController;
@@ -53,6 +54,10 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
 
     // Renewal Routes
     Route::get('billing/renewals', [RenewalController::class, 'index'])->name('billing.renewals');
+
+    // Audit & Accountability Routes
+    Route::get('audit/logs', [AuditLogController::class, 'index'])->name('audit.index');
+    Route::get('audit/staff-report', [AuditLogController::class, 'staffReport'])->name('audit.staff-report');
 });
 
 // Shared Collection & Renewal Actions for Admin & Staff
