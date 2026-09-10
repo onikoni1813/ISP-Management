@@ -48,4 +48,22 @@ complaints
 
 audit_logs
   - id, user_id, action, module, entity_type, entity_id, old_values, new_values, ip_address, user_agent, created_at
+
+account_transactions
+  - id, account_id, transaction_number, type, debit, credit, balance_after, reference_type, reference_id, description, created_by, timestamps
+
+account_transfers
+  - id, transfer_number, from_account_id, to_account_id, amount, transfer_date, notes, transferred_by, timestamps
+
+expense_categories
+  - id, name, code, status, timestamps
+
+expenses
+  - id, expense_number, expense_category_id, account_id, amount, expense_date, title, description, paid_by, status, timestamps
+
+salary_periods
+  - id, name, start_date, end_date, status, timestamps
+
+salary_payments
+  - id, payroll_number, user_id, salary_period_id, account_id, basic_salary, bonus, commission, advance_deduction, other_deductions, net_salary, payment_date, status, notes, paid_by, timestamps
 ```

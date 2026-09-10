@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AccountingController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\BillingController;
 use App\Http\Controllers\ComplaintController;
@@ -64,6 +65,15 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('complaints', [ComplaintController::class, 'index'])->name('complaints.index');
     Route::get('complaints/{complaint}', [ComplaintController::class, 'show'])->name('complaints.show');
     Route::post('complaints/{complaint}/assign', [ComplaintController::class, 'assign'])->name('complaints.assign');
+
+    // Accounting & Payroll Routes
+    Route::get('accounting/accounts', [AccountingController::class, 'accounts'])->name('accounting.accounts');
+    Route::post('accounting/accounts/transfer', [AccountingController::class, 'transfer'])->name('accounting.transfer');
+    Route::get('accounting/expenses', [AccountingController::class, 'expenses'])->name('accounting.expenses');
+    Route::post('accounting/expenses', [AccountingController::class, 'storeExpense'])->name('accounting.expenses.store');
+    Route::get('accounting/payroll', [AccountingController::class, 'payroll'])->name('accounting.payroll');
+    Route::post('accounting/payroll/payout', [AccountingController::class, 'storeSalary'])->name('accounting.payroll.payout.store');
+    Route::post('accounting/payroll/periods', [AccountingController::class, 'storePeriod'])->name('accounting.payroll.period.store');
 });
 
 // Shared Collection, Renewal & Complaint Actions for Admin & Staff
