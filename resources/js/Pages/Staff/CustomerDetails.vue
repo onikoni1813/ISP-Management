@@ -28,15 +28,31 @@ const revealPassword = async () => {
     }
 };
 
+import { syncService } from '@/Services/syncService';
+
 // Quick Pay Modal/Form
 const showPayModal = ref(false);
+const paySuccessNotice = ref('');
 const payForm = useForm({
     amount: primaryConnection?.current_package?.current_price?.price || 500,
     payment_method: 'cash',
     notes: 'Field collection',
 });
 
-const submitPayment = () => {
+const submitPayment = async () => {
+    if (!navigator.onLine) {
+        // Enqueue offline payment mutation
+        await syncService.collectPaymentOffline(props.customer, {
+            amount: payForm.amount,
+            payment_method: payForm.payment_method,
+            notes: payForm.notes,
+        });
+        showPayModal.value = false;
+        paySuccessNotice.value = `Payment of ৳${payForm.amount} queued offline. Will sync when online.`;
+        setTimeout(() => { paySuccessNotice.value = ''; }, 4000);
+        return;
+    }
+
     payForm.post(route('customers.pay', props.customer.id), {
         onSuccess: () => {
             showPayModal.value = false;
@@ -46,6 +62,7 @@ const submitPayment = () => {
 
 // Quick Renew Modal/Form
 const showRenewModal = ref(false);
+const renewSuccessNotice = ref('');
 const renewForm = useForm({
     validity_days: 30,
     is_zero_charge: false,
@@ -54,8 +71,24 @@ const renewForm = useForm({
     payment_method: 'cash',
 });
 
-const submitRenewal = () => {
+const submitRenewal = async () => {
     if (!primaryConnection) return;
+
+    if (!navigator.onLine) {
+        // Enqueue offline renewal mutation
+        await syncService.renewConnectionOffline(props.customer, primaryConnection.id, {
+            validity_days: renewForm.validity_days,
+            is_zero_charge: renewForm.is_zero_charge,
+            mode: renewForm.mode,
+            collect_payment: renewForm.collect_payment,
+            payment_method: renewForm.payment_method,
+        });
+        showRenewModal.value = false;
+        renewSuccessNotice.value = `Renewal for ${renewForm.validity_days} days queued offline. Will sync when online.`;
+        setTimeout(() => { renewSuccessNotice.value = ''; }, 4000);
+        return;
+    }
+
     renewForm.post(route('customers.renew', {
         customer: props.customer.id,
         connection: primaryConnection.id,
@@ -75,6 +108,12 @@ const submitRenewal = () => {
             <Link :href="route('staff.dashboard')" class="text-xs font-semibold text-slate-400 hover:text-white transition flex items-center gap-1">
                 ← Back to Dashboard
             </Link>
+        </div>
+
+        <!-- Offline Queue Notification Banners -->
+        <div v-if="paySuccessNotice || renewSuccessNotice" class="mb-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-xs font-bold text-amber-300 flex items-center gap-2">
+            <span class="h-2 w-2 rounded-full bg-amber-400 animate-pulse"></span>
+            <span>{{ paySuccessNotice || renewSuccessNotice }}</span>
         </div>
 
         <!-- Customer Identity Card -->

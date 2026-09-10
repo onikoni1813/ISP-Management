@@ -49,3 +49,21 @@
   - Sends expired notices for accounts past due and shifts status if unaddressed.
 - **Strict Duplicate Prevention (Rule 30):**
   - Template dispatching enforces entity-level checks (`template_id` + `entity_type` + `entity_id` + status) and daily date fences to guarantee customers never receive duplicate automated SMS for the same billing, renewal, or expiry event.
+
+## 7. Offline PWA & Sync Architecture (Milestone 13)
+- **Service Worker (`public/sw.js`):**
+  - Cache-First strategy for static assets (`/build/`, icons, web fonts, CSS, JS).
+  - Network-First with Cache Fallback for Inertia HTML navigation views.
+- **Client IndexedDB Store (`resources/js/Services/offlineStorage.js`):**
+  - Object stores: `customers`, `packages`, `areas`, `complaints`, `mutations`, `meta`.
+  - Indexes on customer code, name, phone number, and PPPoE username for instant offline field searches.
+- **Offline Mutation Queue & Idempotency (`resources/js/Services/syncService.js`):**
+  - Captures field actions (payments, renewals, tickets, status changes) offline with client UUIDs.
+  - Server endpoints (`/staff/api/sync/bootstrap`, `/staff/api/sync/mutations`) process batch queues with atomic idempotency checks.
+- **Conflict Handling (Section 39):**
+  - Server checks status conflicts (e.g. ticket already resolved by NOC) and reports conflict status back to client queue instead of silently overwriting.
+- **UI Indicators:**
+  - Real-time `ONLINE` / `OFFLINE` status badge in `StaffLayout.vue`.
+  - Queued mutations counter badge and manual sync trigger button.
+  - Offline cached search results indicator on `Staff/Dashboard.vue`.
+  - Offline queued notification banners on `Staff/CustomerDetails.vue`.

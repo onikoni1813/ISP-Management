@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
+import { syncService } from '@/Services/syncService';
 
 defineProps({
     title: {
@@ -14,19 +15,69 @@ const user = page.props.auth.user;
 
 const isOnline = ref(navigator.onLine);
 const pendingSyncCount = ref(0);
+const isSyncing = ref(false);
+const syncMessage = ref('');
+
+const checkSyncStatus = async () => {
+    try {
+        const status = await syncService.getSyncStatus();
+        pendingSyncCount.value = status.pendingCount;
+    } catch (e) {
+        console.error('Error getting sync status', e);
+    }
+};
+
+const triggerSync = async () => {
+    if (!navigator.onLine) {
+        alert('Network offline. Connect to internet to sync.');
+        return;
+    }
+
+    isSyncing.value = true;
+    syncMessage.value = 'Syncing...';
+    try {
+        // 1. Flush pending offline actions
+        await syncService.flushPendingMutations();
+        // 2. Download fresh caches
+        await syncService.downloadBootstrapCache();
+        await checkSyncStatus();
+        syncMessage.value = 'Synced';
+        setTimeout(() => { syncMessage.value = ''; }, 2500);
+    } catch (err) {
+        console.error('Manual sync failed', err);
+        syncMessage.value = 'Sync error';
+        setTimeout(() => { syncMessage.value = ''; }, 3000);
+    } finally {
+        isSyncing.value = false;
+    }
+};
 
 const updateOnlineStatus = () => {
     isOnline.value = navigator.onLine;
+    if (isOnline.value) {
+        // Auto-flush pending mutations when coming back online
+        syncService.flushPendingMutations().then(checkSyncStatus);
+    }
 };
+
+let syncInterval = null;
 
 onMounted(() => {
     window.addEventListener('online', updateOnlineStatus);
     window.addEventListener('offline', updateOnlineStatus);
+    checkSyncStatus();
+    syncInterval = setInterval(checkSyncStatus, 15000);
+
+    // Initial cache download if online
+    if (navigator.onLine) {
+        syncService.downloadBootstrapCache().catch(() => {});
+    }
 });
 
 onUnmounted(() => {
     window.removeEventListener('online', updateOnlineStatus);
     window.removeEventListener('offline', updateOnlineStatus);
+    if (syncInterval) clearInterval(syncInterval);
 });
 
 const quickActions = [
@@ -51,8 +102,15 @@ const quickActions = [
                 </div>
             </div>
 
-            <!-- Connection Status Badge -->
+            <!-- Connection Status Badge & Sync Control -->
             <div class="flex items-center gap-2">
+                <!-- Pending Queue Indicator -->
+                <div v-if="pendingSyncCount > 0" class="flex items-center gap-1 rounded-full bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 text-xs font-semibold text-amber-400">
+                    <span class="h-2 w-2 rounded-full bg-amber-400 animate-pulse"></span>
+                    <span>{{ pendingSyncCount }} Queued</span>
+                </div>
+
+                <!-- Online / Offline Status -->
                 <div 
                     :class="[
                         isOnline 
@@ -69,6 +127,22 @@ const quickActions = [
                     ></span>
                     <span>{{ isOnline ? 'ONLINE' : 'OFFLINE' }}</span>
                 </div>
+
+                <!-- Manual Sync Trigger Button -->
+                <button
+                    @click="triggerSync"
+                    :disabled="isSyncing || !isOnline"
+                    :class="[
+                        isOnline ? 'text-slate-300 hover:text-white hover:bg-slate-800' : 'text-slate-600 cursor-not-allowed',
+                        'rounded-lg border border-slate-700 bg-slate-900/80 p-1.5 transition flex items-center gap-1 text-xs font-medium'
+                    ]"
+                    :title="isOnline ? 'Sync with Server' : 'Offline'"
+                >
+                    <svg :class="['h-4 w-4 text-cyan-400', isSyncing ? 'animate-spin' : '']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    <span v-if="syncMessage" class="text-[10px] text-cyan-300 pr-1">{{ syncMessage }}</span>
+                </button>
 
                 <!-- Admin Link if Admin -->
                 <Link

@@ -5,6 +5,7 @@ use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\BillingController;
 use App\Http\Controllers\ComplaintController;
 use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\OfflineSyncController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RenewalController;
 use App\Http\Controllers\ReportController;
@@ -112,6 +113,10 @@ Route::middleware(['auth', 'role:admin,staff'])->prefix('staff')->name('staff.')
     Route::get('/customers/{customer}', [StaffController::class, 'customerDetails'])->name('customer-details');
     Route::get('/complaints', [ComplaintController::class, 'index'])->name('complaints.index');
     Route::get('/complaints/{complaint}', [ComplaintController::class, 'show'])->name('complaints.show');
+
+    // Milestone 13: Offline PWA Sync Endpoints
+    Route::get('/api/sync/bootstrap', [OfflineSyncController::class, 'bootstrapCache'])->name('sync.bootstrap');
+    Route::post('/api/sync/mutations', [OfflineSyncController::class, 'processMutations'])->name('sync.mutations');
 });
 
 // Shared Profile

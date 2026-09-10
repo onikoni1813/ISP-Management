@@ -2,6 +2,7 @@
 import { ref, watch } from 'vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import StaffLayout from '@/Layouts/StaffLayout.vue';
+import { syncService } from '@/Services/syncService';
 
 const props = defineProps({
     metrics: Object,
@@ -14,6 +15,7 @@ const user = page.props.auth.user;
 const searchQuery = ref('');
 const searchResults = ref([]);
 const isSearching = ref(false);
+const isOfflineResult = ref(false);
 
 let debounceTimeout = null;
 
@@ -21,16 +23,46 @@ watch(searchQuery, (newVal) => {
     clearTimeout(debounceTimeout);
     if (!newVal || newVal.trim().length < 2) {
         searchResults.value = [];
+        isOfflineResult.value = false;
         return;
     }
 
     isSearching.value = true;
     debounceTimeout = setTimeout(async () => {
         try {
-            const res = await axios.get(route('staff.api.search'), { params: { q: newVal } });
-            searchResults.value = res.data;
+            if (navigator.onLine) {
+                const res = await axios.get(route('staff.api.search'), { params: { q: newVal } });
+                searchResults.value = res.data;
+                isOfflineResult.value = false;
+            } else {
+                // Offline fallback from IndexedDB cache
+                const offlineMatches = await syncService.searchOfflineCustomers(newVal);
+                searchResults.value = offlineMatches.map(c => ({
+                    id: c.id,
+                    name: c.name,
+                    customer_code: c.customer_code,
+                    primary_contact: { phone: c.phone },
+                    connections: [{
+                        current_package: { name: c.package_name },
+                        pppoe_credential: { username: c.pppoe_username },
+                    }],
+                }));
+                isOfflineResult.value = true;
+            }
         } catch (e) {
-            console.error('Search error:', e);
+            console.error('Online search failed, checking offline cache:', e);
+            const offlineMatches = await syncService.searchOfflineCustomers(newVal);
+            searchResults.value = offlineMatches.map(c => ({
+                id: c.id,
+                name: c.name,
+                customer_code: c.customer_code,
+                primary_contact: { phone: c.phone },
+                connections: [{
+                    current_package: { name: c.package_name },
+                    pppoe_credential: { username: c.pppoe_username },
+                }],
+            }));
+            isOfflineResult.value = true;
         } finally {
             isSearching.value = false;
         }
@@ -66,6 +98,10 @@ watch(searchQuery, (newVal) => {
 
             <!-- Instant Search Dropdown Results -->
             <div v-if="searchResults.length > 0" class="mt-2 rounded-2xl border border-slate-800 bg-slate-900 p-2 shadow-2xl space-y-1">
+                <div v-if="isOfflineResult" class="px-3 py-1.5 text-[10px] font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-800/80 mb-1">
+                    <span class="h-1.5 w-1.5 rounded-full bg-amber-400"></span>
+                    <span>Offline Cached Records</span>
+                </div>
                 <Link
                     v-for="item in searchResults"
                     :key="item.id"
