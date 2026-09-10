@@ -160,6 +160,19 @@ class RenewalService
                 'amount' => $amount,
             ]);
 
+            // Automated Package Renewal Confirmation SMS (Master Plan Milestone 12)
+            \App\Jobs\SendCustomerSmsJob::dispatch(
+                'renewal_completed',
+                $customer->id,
+                [
+                    'package' => $package->name,
+                    'expiry_date' => $expiryData['new_expiry'],
+                ],
+                $userId,
+                \App\Models\Renewal::class,
+                $renewal->id
+            );
+
             return $renewal;
         });
     }

@@ -47,6 +47,16 @@ class ComplaintService
 
             AuditLog::log('complaint_created', 'complaint', $complaint, null, $complaint->toArray());
 
+            // Automated Complaint Created SMS (Master Plan Milestone 12)
+            \App\Jobs\SendCustomerSmsJob::dispatch(
+                'complaint_created',
+                $customer->id,
+                ['complaint_number' => $complaint->complaint_number],
+                $userId,
+                \App\Models\Complaint::class,
+                $complaint->id
+            );
+
             return $complaint;
         });
     }
@@ -111,6 +121,18 @@ class ComplaintService
             ]);
 
             AuditLog::log('complaint_status_changed', 'complaint', $complaint, ['status' => $oldStatus], ['status' => $newStatus]);
+
+            // Automated Complaint Resolved SMS (Master Plan Milestone 12)
+            if ($newStatus === 'resolved' && $complaint->customer_id) {
+                \App\Jobs\SendCustomerSmsJob::dispatch(
+                    'complaint_resolved',
+                    $complaint->customer_id,
+                    ['complaint_number' => $complaint->complaint_number],
+                    $userId,
+                    \App\Models\Complaint::class,
+                    $complaint->id
+                );
+            }
 
             return $complaint;
         });

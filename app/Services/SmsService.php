@@ -104,9 +104,22 @@ class SmsService
             return null;
         }
 
-        $phone = $customer->primaryContact?->phone_number;
+        $phone = $customer->primaryContact?->phone ?? $customer->primaryContact?->phone_number;
         if (!$phone) {
             return null;
+        }
+
+        // Master Plan Rule 30: Prevent duplicate automatic SMS for the same event
+        if ($entityType && $entityId) {
+            $alreadySent = SmsLog::where('template_id', $template->id)
+                ->where('entity_type', $entityType)
+                ->where('entity_id', $entityId)
+                ->where('status', 'sent')
+                ->exists();
+
+            if ($alreadySent) {
+                return null;
+            }
         }
 
         // Default standard variables

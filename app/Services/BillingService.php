@@ -160,6 +160,19 @@ class BillingService
 
             AuditLog::log('payment_collected', 'billing', $payment, null, $payment->toArray());
 
+            // Automated Payment Confirmation SMS (Master Plan Milestone 12)
+            \App\Jobs\SendCustomerSmsJob::dispatch(
+                'payment_received',
+                $customer->id,
+                [
+                    'amount' => number_format($amount, 2),
+                    'due' => number_format((float) max(0, -$customer->fresh()->balance), 2),
+                ],
+                $userId,
+                \App\Models\Payment::class,
+                $payment->id
+            );
+
             return $payment;
         });
     }
