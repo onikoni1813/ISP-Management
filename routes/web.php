@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\BillingController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Foundation\Application;
@@ -41,7 +42,17 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
         ->name('customers.change-package');
     Route::post('pppoe/{credential}/reveal-password', [CustomerController::class, 'revealPppoePassword'])
         ->name('pppoe.reveal-password');
+
+    // Billing & Payment Routes
+    Route::get('billing/invoices', [BillingController::class, 'invoices'])->name('billing.invoices');
+    Route::get('billing/payments', [BillingController::class, 'payments'])->name('billing.payments');
+    Route::post('billing/payments/{payment}/reverse', [BillingController::class, 'reverse'])->name('billing.payments.reverse');
+    Route::get('billing/receipts/{payment}', [BillingController::class, 'receipt'])->name('billing.receipt');
 });
+
+// Shared Collection Action for Admin & Staff
+Route::middleware(['auth', 'role:admin,staff'])->post('customers/{customer}/pay', [BillingController::class, 'storePayment'])
+    ->name('customers.pay');
 
 // Staff Domain (/staff)
 Route::middleware(['auth', 'role:admin,staff'])->prefix('staff')->name('staff.')->group(function () {
