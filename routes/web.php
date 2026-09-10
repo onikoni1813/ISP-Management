@@ -8,6 +8,7 @@ use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RenewalController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\SmsController;
 use App\Http\Controllers\StaffController;
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
@@ -83,6 +84,16 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('reports/renewals', [ReportController::class, 'renewals'])->name('reports.renewals');
     Route::get('reports/profit-loss', [ReportController::class, 'profitLoss'])->name('reports.profit-loss');
     Route::get('reports/cash-flow', [ReportController::class, 'cashFlow'])->name('reports.cash-flow');
+
+    // SMS Engine Routes (Milestone 11)
+    Route::get('sms', [SmsController::class, 'index'])->name('sms.index');
+    Route::post('sms/send', [SmsController::class, 'sendManual'])->name('sms.send');
+    Route::get('sms/templates', [SmsController::class, 'templates'])->name('sms.templates');
+    Route::patch('sms/templates/{template}', [SmsController::class, 'updateTemplate'])->name('sms.templates.update');
+    Route::get('sms/gateways', [SmsController::class, 'gateways'])->name('sms.gateways');
+    Route::post('sms/gateways', [SmsController::class, 'storeGateway'])->name('sms.gateways.store');
+    Route::post('sms/gateways/{gateway}/activate', [SmsController::class, 'activateGateway'])->name('sms.gateways.activate');
+    Route::post('sms/{log}/retry', [SmsController::class, 'retry'])->name('sms.retry');
 });
 
 // Shared Collection, Renewal & Complaint Actions for Admin & Staff

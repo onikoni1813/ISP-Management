@@ -66,4 +66,13 @@ salary_periods
 
 salary_payments
   - id, payroll_number, user_id, salary_period_id, account_id, basic_salary, bonus, commission, advance_deduction, other_deductions, net_salary, payment_date, status, notes, paid_by, timestamps
+
+sms_gateways
+  - id, name, driver, api_url, api_key, sender_id, extra_params, is_active, timestamps
+
+sms_templates
+  - id, name, code, template, is_auto_enabled, timestamps
+
+sms_logs
+  - id, recipient, customer_id, template_id, gateway_id, message, status, provider_message_id, error_message, sent_at, sent_by, entity_type, entity_id, timestamps
 ```
