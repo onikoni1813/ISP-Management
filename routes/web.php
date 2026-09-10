@@ -5,6 +5,7 @@ use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\BillingController;
 use App\Http\Controllers\ComplaintController;
 use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\CustomerPortalController;
 use App\Http\Controllers\OfflineSyncController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RenewalController;
@@ -35,7 +36,7 @@ Route::get('/dashboard', function (Request $request) {
     if ($user->hasRole('staff')) {
         return redirect()->route('staff.dashboard');
     }
-    return Inertia::render('Dashboard');
+    return redirect()->route('account.dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 // Admin Domain (/admin)
@@ -117,6 +118,19 @@ Route::middleware(['auth', 'role:admin,staff'])->prefix('staff')->name('staff.')
     // Milestone 13: Offline PWA Sync Endpoints
     Route::get('/api/sync/bootstrap', [OfflineSyncController::class, 'bootstrapCache'])->name('sync.bootstrap');
     Route::post('/api/sync/mutations', [OfflineSyncController::class, 'processMutations'])->name('sync.mutations');
+});
+
+// Customer Portal Domain (/account) — Milestone 14
+Route::middleware(['auth'])->prefix('account')->name('account.')->group(function () {
+    Route::get('/', [CustomerPortalController::class, 'dashboard'])->name('dashboard');
+    Route::get('/invoices', [CustomerPortalController::class, 'invoices'])->name('invoices');
+    Route::get('/payments', [CustomerPortalController::class, 'payments'])->name('payments');
+    Route::get('/renewal', [CustomerPortalController::class, 'renewal'])->name('renewal');
+    Route::post('/renewal', [CustomerPortalController::class, 'storeRenewal'])->name('renewal.store');
+    Route::get('/complaints', [CustomerPortalController::class, 'complaints'])->name('complaints');
+    Route::post('/complaints', [CustomerPortalController::class, 'storeComplaint'])->name('complaints.store');
+    Route::post('/complaints/{complaint}/comments', [CustomerPortalController::class, 'commentComplaint'])->name('complaints.comment');
+    Route::get('/profile', [CustomerPortalController::class, 'profile'])->name('profile');
 });
 
 // Shared Profile

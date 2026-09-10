@@ -67,3 +67,18 @@
   - Queued mutations counter badge and manual sync trigger button.
   - Offline cached search results indicator on `Staff/Dashboard.vue`.
   - Offline queued notification banners on `Staff/CustomerDetails.vue`.
+
+## 8. Customer Self-Service Portal (`/account`) (Milestone 14)
+- **Authentication & Gateway:**
+  - Standard user login routes customers automatically to `/account` dashboard via `/dashboard` role inspection.
+  - Automatic association of authenticated user to `Customer` record via `user_id`, or verified primary contact phone/email.
+- **Subscriber Dashboard (`Account/Dashboard.vue`):**
+  - Live subscription status, optical bandwidth, expiry countdown, and outstanding balance summary.
+  - PPPoE technical overview and quick renewal / support ticket actions.
+- **Self-Service Features:**
+  - **Invoices (`Account/Invoices.vue`):** Itemized breakdown of monthly package bills, previous balances, due dates, and payment status.
+  - **Payment Receipts (`Account/Payments.vue`):** Historical ledger of money receipts and payment transactions.
+  - **Instant Renewal (`Account/Renewal.vue`):** Self-service connection extension (30/60/90 days) with mobile wallet support (bKash, Nagad) creating atomic renewals, invoices, and payments.
+  - **Support Tickets (`Account/Complaints.vue`):** Ticket submission with severity levels and interactive customer/NOC conversation threads.
+  - **Subscriber Profile (`Account/Profile.vue`):** Customer code, registered address, and billing contact details.
+
