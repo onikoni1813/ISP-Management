@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\BillingController;
+use App\Http\Controllers\ComplaintController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RenewalController;
@@ -58,12 +59,20 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     // Audit & Accountability Routes
     Route::get('audit/logs', [AuditLogController::class, 'index'])->name('audit.index');
     Route::get('audit/staff-report', [AuditLogController::class, 'staffReport'])->name('audit.staff-report');
+
+    // Complaint Management Routes (Admin view & assign)
+    Route::get('complaints', [ComplaintController::class, 'index'])->name('complaints.index');
+    Route::get('complaints/{complaint}', [ComplaintController::class, 'show'])->name('complaints.show');
+    Route::post('complaints/{complaint}/assign', [ComplaintController::class, 'assign'])->name('complaints.assign');
 });
 
-// Shared Collection & Renewal Actions for Admin & Staff
+// Shared Collection, Renewal & Complaint Actions for Admin & Staff
 Route::middleware(['auth', 'role:admin,staff'])->group(function () {
     Route::post('customers/{customer}/pay', [BillingController::class, 'storePayment'])->name('customers.pay');
     Route::post('customers/{customer}/connections/{connection}/renew', [RenewalController::class, 'store'])->name('customers.renew');
+    Route::post('customers/{customer}/complaints', [ComplaintController::class, 'store'])->name('customers.complaints.store');
+    Route::post('complaints/{complaint}/status', [ComplaintController::class, 'updateStatus'])->name('complaints.status');
+    Route::post('complaints/{complaint}/comments', [ComplaintController::class, 'addComment'])->name('complaints.comment');
 });
 
 // Staff Domain (/staff)
@@ -71,6 +80,8 @@ Route::middleware(['auth', 'role:admin,staff'])->prefix('staff')->name('staff.')
     Route::get('/dashboard', [StaffController::class, 'dashboard'])->name('dashboard');
     Route::get('/api/search', [StaffController::class, 'search'])->name('api.search');
     Route::get('/customers/{customer}', [StaffController::class, 'customerDetails'])->name('customer-details');
+    Route::get('/complaints', [ComplaintController::class, 'index'])->name('complaints.index');
+    Route::get('/complaints/{complaint}', [ComplaintController::class, 'show'])->name('complaints.show');
 });
 
 // Shared Profile
