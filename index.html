@@ -1,0 +1,1345 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pirgacha Internet - ISP Billing, Expenses & Support</title>
+  <meta name="description" content="Pirgacha Internet Smart ISP Billing, Expense Tracker, Staff Management, and Complaint Support System">
+  <link rel="icon" type="image/png" href="logo.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Offline Sync Banner -->
+  <div id="sync-banner" class="sync-banner">
+    <div class="sync-banner-content">
+      <span>⚠️ <strong id="sync-count">0</strong> টি অফলাইন বিল সংরক্ষিত রয়েছে (গুগল শিটে আপলোড বাকি)।</span>
+      <button id="btn-sync-now" class="sync-btn" onclick="app.syncPendingQueue()">
+        🔄 এখনি সিংক করুন
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Navigation Header -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand-section" onclick="location.reload()">
+        <img src="logo.png" alt="Pirgacha Internet Logo" class="brand-logo" id="main-logo">
+        <div class="brand-text">
+          <h1>Pirgacha Internet</h1>
+          <p>Connect to the world • ISP Billing</p>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <!-- Complaint Notification Pill -->
+        <button id="header-complaint-btn" class="header-btn-complaint" onclick="app.switchTab('complaints')" title="গ্রাহকের অভিযোগ তালিকা দেখুন">
+          🚨 অভিযোগ <span class="chip-count" id="header-complaint-count">0</span>
+        </button>
+
+        <!-- Connectivity Pill -->
+        <div id="connection-status" class="status-pill online">
+          <span class="status-dot"></span>
+          <span id="connection-text">অনলাইন</span>
+        </div>
+
+        <!-- Role / User Profile Pill -->
+        <div class="user-pill" title="বর্তমান লগইন প্রোফাইল">
+          <div class="user-avatar" id="header-user-avatar">A</div>
+          <div class="user-info">
+            <span class="user-name" id="header-user-name">এডমিন</span>
+            <span class="user-role-badge role-admin" id="header-user-role">ADMIN</span>
+          </div>
+        </div>
+
+        <!-- Secure Logout Button -->
+        <button id="header-logout-btn" class="header-logout-btn" onclick="app.logout()" title="আইএসপি বিলিং সিস্টেম থেকে লগআউট করুন">
+          🚪 লগআউট
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- App Body Container -->
+  <main class="app-container">
+
+    <!-- KPI / Top Stats Section -->
+    <section class="stats-grid">
+      <!-- Card 1: Today's Collection -->
+      <div class="stat-card green">
+        <div class="stat-data">
+          <span class="stat-label">আজকের মোট আদায়</span>
+          <span class="stat-value" id="stat-today-collection">৳ ০</span>
+          <span class="stat-subtext" id="stat-today-count">০ টি পেমেন্ট গৃহীত</span>
+        </div>
+        <div class="stat-icon-wrapper">💵</div>
+      </div>
+
+      <!-- Card 2: Today's Expenses -->
+      <div class="stat-card red">
+        <div class="stat-data">
+          <span class="stat-label">আজকের খরচ</span>
+          <span class="stat-value" id="stat-today-expense">৳ ০</span>
+          <span class="stat-subtext" id="stat-expense-count">বেতন ও অফিস খরচ</span>
+        </div>
+        <div class="stat-icon-wrapper">💸</div>
+      </div>
+
+      <!-- Card 3: Net Cash Balance -->
+      <div class="stat-card purple admin-only">
+        <div class="stat-data">
+          <span class="stat-label">আজকের নিট ক্যাশ</span>
+          <span class="stat-value" id="stat-net-balance">৳ ০</span>
+          <span class="stat-subtext">আদায় থেকে খরচ বাদে</span>
+        </div>
+        <div class="stat-icon-wrapper">⚖️</div>
+      </div>
+
+      <!-- Card 4: Total Due -->
+      <div class="stat-card red">
+        <div class="stat-data">
+          <span class="stat-label">মোট বকেয়া বিল</span>
+          <span class="stat-value" id="stat-total-due">৳ ০</span>
+          <span class="stat-subtext" id="stat-due-count">০ জন গ্রাহকের বাকি</span>
+        </div>
+        <div class="stat-icon-wrapper">⚠️</div>
+      </div>
+
+      <!-- Card 5: Monthly Billing -->
+      <div class="stat-card orange admin-only">
+        <div class="stat-data">
+          <span class="stat-label">চলতি মাসের মোট দাবি</span>
+          <span class="stat-value" id="stat-monthly-total">৳ ০</span>
+          <span class="stat-subtext" id="stat-current-month">মাসিক সংযোগ বিল</span>
+        </div>
+        <div class="stat-icon-wrapper">📊</div>
+      </div>
+
+      <!-- Card 6: Active Customers -->
+      <div class="stat-card">
+        <div class="stat-data">
+          <span class="stat-label">মোট সক্রিয় গ্রাহক</span>
+          <span class="stat-value" id="stat-total-customers">০</span>
+          <span class="stat-subtext">পীরগাছা ইন্টারনেট নেটওয়ার্ক</span>
+        </div>
+        <div class="stat-icon-wrapper">👥</div>
+      </div>
+    </section>
+
+    <!-- Admin Quick Management Shortcuts Hub (Visible in Admin Mode) -->
+    <section id="admin-quick-hub" class="admin-quick-hub admin-only">
+      <div class="hub-header">
+        <span class="hub-badge">👑 এডমিন কন্ট্রোল</span>
+        <h3 class="hub-title">নতুন এন্ট্রি ও সিস্টেম ম্যানেজমেন্ট:</h3>
+      </div>
+      <div class="hub-buttons-grid">
+        <button class="hub-card-btn hub-pkg" onclick="app.openPackageModal()" title="নতুন ইন্টারনেট প্যাকেজ যোগ করুন">
+          <div class="hub-icon-box" style="background: #e0f2fe; color: #0284c7;">📦</div>
+          <div class="hub-text-box">
+            <strong>+ নতুন প্যাকেজ</strong>
+            <small>স্পিড ও মাসিক রেট যোগ করুন</small>
+          </div>
+        </button>
+
+        <button class="hub-card-btn hub-area" onclick="app.openAreaModal()" title="নতুন এলাকা বা জোন যোগ করুন">
+          <div class="hub-icon-box" style="background: #ffedd5; color: #ea580c;">📍</div>
+          <div class="hub-text-box">
+            <strong>+ নতুন এলাকা/জোন</strong>
+            <small>নতুন কভারেজ এরিয়া যুক্ত করুন</small>
+          </div>
+        </button>
+
+        <button class="hub-card-btn hub-user" onclick="app.openStaffModal()" title="নতুন স্টাফ বা এডমিন তৈরি করুন">
+          <div class="hub-icon-box" style="background: #ede9fe; color: #7c3aed;">👥</div>
+          <div class="hub-text-box">
+            <strong>+ নতুন স্টাফ/ইউজার</strong>
+            <small>লগইন আইডি ও ভূমিকা নির্ধারণ</small>
+          </div>
+        </button>
+
+        <button class="hub-card-btn hub-cust" onclick="app.openAddCustomerModal()" title="নতুন গ্রাহক কানেকশন যোগ করুন">
+          <div class="hub-icon-box" style="background: #d1fae5; color: #059669;">👤</div>
+          <div class="hub-text-box">
+            <strong>+ নতুন গ্রাহক যোগ</strong>
+            <small>PPPoE ও সংযোগ তথ্য সংরক্ষণ</small>
+          </div>
+        </button>
+      </div>
+    </section>
+
+    <!-- Instant Search & Quick Filter Section -->
+    <section class="search-control-section">
+      <div class="search-input-wrapper">
+        <span class="search-icon">🔍</span>
+        <input 
+          type="text" 
+          id="search-input" 
+          class="search-input" 
+          placeholder="গ্রাহকের নাম, মোবাইল বা আইডি দিয়ে খুঁজুন..."
+          autocomplete="off"
+          autofocus
+        >
+        <button id="search-clear-btn" class="search-clear-btn" onclick="app.clearSearch()">✕</button>
+      </div>
+
+      <!-- Filter Chips & Action Row -->
+      <div class="filter-tags-row">
+        <div class="filter-chips">
+          <button class="chip-btn active" data-filter="all" onclick="app.setFilter('all')">
+            সব গ্রাহক <span class="chip-count" id="count-all">0</span>
+          </button>
+          <button class="chip-btn chip-due" data-filter="due" onclick="app.setFilter('due')">
+            🔴 বকেয়া আছে <span class="chip-count" id="count-due">0</span>
+          </button>
+          <button class="chip-btn chip-paid" data-filter="paid" onclick="app.setFilter('paid')">
+            🟢 পরিশোধিত <span class="chip-count" id="count-paid">0</span>
+          </button>
+          <button class="chip-btn chip-expired" data-filter="expired" onclick="app.setFilter('expired')">
+            ⏰ মেয়াদ শেষ / রিনিউ <span class="chip-count" id="count-expired">0</span>
+          </button>
+          
+          <!-- Area Dropdown Filter -->
+          <select id="area-filter-select" class="chip-btn" onchange="app.setAreaFilter(this.value)" style="border-radius: var(--radius-full); padding: 0.35rem 0.8rem;">
+            <option value="">📍 সকল এলাকা</option>
+            <option value="পীরগাছা বাজার">পীরগাছা বাজার</option>
+            <option value="কলেজ রোড">কলেজ রোড</option>
+            <option value="রেল স্টেশন মোড়">রেল স্টেশন মোড়</option>
+            <option value="হাসপাতাল রোড">হাসপাতাল রোড</option>
+            <option value="চৌধুরী পাড়া">চৌধুরী পাড়া</option>
+          </select>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="quick-actions">
+          <button id="btn-quick-renew" class="btn btn-primary btn-sm" onclick="app.openRenewModal()" style="background: linear-gradient(135deg, #0284c7, #4f46e5); box-shadow: 0 2px 5px rgba(79, 70, 229, 0.3);" title="গ্রাহকের লাইন ২/৩ দিন বা নির্দিষ্ট মেয়াদের রিনিউ করুন">
+            🔄 + লাইন রিনিউ
+          </button>
+          <button id="btn-quick-new-bill" class="btn btn-primary btn-sm" onclick="app.openNewBillModal()" style="background: linear-gradient(135deg, #0284c7, #0f355c);">
+            📑 + নতুন বিল যোগ
+          </button>
+          <button id="btn-quick-add-cust" class="btn btn-primary btn-sm admin-only" onclick="app.openAddCustomerModal()">
+            ➕ নতুন গ্রাহক
+          </button>
+          <button id="btn-quick-pkg-area" class="btn btn-outline btn-sm admin-only" onclick="app.switchTab('packages-areas')" style="font-weight: 700; color: var(--primary-700); border-color: var(--primary-300);" title="ইন্টারনেট প্যাকেজ ও জোন পরিচালনা">
+            📦 প্যাকেজ ও জোন
+          </button>
+          <button id="btn-quick-staff-users" class="btn btn-outline btn-sm admin-only" onclick="app.switchTab('staff-users')" style="font-weight: 700; color: var(--primary-700); border-color: var(--primary-300);" title="এডমিন ও স্টাফ ইউজার পরিচালনা">
+            👥 স্টাফ ও ইউজার
+          </button>
+          <button id="btn-quick-expense" class="btn btn-accent btn-sm" onclick="app.openExpenseModal()">
+            💸 + খরচ এন্ট্রি
+          </button>
+          <button class="btn btn-danger btn-sm" onclick="app.openComplaintModal()">
+            🚨 + কমপ্লেইন
+          </button>
+          <button class="btn btn-outline btn-sm admin-only" onclick="app.generateMonthlyBills()" title="নতুন মাসের বিল তৈরি করুন">
+            🔄 বিল জেনারেট
+          </button>
+          <button class="btn btn-outline btn-sm" onclick="app.openSettingsModal()" title="গুগল শিট API সেটিংস">
+            ⚙️ শিট সেটিংস
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Admin / View Switcher Tabs -->
+    <div class="admin-tabs" id="admin-tabs">
+      <button class="tab-btn active" id="tab-btn-cards" onclick="app.switchTab('cards')">📱 কুইক কালেকশন গ্রিড</button>
+      <button class="tab-btn" id="tab-btn-table" onclick="app.switchTab('table')">📋 গ্রাহক টেবিল</button>
+      <button class="tab-btn" id="tab-btn-packages-areas" onclick="app.switchTab('packages-areas')">📦 প্যাকেজ ও জোন</button>
+      <button class="tab-btn" id="tab-btn-expenses" onclick="app.switchTab('expenses')">💸 খরচ ও বেতন</button>
+      <button class="tab-btn" id="tab-btn-complaints" onclick="app.switchTab('complaints')">🚨 কমপ্লেইন টিকিট</button>
+      <button class="tab-btn admin-only" id="tab-btn-staff-users" onclick="app.switchTab('staff-users')">👥 স্টাফ ও ইউজার</button>
+      <button class="tab-btn" id="tab-btn-staff" onclick="app.switchTab('staff')">👨‍💼 স্টাফ আদায় রিপোর্ট</button>
+      <button class="tab-btn" id="tab-btn-history" onclick="app.switchTab('history')">📑 পেমেন্ট হিস্ট্রি</button>
+    </div>
+
+    <!-- View 1: Fast Customer Cards Grid (Default for Staff & Mobile) -->
+    <section id="tab-cards-view">
+      <div id="customer-grid" class="customer-grid">
+        <!-- Dynamically Populated by app.js -->
+      </div>
+    </section>
+
+    <!-- View 2: Complete Data Table (Admin) -->
+    <section id="tab-table-view" style="display: none;">
+      <div class="data-table-card">
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>আইডি</th>
+                <th>গ্রাহকের নাম</th>
+                <th>মোবাইল</th>
+                <th>এলাকা</th>
+                <th>প্যাকেজ</th>
+                <th>মাসিক ফি</th>
+                <th>বকেয়া</th>
+                <th>মেয়াদ / স্ট্যাটাস</th>
+                <th>অ্যাকশন</th>
+              </tr>
+            </thead>
+            <tbody id="customer-table-body">
+              <!-- Dynamically Populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- View 3: Expenses & Salaries View -->
+    <section id="tab-expenses-view" style="display: none;">
+      <div class="data-table-card">
+        <div style="padding: 1rem 1.25rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-subtle); flex-wrap: wrap; gap: 0.5rem;">
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <strong style="color: var(--primary-900);">খরচ তালিকা (Expenses & Salaries)</strong>
+            <span class="user-role-badge role-admin" id="expense-total-badge">মোট: ৳ ০</span>
+          </div>
+          <button class="btn btn-accent btn-sm" onclick="app.openExpenseModal()">
+            ➕ নতুন খরচ / বেতন যোগ করুন
+          </button>
+        </div>
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>ভাউচার</th>
+                <th>তারিখ</th>
+                <th>ক্যাটাগরি</th>
+                <th>বিবরণ / স্টাফ</th>
+                <th>পরিমাণ (৳)</th>
+                <th>পরিশোধের মাধ্যম</th>
+                <th>প্রদানকারী</th>
+                <th>অ্যাকশন</th>
+              </tr>
+            </thead>
+            <tbody id="expenses-table-body">
+              <!-- Dynamically Populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- View 4: Complaints & Support Tickets View -->
+    <section id="tab-complaints-view" style="display: none;">
+      <div class="data-table-card">
+        <div style="padding: 1rem 1.25rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-subtle); flex-wrap: wrap; gap: 0.5rem;">
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <strong style="color: var(--primary-900);">গ্রাহকের অভিযোগ ও সাপোর্ট টিকিট</strong>
+          </div>
+          <div style="display: flex; gap: 0.5rem;">
+            <button class="chip-btn active" onclick="app.filterComplaints('all', this)">সব</button>
+            <button class="chip-btn" onclick="app.filterComplaints('Pending', this)">🔴 অপেক্ষারত</button>
+            <button class="chip-btn" onclick="app.filterComplaints('In Progress', this)">🟠 প্রসেসিং</button>
+            <button class="chip-btn" onclick="app.filterComplaints('Resolved', this)">🟢 সমাধানকৃত</button>
+            <button class="btn btn-danger btn-sm" onclick="app.openComplaintModal()">
+              ➕ নতুন অভিযোগ লিখুন
+            </button>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>টিকিট নং</th>
+                <th>তারিখ</th>
+                <th>গ্রাহক ও এলাকা</th>
+                <th>অভিযোগের ধরন</th>
+                <th>জরুরি স্তর</th>
+                <th>দায়িত্বপ্রাপ্ত স্টাফ</th>
+                <th>স্ট্যাটাস</th>
+                <th>সমাধান নোট</th>
+                <th>অ্যাকশন</th>
+              </tr>
+            </thead>
+            <tbody id="complaints-table-body">
+              <!-- Dynamically Populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- View 5: Staff & User Management View (Admin) -->
+    <section id="tab-staff-users-view" style="display: none;">
+      <div class="data-table-card">
+        <div style="padding: 1rem 1.25rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-subtle);">
+          <strong style="color: var(--primary-900);">এডমিন ও স্টাফ তালিকা</strong>
+          <button class="btn btn-primary btn-sm" onclick="app.openStaffModal()">
+            ➕ নতুন স্টাফ যোগ করুন
+          </button>
+        </div>
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>আইডি</th>
+                <th>স্টাফ নাম</th>
+                <th>ইউজারনেম</th>
+                <th>মোবাইল</th>
+                <th>রোল</th>
+                <th>পারমিশন (এক্সেস)</th>
+                <th>মাসিক বেতন (৳)</th>
+                <th>স্ট্যাটাস</th>
+                <th>অ্যাকশন</th>
+              </tr>
+            </thead>
+            <tbody id="staff-users-table-body">
+              <!-- Dynamically Populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- View 6: Staff Collection Performance Report (Admin) -->
+    <section id="tab-staff-view" style="display: none;">
+      <div class="data-table-card">
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>স্টাফ নাম</th>
+                <th>ইউজারনেম</th>
+                <th>মোবাইল</th>
+                <th>আজকের আদায়</th>
+                <th>চলতি মাসের মোট আদায়</th>
+                <th>কালেকশন সংখ্যা</th>
+              </tr>
+            </thead>
+            <tbody id="staff-table-body">
+              <!-- Dynamically Populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- View 7: Payment Transactions History -->
+    <section id="tab-history-view" style="display: none;">
+      <div class="data-table-card">
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>রিসিট নং</th>
+                <th>তারিখ ও সময়</th>
+                <th>গ্রাহক</th>
+                <th>পরিমাণ</th>
+                <th>পদ্ধতি</th>
+                <th>সংগ্রহকারী স্টাফ</th>
+                <th>সিংক স্ট্যাটাস</th>
+                <th>রিসিট</th>
+              </tr>
+            </thead>
+            <tbody id="payment-history-body">
+              <!-- Dynamically Populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- View 8: Packages & Zones/Areas Management (Admin) -->
+    <section id="tab-packages-areas-view" style="display: none;">
+      <div class="packages-areas-grid">
+        
+        <!-- Box 1: Internet Packages -->
+        <div class="data-table-card">
+          <div style="padding: 1rem 1.25rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-subtle);">
+            <strong style="color: var(--primary-900);">📦 ইন্টারনেট প্যাকেজ সমূহ</strong>
+            <button class="btn btn-primary btn-sm" onclick="app.openPackageModal()">
+              ➕ নতুন প্যাকেজ
+            </button>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>প্যাকেজ নাম</th>
+                  <th>স্পিড</th>
+                  <th>মাসিক ফি</th>
+                  <th>অ্যাকশন</th>
+                </tr>
+              </thead>
+              <tbody id="packages-table-body">
+                <!-- Dynamically Populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Box 2: Areas & Zones -->
+        <div class="data-table-card">
+          <div style="padding: 1rem 1.25rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-subtle);">
+            <strong style="color: var(--primary-900);">📍 এলাকা ও জোন সমূহ</strong>
+            <button class="btn btn-accent btn-sm" onclick="app.openAreaModal()">
+              ➕ নতুন এলাকা
+            </button>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>এলাকা / জোনের নাম</th>
+                  <th>গ্রাহক সংখ্যা</th>
+                  <th>অ্যাকশন</th>
+                </tr>
+              </thead>
+              <tbody id="areas-table-body">
+                <!-- Dynamically Populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ==========================================================================
+       MODALS
+       ========================================================================== -->
+
+  <!-- Modal 1: Bill Payment & Receipt Generation -->
+  <div id="pay-modal" class="modal-backdrop">
+    <div class="modal-window">
+      <div class="modal-header">
+        <h3>💰 বিল আদায় ও রিসিট</h3>
+        <button class="modal-close-btn" onclick="app.closeModal('pay-modal')">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="card-finance-box" style="margin-bottom: 1.25rem;">
+          <div>
+            <h4 id="pay-modal-cust-name" style="font-size: 1.05rem; font-weight: 700; color: var(--primary-900);">আব্দুর রহিম</h4>
+            <span id="pay-modal-cust-id" style="font-size: 0.8rem; color: var(--text-muted);">ID: PI-101</span>
+          </div>
+          <div style="text-align: right;">
+            <span class="finance-label">বর্তমান মোট বকেয়া</span>
+            <div id="pay-modal-total-due" class="finance-due">৳ ০</div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">দ্রুত টাকার পরিমাণ নির্বাচন:</label>
+          <div class="quick-amount-grid">
+            <button type="button" class="amount-chip selected" id="chip-full-due" onclick="app.setPayAmount('full')">পুরো বকেয়া</button>
+            <button type="button" class="amount-chip" id="chip-month-fee" onclick="app.setPayAmount('fee')">১ মাসের ফি</button>
+            <button type="button" class="amount-chip" onclick="app.setPayAmount(500)">৳ ৫০০</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="pay-amount-input">জমা টাকার পরিমাণ (৳): *</label>
+          <input type="number" id="pay-amount-input" class="form-control" placeholder="টাকার পরিমাণ লিখুন" style="font-size: 1.25rem; font-weight: 700; color: var(--success-600);">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="pay-discount-input">বিশেষ ছাড় / ডিসকাউন্ট (যদি থাকে):</label>
+          <input type="number" id="pay-discount-input" class="form-control" placeholder="০" value="0">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="pay-method-select">পেমেন্ট মেথড:</label>
+          <select id="pay-method-select" class="form-control">
+            <option value="Cash">💵 ক্যাশ (নগদ)</option>
+            <option value="bKash">📱 বিকাশ (bKash)</option>
+            <option value="Nagad">📱 নগদ (Nagad)</option>
+            <option value="Bank">🏦 ব্যাংক ট্রান্সফার</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="pay-note-input">মন্তব্য / TrxID (ঐচ্ছিক):</label>
+          <input type="text" id="pay-note-input" class="form-control" placeholder="যেমন: বিকাশ TrxID বা বিশেষ নোট">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="app.closeModal('pay-modal')">বাতিল</button>
+        <button class="btn btn-accent" onclick="app.submitPayment(true)">
+          🖨️ জমা নিন ও রিসিট প্রিন্ট
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 2: Quick Add Bill / Extra Charge (For Staff & Admin) -->
+  <div id="charge-modal" class="modal-backdrop">
+    <div class="modal-window">
+      <div class="modal-header">
+        <h3>➕ অতিরিক্ত বিল / চার্জ যুক্ত করুন</h3>
+        <button class="modal-close-btn" onclick="app.closeModal('charge-modal')">×</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="charge-cust-id">
+        <div class="card-finance-box" style="margin-bottom: 1.25rem;">
+          <div>
+            <h4 id="charge-cust-name" style="font-size: 1.05rem; font-weight: 700; color: var(--primary-900);">-</h4>
+            <span id="charge-cust-phone" style="font-size: 0.8rem; color: var(--text-muted);">-</span>
+          </div>
+          <div style="text-align: right;">
+            <span class="finance-label">বর্তমান বকেয়া</span>
+            <div id="charge-cust-due" class="finance-due">৳ ০</div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="charge-type-select">চার্জের ধরন / কারণ: *</label>
+          <select id="charge-type-select" class="form-control" onchange="app.onChargeTypeSelect(this.value)">
+            <option value="নতুন সংযোগ ফি">🔌 নতুন সংযোগ ফি (Installation Fee)</option>
+            <option value="রাউটার / ONU চার্জ">📶 নতুন রাউটার / ONU চার্জ</option>
+            <option value="অতিরিক্ত ফাইবার তার">🧵 অতিরিক্ত অপটিক্যাল ফাইবার তারের ফি</option>
+            <option value="মাসিক বিল সমন্বয়">🔄 অতিরিক্ত মাসিক বিল যোগ</option>
+            <option value="সার্ভিস / মেরামত ফি">🔧 সার্ভিস ও টেকনিক্যাল মেরামত ফি</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="charge-amount-input">টাকার পরিমাণ (৳): *</label>
+          <input type="number" id="charge-amount-input" class="form-control" placeholder="টাকার পরিমাণ লিখুন" value="500" style="font-size: 1.2rem; font-weight: 700; color: var(--primary-700);">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="charge-note-input">বিবরণ / নোট (ঐচ্ছিক):</label>
+          <input type="text" id="charge-note-input" class="form-control" placeholder="যেমন: ১০০ মিটার অতিরিক্ত তার বা টেন্ডা রাউটার">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="app.closeModal('charge-modal')">বাতিল</button>
+        <button class="btn btn-primary" onclick="app.saveExtraCharge()">
+          💾 বকেয়া হিসেবে যোগ করুন
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 3: Add Expense & Salary -->
+  <div id="expense-modal" class="modal-backdrop">
+    <div class="modal-window">
+      <div class="modal-header">
+        <h3>💸 নতুন খরচ / বেতন এন্ট্রি</h3>
+        <button class="modal-close-btn" onclick="app.closeModal('expense-modal')">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label" for="exp-category-select">খরচের ক্যাটাগরি: *</label>
+          <select id="exp-category-select" class="form-control" onchange="app.onExpenseCategoryChange(this.value)">
+            <option value="স্টাফ বেতন">👨‍💼 স্টাফের বেতন (Staff Salary)</option>
+            <option value="অফিস ভাড়া">🏢 অফিস ভাড়া (Office Rent)</option>
+            <option value="বিদ্যুৎ বিল">⚡ বিদ্যুৎ বিল (Electricity)</option>
+            <option value="ব্যান্ডউইথ বিল">🌐 আপস্ট্রিম ব্যান্ডউইথ খরচ (Bandwidth)</option>
+            <option value="যন্ত্রাংশ ক্রয়">🔧 ফাইবার তার ও রাউটার/যন্ত্রাংশ ক্রয়</option>
+            <option value="নাস্তা ও বিবিধ">☕ নাস্তা, যাতায়াত ও অন্যান্য</option>
+          </select>
+        </div>
+
+        <!-- Staff Selector (Visible only if Category is Staff Salary) -->
+        <div class="form-group" id="exp-staff-group">
+          <label class="form-label" for="exp-staff-select">কোন স্টাফের বেতন?: *</label>
+          <select id="exp-staff-select" class="form-control" onchange="app.onStaffSalarySelect(this.value)">
+            <!-- Populated dynamically -->
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="exp-amount-input">টাকার পরিমাণ (৳): *</label>
+          <input type="number" id="exp-amount-input" class="form-control" placeholder="টাকার পরিমাণ লিখুন" style="font-size: 1.2rem; font-weight: 700; color: var(--danger-600);" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="exp-method-select">পরিশোধের মাধ্যম:</label>
+          <select id="exp-method-select" class="form-control">
+            <option value="ক্যাশ">💵 ক্যাশ</option>
+            <option value="বিকাশ">📱 বিকাশ</option>
+            <option value="ব্যাংক">🏦 ব্যাংক ট্রান্সফার</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="exp-note-input">বিবরণ / ভাউচার নোট:</label>
+          <input type="text" id="exp-note-input" class="form-control" placeholder="যেমন: আগস্ট মাসের বেতন বা অফিস বিদ্যুৎ বিল">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="app.closeModal('expense-modal')">বাতিল</button>
+        <button class="btn btn-accent" onclick="app.saveExpense()">খরচ সংরক্ষণ করুন</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 4: Add Complaint Ticket -->
+  <div id="complaint-modal" class="modal-backdrop">
+    <div class="modal-window">
+      <div class="modal-header">
+        <h3>🚨 নতুন অভিযোগ / কমপ্লেইন এন্ট্রি</h3>
+        <button class="modal-close-btn" onclick="app.closeModal('complaint-modal')">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label" for="comp-cust-select">গ্রাহক নির্বাচন করুন: *</label>
+          <select id="comp-cust-select" class="form-control">
+            <!-- Populated dynamically -->
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="comp-issue-select">অভিযোগের ধরন / সমস্যা: *</label>
+          <select id="comp-issue-select" class="form-control">
+            <option value="ইন্টারনেট নেই / লাল বাতি (LOS)">🔴 ইন্টারনেট নেই / রাউটারে লাল বাতি (LOS)</option>
+            <option value="গতি অত্যন্ত কম (Slow Speed)">🐌 গতি অত্যন্ত ধীর (Slow Internet)</option>
+            <option value="তার কাটা / ফাইবার সমস্যা">🧵 ফাইবার তার কাটা বা ড্রপ তারের সমস্যা</option>
+            <option value="রাউটার রিস্টার্ট / কনফিগারেশন">📶 রাউটার কানেক্ট হচ্ছে না / পাসওয়ার্ড রিসেট</option>
+            <option value="বিল ও পেমেন্ট সমস্যা">💳 বিল সংক্রান্ত সমস্যা</option>
+            <option value="অন্যান্য সমস্যা">💬 অন্যান্য</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="comp-priority-select">জরুরি স্তর (Priority):</label>
+          <select id="comp-priority-select" class="form-control">
+            <option value="Urgent">🔴 Urgent (খুব জরুরি - লাইন পুরোপুরি বন্ধ)</option>
+            <option value="High" selected>🟠 High (গুরুত্বপূর্ণ)</option>
+            <option value="Normal">🔵 Normal (সাধারণ)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="comp-staff-select">দায়িত্বপ্রাপ্ত টেকনিশিয়ান / স্টাফ:</label>
+          <select id="comp-staff-select" class="form-control">
+            <!-- Populated dynamically -->
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="comp-notes-input">বিস্তারিত তথ্য / মন্তব্য:</label>
+          <textarea id="comp-notes-input" class="form-control" rows="3" placeholder="গ্রাহকের নির্দিষ্ট সমস্যা বা এলাকার বর্ণনা লিখুন..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="app.closeModal('complaint-modal')">বাতিল</button>
+        <button class="btn btn-danger" onclick="app.saveComplaint()">অভিযোগ তৈরি করুন</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 5: Resolve / Update Complaint Ticket -->
+  <div id="resolve-modal" class="modal-backdrop">
+    <div class="modal-window">
+      <div class="modal-header">
+        <h3>⚙️ কমপ্লেইন সমাধান ও আপডেট</h3>
+        <button class="modal-close-btn" onclick="app.closeModal('resolve-modal')">×</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="resolve-ticket-id">
+        <div class="card-finance-box" style="margin-bottom: 1rem;">
+          <div>
+            <h4 id="resolve-modal-cust">-</h4>
+            <span id="resolve-modal-issue" style="font-size: 0.85rem; color: var(--danger-600); font-weight: 600;">-</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="resolve-status-select">বর্তমান স্ট্যাটাস: *</label>
+          <select id="resolve-status-select" class="form-control">
+            <option value="Pending">🔴 অপেক্ষারত (Pending)</option>
+            <option value="In Progress">🟠 কাজ চলছে (In Progress)</option>
+            <option value="Resolved" selected>🟢 সমাধান হয়েছে (Resolved)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="resolve-note-input">টেকনিশিয়ানের সমাধান নোট: *</label>
+          <textarea id="resolve-note-input" class="form-control" rows="3" placeholder="কীভাবে সমাধান করা হলো লিখুন (যেমন: ড্রপ তার জোড়া দেওয়া হয়েছে বা প্যাচ কর্ড পরিবর্তন করা হয়েছে)"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="app.closeModal('resolve-modal')">বাতিল</button>
+        <button class="btn btn-success" style="background: var(--success-600); color: white;" onclick="app.saveComplaintResolution()">
+          আপডেট সংরক্ষণ করুন
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 6: Add / Edit Staff User (Admin Only) -->
+  <div id="staff-user-modal" class="modal-backdrop">
+    <div class="modal-window">
+      <div class="modal-header">
+        <h3 id="staff-modal-title">➕ নতুন স্টাফ যোগ করুন</h3>
+        <button class="modal-close-btn" onclick="app.closeModal('staff-user-modal')">×</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="staff-edit-id">
+        <div class="form-group">
+          <label class="form-label" for="staff-name-input">স্টাফের পূর্ণ নাম: *</label>
+          <input type="text" id="staff-name-input" class="form-control" placeholder="যেমন: মোঃ সাকিব আহমেদ" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="staff-username-input">ইউজারনেম (লগইন এর জন্য): *</label>
+          <input type="text" id="staff-username-input" class="form-control" placeholder="যেমন: sakib" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="staff-phone-input">মোবাইল নম্বর: *</label>
+          <input type="tel" id="staff-phone-input" class="form-control" placeholder="যেমন: 017xxxxxxxx" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="staff-password-input">লগইন পাসওয়ার্ড / পিন: *</label>
+          <input type="text" id="staff-password-input" class="form-control" placeholder="যেমন: 1234 বা গোপন পিন" value="123" required>
+          <small style="color: var(--text-muted); font-size: 0.74rem;">* এই পাসওয়ার্ড দিয়ে স্টাফ পরবর্তীতে সিস্টেমে লগইন করবে।</small>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="staff-role-select">পদবী / রোল: *</label>
+          <select id="staff-role-select" class="form-control" onchange="app.onStaffRoleChange(this.value)">
+            <option value="staff" selected>📱 ফিল্ড স্টাফ (কাস্টম পারমিশন প্রযোজ্য)</option>
+            <option value="admin">👑 এডমিন (সম্পূর্ণ সিস্টেম এক্সেস)</option>
+          </select>
+        </div>
+
+        <!-- Granular Staff Permissions Checklist -->
+        <div class="form-group" id="staff-permissions-group">
+          <label class="form-label">অনুমোদিত এক্সেস ও পারমিশন (Permissions):</label>
+          <div class="permissions-checklist">
+            <label class="perm-check-item">
+              <input type="checkbox" id="perm-bill-pay" value="bill_pay" checked>
+              <div class="perm-check-info">
+                <strong>💰 বিল আদায় ও মানি রিসিট</strong>
+                <small>গ্রাহকের বকেয়া বিল আদায় ও রিসিট প্রিন্ট করতে পারবে</small>
+              </div>
+            </label>
+            <label class="perm-check-item">
+              <input type="checkbox" id="perm-bill-add" value="bill_add" checked>
+              <div class="perm-check-info">
+                <strong>📑 নতুন বিল ও অতিরিক্ত চার্জ যোগ</strong>
+                <small>নতুন বিল, তার বা নতুন সংযোগ ফি যোগ করতে পারবে</small>
+              </div>
+            </label>
+            <label class="perm-check-item">
+              <input type="checkbox" id="perm-cust-manage" value="cust_manage">
+              <div class="perm-check-info">
+                <strong>➕ নতুন গ্রাহক তৈরি ও তথ্য এডিট</strong>
+                <small>নতুন গ্রাহক কানেকশন যোগ ও প্রোফাইল এডিট করতে পারবে</small>
+              </div>
+            </label>
+            <label class="perm-check-item">
+              <input type="checkbox" id="perm-expense-manage" value="expense_manage">
+              <div class="perm-check-info">
+                <strong>💸 খরচ এন্ট্রি ও ভাউচার</strong>
+                <small>অফিস খরচ ও অন্যান্য খরচের ভাউচার এন্ট্রি করতে পারবে</small>
+              </div>
+            </label>
+            <label class="perm-check-item">
+              <input type="checkbox" id="perm-complaint-manage" value="complaint_manage" checked>
+              <div class="perm-check-info">
+                <strong>🚨 কমপ্লেইন টিকিট ও সমাধান</strong>
+                <small>গ্রাহকের অভিযোগ তৈরি ও সমাধান আপডেট করতে পারবে</small>
+              </div>
+            </label>
+            <label class="perm-check-item">
+              <input type="checkbox" id="perm-package-manage" value="package_manage">
+              <div class="perm-check-info">
+                <strong>📦 প্যাকেজ ও এলাকা/জোন পরিচালনা</strong>
+                <small>ইন্টারনেট প্যাকেজ ও নতুন জোন তালিকা দেখতে বা বদলাতে পারবে</small>
+              </div>
+            </label>
+            <label class="perm-check-item">
+              <input type="checkbox" id="perm-cust-renew" value="cust_renew" checked>
+              <div class="perm-check-info">
+                <strong>🔄 লাইন রিনিউ ও মেয়াদ বৃদ্ধি</strong>
+                <small>গ্রাহকের ২/৩ দিন বা নির্দিষ্ট মেয়াদের রিনিউ ও গ্রেস দিতে পারবে</small>
+              </div>
+            </label>
+            <label class="perm-check-item">
+              <input type="checkbox" id="perm-reports-view" value="reports_view">
+              <div class="perm-check-info">
+                <strong>📊 আর্থিক হিসাব ও রিপোর্ট দেখা</strong>
+                <small>মোট আদায়, খরচের বিবরণ ও কালেকশন রিপোর্ট দেখতে পারবে</small>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="staff-salary-input">মাসিক বেতন (টাকা):</label>
+          <input type="number" id="staff-salary-input" class="form-control" placeholder="যেমন: 12000" value="10000">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="app.closeModal('staff-user-modal')">বাতিল</button>
+        <button class="btn btn-primary" onclick="app.saveStaff()">স্টাফ সংরক্ষণ করুন</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 7: Add / Edit Customer Modal -->
+  <div id="customer-modal" class="modal-backdrop">
+    <div class="modal-window">
+      <div class="modal-header">
+        <h3 id="customer-modal-title">➕ নতুন গ্রাহক যোগ করুন</h3>
+        <button class="modal-close-btn" onclick="app.closeModal('customer-modal')">×</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="cust-edit-id">
+        <div class="form-group">
+          <label class="form-label" for="cust-name">গ্রাহকের নাম: *</label>
+          <input type="text" id="cust-name" class="form-control" placeholder="যেমন: মোঃ কামরুল ইসলাম" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="cust-phone">মোবাইল নম্বর: *</label>
+          <input type="tel" id="cust-phone" class="form-control" placeholder="যেমন: 017xxxxxxxx" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="cust-area">এলাকা / গ্রাম: *</label>
+          <input type="text" id="cust-area" class="form-control" placeholder="যেমন: পীরগাছা বাজার, কলেজ রোড" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="cust-pppoe">PPPoE ইউজারনেম: *</label>
+          <input type="text" id="cust-pppoe" class="form-control" placeholder="যেমন: kamrul_pi" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="cust-pppoe-pass">PPPoE পাসওয়ার্ড: *</label>
+          <input type="text" id="cust-pppoe-pass" class="form-control" placeholder="যেমন: 123456 বা pi@2026" required>
+          <small style="color: var(--text-muted); font-size: 0.74rem;">* এই ইউজারনেম ও পাসওয়ার্ড ফিল্ড স্টাফরা রাউটার সেটআপের জন্য দেখতে পারবে, কিন্তু পরিবর্তন করতে পারবে না।</small>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="cust-package">ইন্টারনেট প্যাকেজ: *</label>
+          <select id="cust-package" class="form-control" onchange="app.onPackageSelect(this.value)">
+            <option value="Starter (5 Mbps)" data-price="500">Starter (5 Mbps) - ৳ ৫০০/মাস</option>
+            <option value="Standard (10 Mbps)" data-price="800" selected>Standard (10 Mbps) - ৳ ৮০০/মাস</option>
+            <option value="Premium (15 Mbps)" data-price="1000">Premium (15 Mbps) - ৳ ১০০০/মাস</option>
+            <option value="Turbo (20 Mbps)" data-price="1200">Turbo (20 Mbps) - ৳ ১২০০/মাস</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="cust-fee">মাসিক বিল (টাকা): *</label>
+          <input type="number" id="cust-fee" class="form-control" value="800" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="cust-initial-due">পূর্বের বকেয়া (যদি থাকে):</label>
+          <input type="number" id="cust-initial-due" class="form-control" value="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="cust-expire-date">বিল পরিশোধের মেয়াদ / এক্সপায়ারি তারিখ:</label>
+          <input type="date" id="cust-expire-date" class="form-control" style="font-size: 1rem; font-weight: 600; cursor: pointer;">
+          <small style="color: var(--text-muted); font-size: 0.74rem;">* নির্ধারিত তারিখ পার হলে লাইন মেয়াদোত্তীর্ণ হিসেবে প্রদর্শিত হবে।</small>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="app.closeModal('customer-modal')">বাতিল</button>
+        <button class="btn btn-primary" onclick="app.saveCustomer()">সংরক্ষণ করুন</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 8: Authentication & Login Modal Screen -->
+  <div id="login-modal" class="modal-backdrop login-backdrop" style="z-index: 9999;">
+    <div class="modal-window login-window" style="max-width: 440px;">
+      <div class="login-header-section">
+        <img src="logo.png" alt="Pirgacha Internet" class="login-logo">
+        <h2>Pirgacha Internet</h2>
+        <p>আইএসপি বিলিং ও ম্যানেজমেন্ট লগইন</p>
+      </div>
+      <div class="modal-body" style="padding: 1.25rem 1.5rem;">
+        <div id="login-error-alert" class="login-error" style="display: none;"></div>
+
+        <form id="login-form" onsubmit="event.preventDefault(); app.submitLogin();">
+          <div class="form-group">
+            <label class="form-label" for="login-username">ইউজারনেম বা মোবাইল নম্বর: *</label>
+            <input 
+              type="text" 
+              id="login-username" 
+              class="form-control" 
+              placeholder="যেমন: admin বা tarek" 
+              required 
+              autocomplete="username"
+            >
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="login-password">পাসওয়ার্ড / পিন: *</label>
+            <input 
+              type="password" 
+              id="login-password" 
+              class="form-control" 
+              placeholder="পাসওয়ার্ড লিখুন (যেমন: 123)" 
+              required 
+              autocomplete="current-password"
+            >
+          </div>
+
+          <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.75rem; font-size: 1rem; font-weight: 700; margin-top: 0.5rem; background: linear-gradient(135deg, var(--primary-800), var(--primary-600));">
+            🔐 সিস্টেমে লগইন করুন
+          </button>
+        </form>
+
+        <!-- Quick Demo Login Badges -->
+        <div class="demo-login-box">
+          <span class="demo-login-label">💡 দ্রুত টেস্টের জন্য ক্লিক করতে পারেন:</span>
+          <div class="demo-login-chips">
+            <button type="button" class="demo-chip chip-admin" onclick="app.fillDemoLogin('admin', '123')">
+              👑 এডমিন (admin / 123)
+            </button>
+            <button type="button" class="demo-chip chip-staff" onclick="app.fillDemoLogin('tarek', '123')">
+              📱 তারেক - স্টাফ (tarek / 123)
+            </button>
+            <button type="button" class="demo-chip chip-staff" onclick="app.fillDemoLogin('karim', '123')">
+              📱 করিম - স্টাফ (karim / 123)
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 9: Settings & Google Sheets Web App URL -->
+  <div id="settings-modal" class="modal-backdrop">
+    <div class="modal-window">
+      <div class="modal-header">
+        <h3>⚙️ গুগল শিট API সেটিংস</h3>
+        <button class="modal-close-btn" onclick="app.closeModal('settings-modal')">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label" for="setting-gas-url">গুগল অ্যাপস স্ক্রিপ্ট Web App URL:</label>
+          <input type="url" id="setting-gas-url" class="form-control" placeholder="https://script.google.com/macros/s/.../exec">
+          <small style="color: var(--text-muted); font-size: 0.75rem; display: block; margin-top: 0.35rem;">
+            * GoogleAppsScript.gs ফাইলটি ডিপ্লয় করার পর প্রাপ্ত Web App URL এখানে বসিয়ে দিলে অ্যাপটি সরাসরি আপনার আসল গুগল শিটে ডাটা সেভ করবে।
+          </small>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">অফলাইন ডাটা রিসেট:</label>
+          <button class="btn btn-outline btn-sm" onclick="app.resetDemoData()" style="color: var(--danger-600); border-color: var(--danger-100);">
+            🔄 ডেমো ডাটা রিসেট করুন
+          </button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="app.closeModal('settings-modal')">বাতিল</button>
+        <button class="btn btn-primary" onclick="app.saveSettings()">সংরক্ষণ ও টেস্ট</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 10: Thermal POS Receipt Preview & Action Modal -->
+  <div id="receipt-modal" class="modal-backdrop">
+    <div class="modal-window" style="max-width: 400px;">
+      <div class="modal-header">
+        <h3>🧾 মানি রিসিট</h3>
+        <button class="modal-close-btn" onclick="app.closeModal('receipt-modal')">×</button>
+      </div>
+      <div class="modal-body">
+        <div id="receipt-preview-content" class="receipt-preview-container">
+          <!-- Filled by app.js -->
+        </div>
+      </div>
+      <div class="modal-footer" style="justify-content: space-between;">
+        <button class="btn btn-outline" onclick="app.closeModal('receipt-modal')">বন্ধ করুন</button>
+        <button class="btn btn-accent" onclick="window.print()">
+          🖨️ প্রিন্ট করুন
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 11: Add New Bill With Customer Search (Admin & Staff) -->
+  <div id="new-bill-modal" class="modal-backdrop">
+    <div class="modal-window">
+      <div class="modal-header">
+        <h3>📑 নতুন বিল যোগ করুন (Add Bill)</h3>
+        <button class="modal-close-btn" onclick="app.closeModal('new-bill-modal')">×</button>
+      </div>
+      <div class="modal-body">
+        <!-- Live Customer Search & Picker -->
+        <div class="form-group live-search-container">
+          <label class="form-label" for="new-bill-search-input">১. গ্রাহক নির্বাচন করুন (নাম, ফোন বা আইডি লিখে সার্চ করুন): *</label>
+          <div class="search-input-wrapper">
+            <span class="search-icon">🔍</span>
+            <input 
+              type="text" 
+              id="new-bill-search-input" 
+              class="form-control" 
+              placeholder="গ্রাহকের নাম, মোবাইল নাম্বার বা আইডি লিখুন..." 
+              style="padding-left: 2.8rem;"
+              oninput="app.handleNewBillCustSearch(this.value)"
+              autocomplete="off"
+            >
+          </div>
+          <!-- Autocomplete Dropdown List -->
+          <div id="new-bill-search-results" class="live-search-results"></div>
+        </div>
+
+        <!-- Selected Customer Card -->
+        <div id="new-bill-selected-box" class="selected-cust-preview">
+          <div>
+            <h4 id="new-bill-cust-name" style="font-size: 1.05rem; font-weight: 700; color: var(--primary-900);">-</h4>
+            <span id="new-bill-cust-meta" style="font-size: 0.8rem; color: var(--text-muted);">-</span>
+          </div>
+          <div style="text-align: right;">
+            <span class="finance-label">বর্তমান বকেয়া</span>
+            <div id="new-bill-cust-due" class="finance-due" style="font-size: 1.15rem;">৳ ০</div>
+          </div>
+        </div>
+
+        <!-- Bill Type / Reason -->
+        <div class="form-group">
+          <label class="form-label" for="new-bill-type-select">২. বিলের ধরন / কারণ: *</label>
+          <select id="new-bill-type-select" class="form-control" onchange="app.onNewBillTypeChange(this.value)">
+            <option value="মাসিক ইন্টারনেট ফি">📅 মাসিক ইন্টারনেট ফি (Monthly Fee)</option>
+            <option value="নতুন সংযোগ চার্জ">🔌 নতুন সংযোগ ফি (Installation Charge)</option>
+            <option value="রাউটার / ONU ডিভাইস চার্জ">📶 নতুন রাউটার / ONU চার্জ</option>
+            <option value="অতিরিক্ত ফাইবার তার">🧵 অতিরিক্ত অপটিক্যাল ফাইবার তারের ফি</option>
+            <option value="সার্ভিস / টেকনিক্যাল চার্জ">🔧 সার্ভিস / টেকনিক্যাল মেরামত ফি</option>
+            <option value="বিবিধ বকেয়া সমন্বয়">🔄 অন্যান্য বকেয়া সমন্বয়</option>
+          </select>
+        </div>
+
+        <!-- Package Selection & Bill Amount System -->
+        <div class="form-group">
+          <label class="form-label" for="new-bill-package-select">৩. ইন্টারনেট প্যাকেজ নির্বাচন করুন: *</label>
+          <select id="new-bill-package-select" class="form-control" onchange="app.onNewBillPackageSelect(this.value)" style="font-size: 1rem; font-weight: 600; color: var(--primary-900); cursor: pointer;">
+            <option value="">-- প্যাকেজ নির্বাচন করুন --</option>
+            <!-- Populated dynamically by app.js -->
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="new-bill-amount-input">বিলের পরিমাণ (৳): *</label>
+          <div style="position: relative;">
+            <input 
+              type="number" 
+              id="new-bill-amount-input" 
+              class="form-control" 
+              placeholder="প্যাকেজ নির্বাচন করলে টাকার পরিমাণ স্বয়ংক্রিয় বসবে" 
+              style="font-size: 1.25rem; font-weight: 700; color: var(--primary-700); padding-left: 2.2rem;"
+            >
+            <span style="position: absolute; left: 0.85rem; top: 50%; transform: translateY(-50%); font-size: 1.25rem; font-weight: 700; color: var(--primary-600);">৳</span>
+          </div>
+          <small style="color: var(--text-muted); font-size: 0.74rem;">* প্যাকেজ নির্বাচন করলে রেট অনুযায়ী টাকা অটোমেটিক সেট হবে, প্রয়োজন অনুযায়ী পরিবর্তনও করতে পারবেন।</small>
+        </div>
+
+        <!-- Billing Date / Calendar Picker (With Day, Month & Year Selection) -->
+        <div class="form-group">
+          <label class="form-label" for="new-bill-date-input">৪. বিলের তারিখ (ক্যালেন্ডার থেকে ডেট সিলেক্ট করুন): *</label>
+          <input type="date" id="new-bill-date-input" class="form-control" style="font-size: 1.05rem; font-weight: 600; cursor: pointer;">
+        </div>
+
+        <!-- Note -->
+        <div class="form-group">
+          <label class="form-label" for="new-bill-note-input">৫. মন্তব্য বা ভাউচার নোট (ঐচ্ছিক):</label>
+          <input type="text" id="new-bill-note-input" class="form-control" placeholder="যেমন: নতুন সংযোগ সম্পন্ন হয়েছে বা টেন্ডা রাউটার সরবরাহ">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="app.closeModal('new-bill-modal')">বাতিল</button>
+        <button class="btn btn-primary" onclick="app.submitNewBill()" style="background: linear-gradient(135deg, var(--primary-600), var(--primary-800));">
+          💾 গ্রাহকের বকেয়ায় বিল যোগ করুন
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 12: Add New Package Modal -->
+  <div id="new-package-modal" class="modal-backdrop">
+    <div class="modal-window" style="max-width: 440px;">
+      <div class="modal-header">
+        <h3>📦 নতুন প্যাকেজ যোগ করুন</h3>
+        <button class="modal-close-btn" onclick="app.closeModal('new-package-modal')">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label" for="pkg-name-input">প্যাকেজের নাম: *</label>
+          <input type="text" id="pkg-name-input" class="form-control" placeholder="যেমন: Super Fast (12 Mbps)" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="pkg-speed-input">ব্যান্ডউইথ স্পিড: *</label>
+          <input type="text" id="pkg-speed-input" class="form-control" placeholder="যেমন: 12 Mbps" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="pkg-price-input">মাসিক ফি (টাকা): *</label>
+          <input type="number" id="pkg-price-input" class="form-control" placeholder="যেমন: 900" required style="font-size: 1.15rem; font-weight: 700; color: var(--primary-700);">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="app.closeModal('new-package-modal')">বাতিল</button>
+        <button class="btn btn-primary" onclick="app.savePackage()">সংরক্ষণ করুন</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 13: Add New Area/Zone Modal -->
+  <div id="new-area-modal" class="modal-backdrop">
+    <div class="modal-window" style="max-width: 420px;">
+      <div class="modal-header">
+        <h3>📍 নতুন এলাকা / জোন যোগ করুন</h3>
+        <button class="modal-close-btn" onclick="app.closeModal('new-area-modal')">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label" for="area-name-input">এলাকা / জোনের নাম: *</label>
+          <input type="text" id="area-name-input" class="form-control" placeholder="যেমন: মীরবাগ বাজার, দেউতি রোড" required>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="app.closeModal('new-area-modal')">বাতিল</button>
+        <button class="btn btn-accent" onclick="app.saveArea()">এলাকা যুক্ত করুন</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 14: Customer Line Renew & Validity Extension Modal (Admin & Staff) -->
+  <div id="renew-modal" class="modal-backdrop">
+    <div class="modal-window" style="max-width: 520px;">
+      <div class="modal-header" style="background: linear-gradient(135deg, #0284c7, #4f46e5); color: #fff;">
+        <h3 style="color: #fff; display: flex; align-items: center; gap: 8px;">
+          <span>🔄</span> গ্রাহক লাইন রিনিউ ও মেয়াদ বৃদ্ধি
+        </h3>
+        <button class="modal-close-btn" onclick="app.closeModal('renew-modal')" style="color: #fff;">×</button>
+      </div>
+      <div class="modal-body">
+        <!-- Live Customer Search & Picker -->
+        <div id="renew-search-group" class="form-group live-search-container" style="margin-bottom: 1rem;">
+          <label class="form-label" for="renew-search-input">১. গ্রাহক নির্বাচন করুন (নাম, মোবাইল বা আইডি দিয়ে সার্চ করুন): *</label>
+          <div class="search-input-wrapper">
+            <span class="search-icon">🔍</span>
+            <input 
+              type="text" 
+              id="renew-search-input" 
+              class="form-control" 
+              placeholder="গ্রাহকের নাম, মোবাইল বা আইডি লিখুন..." 
+              style="padding-left: 2.8rem;"
+              oninput="app.handleRenewCustSearch(this.value)"
+              autocomplete="off"
+            >
+          </div>
+          <!-- Autocomplete Dropdown List -->
+          <div id="renew-search-results" class="live-search-results"></div>
+        </div>
+
+        <!-- Customer Info Card -->
+        <div id="renew-selected-box" class="selected-cust-preview" style="margin-bottom: 1.25rem; background: #f8fafc; border: 1px solid var(--border-medium); border-radius: var(--radius-md); padding: 0.85rem;">
+          <div>
+            <h4 id="renew-cust-name" style="font-size: 1.1rem; font-weight: 700; color: var(--primary-900);">-</h4>
+            <span id="renew-cust-meta" style="font-size: 0.8rem; color: var(--text-muted);">-</span>
+            <div id="renew-cust-expire-info" style="margin-top: 5px; font-size: 0.84rem; font-weight: 600;">-</div>
+          </div>
+          <div style="text-align: right;">
+            <span class="finance-label">বর্তমান বকেয়া</span>
+            <div id="renew-cust-due" class="finance-due" style="font-size: 1.15rem;">৳ ০</div>
+            <span id="renew-cust-status-badge" class="status-badge status-active" style="margin-top: 5px; display: inline-block;">Active</span>
+          </div>
+        </div>
+
+        <!-- Quick Renew Days Options (Chips) -->
+        <div class="form-group">
+          <label class="form-label" style="font-weight: 700;">১. দ্রুত মেয়াদ বৃদ্ধির দিন নির্বাচন করুন (Quick Extension): *</label>
+          <div class="renew-chips-grid">
+            <button type="button" class="renew-chip" onclick="app.setRenewDays(1, this)">⚡ + ১ দিন</button>
+            <button type="button" class="renew-chip active" onclick="app.setRenewDays(2, this)">⚡ + ২ দিন (জরুরি)</button>
+            <button type="button" class="renew-chip" onclick="app.setRenewDays(3, this)">⚡ + ৩ দিন (স্ট্যান্ডার্ড)</button>
+            <button type="button" class="renew-chip" onclick="app.setRenewDays(5, this)">+ ৫ দিন</button>
+            <button type="button" class="renew-chip" onclick="app.setRenewDays(7, this)">+ ৭ দিন (১ সপ্তাহ)</button>
+            <button type="button" class="renew-chip" onclick="app.setRenewDays(15, this)">+ ১৫ দিন</button>
+            <button type="button" class="renew-chip" onclick="app.setRenewDays(30, this)">+ ১ মাস (৩০ দিন)</button>
+          </div>
+        </div>
+
+        <!-- Start Date & End Date in 2 columns -->
+        <div class="renew-dates-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem; margin-bottom: 1rem;">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label" for="renew-start-date-input" style="font-weight: 700;">২. রিনিউ শুরুর তারিখ (Start Date): *</label>
+            <input 
+              type="date" 
+              id="renew-start-date-input" 
+              class="form-control" 
+              style="font-size: 1rem; font-weight: 700; color: #1e293b; cursor: pointer; padding: 0.6rem 0.75rem;" 
+              onchange="app.onRenewStartDateChange(this.value)"
+              required
+            >
+            <small style="color: var(--text-muted); font-size: 0.74rem;">যেদিন থেকে রিনিউ কার্যকর হবে</small>
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label" for="renew-new-date-input" style="font-weight: 700;">৩. মেয়াদের শেষ তারিখ (End Date): *</label>
+            <input 
+              type="date" 
+              id="renew-new-date-input" 
+              class="form-control" 
+              style="font-size: 1rem; font-weight: 700; color: #0369a1; cursor: pointer; padding: 0.6rem 0.75rem;" 
+              onchange="app.onRenewEndDateChange(this.value)"
+              required
+            >
+            <small id="renew-days-hint" style="color: var(--primary-700); font-size: 0.74rem; font-weight: 600; display: block;">
+              * মোট মেয়াদ: ২ দিন
+            </small>
+          </div>
+        </div>
+
+        <!-- Package Validity Adjustment Box (No Extra Charge) -->
+        <div id="renew-pkg-calc-box" class="renew-calc-card" style="background: linear-gradient(135deg, #f0fdf4, #ecfdf5); border: 1.5px solid #86efac; border-radius: var(--radius-md); padding: 0.85rem 1rem; margin-bottom: 1rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span style="font-size: 1.05rem;">📦</span>
+              <strong style="color: #166534; font-size: 0.9rem;">প্যাকেজ মেয়াদ কর্তন নীতি:</strong>
+              <span id="renew-calc-pkg-badge" style="background: #bbf7d0; color: #14532d; font-size: 0.74rem; padding: 1px 7px; border-radius: 999px; font-weight: 700;">-</span>
+            </div>
+            <span id="renew-calc-daily-rate" style="font-size: 0.78rem; background: #ffffff; color: #15803d; padding: 2px 8px; border-radius: 6px; font-weight: 700; border: 1px solid #bbf7d0;">
+              রিনিউ চার্জ: ৳ ০ (ফ্রি)
+            </span>
+          </div>
+          <div style="font-size: 0.84rem; color: #1e293b; line-height: 1.5;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span id="renew-calc-formula-text">প্যাকেজের ৩০ দিন থেকে রিনিউকৃত মেয়াদ কর্তন:</span>
+              <strong id="renew-calc-deduct-badge" style="font-size: 0.95rem; color: #b91c1c; font-weight: 700;">- ১ দিন</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; padding-top: 4px; border-top: 1px dashed #86efac;">
+              <span style="color: #15803d; font-weight: 600;">পরবর্তী পূর্ণ প্যাকেজ মেয়াদ থাকবে:</span>
+              <strong id="renew-calc-total-badge" style="font-size: 1.15rem; color: #15803d; font-weight: 800;">২৯ দিন</strong>
+            </div>
+          </div>
+          <small style="display: block; margin-top: 6px; color: #166534; font-size: 0.73rem;">
+            * রিনিউ করার জন্য কোনো চার্জ লাগবে না। গ্রাহকের মূল প্যাকেজ মেয়াদ থেকে এই দিনগুলো স্বয়ংক্রিয়ভাবে সমন্বয় হবে।
+          </small>
+        </div>
+
+        <!-- Bill Adjustment Option -->
+        <div class="form-group">
+          <label class="form-label" for="renew-bill-type">৪. বিল / চার্জ সমন্বয়:</label>
+          <select id="renew-bill-type" class="form-control" onchange="app.onRenewBillTypeChange(this.value)">
+            <option value="package" selected>🎁 কোনো চার্জ নেই (প্যাকেজের ৩০ দিন থেকে রিনিউ মেয়াদ কর্তন)</option>
+            <option value="custom">💵 বিশেষ ক্ষেত্রে অতিরিক্ত বিল চার্জ (যদি প্রয়োজন হয়)</option>
+          </select>
+        </div>
+
+        <div id="renew-bill-amount-group" class="form-group" style="display: none;">
+          <label class="form-label" for="renew-bill-amount">বিল চার্জের পরিমাণ (৳): *</label>
+          <input type="number" id="renew-bill-amount" class="form-control" placeholder="যেমন: 50" value="0">
+          <small id="renew-bill-amount-hint" style="color: var(--text-muted); font-size: 0.74rem;">* এই টাকা গ্রাহকের বর্তমান বকেয়ার সাথে যুক্ত হবে।</small>
+        </div>
+
+        <!-- Note / Reason -->
+        <div class="form-group">
+          <label class="form-label" for="renew-note-input">৫. রিনিউ নোট / কারণ (ঐচ্ছিক):</label>
+          <input type="text" id="renew-note-input" class="form-control" placeholder="যেমন: শুক্রবারে ফুল বিল দেওয়ার শর্তে ২ দিন রিনিউ">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="app.closeModal('renew-modal')">বাতিল</button>
+        <button class="btn btn-primary" onclick="app.submitRenew()" style="background: linear-gradient(135deg, #0284c7, #4f46e5); font-weight: 700; padding: 0.6rem 1.4rem;">
+          ⚡ লাইন রিনিউ সম্পন্ন করুন
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hidden Printable POS Receipt Container (Only rendered during window.print()) -->
+  <div id="printable-receipt" style="display: none;"></div>
+
+  <!-- Core JavaScript -->
+  <script src="app.js"></script>
+</body>
+</html>
