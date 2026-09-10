@@ -4,6 +4,7 @@ use App\Http\Controllers\BillingController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RenewalController;
+use App\Http\Controllers\StaffController;
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -62,13 +63,9 @@ Route::middleware(['auth', 'role:admin,staff'])->group(function () {
 
 // Staff Domain (/staff)
 Route::middleware(['auth', 'role:admin,staff'])->prefix('staff')->name('staff.')->group(function () {
-    Route::get('/dashboard', function () {
-        return Inertia::render('Staff/Dashboard');
-    })->name('dashboard');
-
-    // Staff Customer Search & Quick View
-    Route::get('/customers', [CustomerController::class, 'index'])->name('customers.index');
-    Route::get('/customers/{customer}', [CustomerController::class, 'show'])->name('customers.show');
+    Route::get('/dashboard', [StaffController::class, 'dashboard'])->name('dashboard');
+    Route::get('/api/search', [StaffController::class, 'search'])->name('api.search');
+    Route::get('/customers/{customer}', [StaffController::class, 'customerDetails'])->name('customer-details');
 });
 
 // Shared Profile
