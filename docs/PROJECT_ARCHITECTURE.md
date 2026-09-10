@@ -82,3 +82,19 @@
   - **Support Tickets (`Account/Complaints.vue`):** Ticket submission with severity levels and interactive customer/NOC conversation threads.
   - **Subscriber Profile (`Account/Profile.vue`):** Customer code, registered address, and billing contact details.
 
+## 9. Public Marketing Website (`/`) (Milestone 15)
+- **Shared Architecture (Rule 1 & Section 46):**
+  - Serves public visitors from the exact same Laravel and Vue 3 / Inertia foundation without duplicating codebase or database instances.
+  - Live packages and pricing queried directly from `packages` and `package_prices` tables (single source of truth).
+  - Coverage zones dynamically queried from hierarchical `areas` table.
+- **Pages Implemented:**
+  - `/` (Home) — High-converting hero, key feature highlights, dynamic optical package matrix, and interactive online connection application form.
+  - `/packages` — Dedicated fiber package tiers with bandwidth speeds, BDIX caching specs, and monthly rates.
+  - `/coverage` — Active coverage zones and connected sub-zones across Pirgacha.
+  - `/about` — ISP company profile, mission statement, optical backbone highlights, and local NOC details.
+  - `/faq` — Answers to common subscriber inquiries (setup time, equipment, billing methods, red LOS lights).
+  - `/notices` — Official ISP bulletin board, maintenance notices, and expansion announcements.
+  - `/contact` — Direct NOC hotline, email, operating hours, and inquiry submission.
+- **Online Connection Application (`POST /apply`):**
+  - Captures prospective subscriber details (name, phone, area, package, installation address) and records initial customer entity via `CustomerService`.
+

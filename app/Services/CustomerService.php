@@ -41,7 +41,7 @@ class CustomerService
     /**
      * Create a new Customer along with initial contact, installation address, connection, and PPPoE credential.
      */
-    public function createCustomer(array $data, int $userId): Customer
+    public function createCustomer(array $data, ?int $userId = null): Customer
     {
         return DB::transaction(function () use ($data, $userId) {
             // Generate next customer code: CUST-000001

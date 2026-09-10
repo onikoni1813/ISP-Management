@@ -12,20 +12,21 @@ use App\Http\Controllers\RenewalController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SmsController;
 use App\Http\Controllers\StaffController;
+use App\Http\Controllers\WebsiteController;
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-// Public Root
-Route::get('/', function () {
-    return Inertia::render('Welcome', [
-        'canLogin' => Route::has('login'),
-        'canRegister' => Route::has('register'),
-        'laravelVersion' => Application::VERSION,
-        'phpVersion' => PHP_VERSION,
-    ]);
-});
+// Public Website Routes (Milestone 15)
+Route::get('/', [WebsiteController::class, 'index'])->name('home');
+Route::get('/about', [WebsiteController::class, 'about'])->name('about');
+Route::get('/packages', [WebsiteController::class, 'packages'])->name('packages');
+Route::get('/coverage', [WebsiteController::class, 'coverage'])->name('coverage');
+Route::get('/faq', [WebsiteController::class, 'faq'])->name('faq');
+Route::get('/notices', [WebsiteController::class, 'notices'])->name('notices');
+Route::get('/contact', [WebsiteController::class, 'contact'])->name('contact');
+Route::post('/apply', [WebsiteController::class, 'apply'])->name('apply');
 
 // Authenticated Gateway redirect
 Route::get('/dashboard', function (Request $request) {
