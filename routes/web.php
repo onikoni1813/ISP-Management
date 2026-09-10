@@ -3,6 +3,7 @@
 use App\Http\Controllers\BillingController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\RenewalController;
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -48,11 +49,16 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('billing/payments', [BillingController::class, 'payments'])->name('billing.payments');
     Route::post('billing/payments/{payment}/reverse', [BillingController::class, 'reverse'])->name('billing.payments.reverse');
     Route::get('billing/receipts/{payment}', [BillingController::class, 'receipt'])->name('billing.receipt');
+
+    // Renewal Routes
+    Route::get('billing/renewals', [RenewalController::class, 'index'])->name('billing.renewals');
 });
 
-// Shared Collection Action for Admin & Staff
-Route::middleware(['auth', 'role:admin,staff'])->post('customers/{customer}/pay', [BillingController::class, 'storePayment'])
-    ->name('customers.pay');
+// Shared Collection & Renewal Actions for Admin & Staff
+Route::middleware(['auth', 'role:admin,staff'])->group(function () {
+    Route::post('customers/{customer}/pay', [BillingController::class, 'storePayment'])->name('customers.pay');
+    Route::post('customers/{customer}/connections/{connection}/renew', [RenewalController::class, 'store'])->name('customers.renew');
+});
 
 // Staff Domain (/staff)
 Route::middleware(['auth', 'role:admin,staff'])->prefix('staff')->name('staff.')->group(function () {
