@@ -20,3 +20,10 @@
 - `/account` — Customer self-service portal (Billing, receipts, status, tickets).
 - `/` — High-converting public marketing website & online application.
 - `/api/v1` — Secure authenticated REST endpoints for offline sync and client operations.
+
+## 4. Financial & Reporting Architecture
+- Strict adherence to **Rule 27 (Profit/Loss Distinction)**:
+  - `Net Operating Profit = Revenue - Operating Expenses - Staff Salaries`
+  - Liquid Cash & Bank wallet balances are kept strictly distinct from period profits.
+- Append-only `account_transactions` double-entry compliant ledger for traceable money flows.
+- Granular analytical views: Collections, Overdue Invoices Aging, Renewals Performance, and Cash Flow Movements.

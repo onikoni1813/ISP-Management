@@ -7,6 +7,7 @@ use App\Http\Controllers\ComplaintController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RenewalController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\StaffController;
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
@@ -74,6 +75,14 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('accounting/payroll', [AccountingController::class, 'payroll'])->name('accounting.payroll');
     Route::post('accounting/payroll/payout', [AccountingController::class, 'storeSalary'])->name('accounting.payroll.payout.store');
     Route::post('accounting/payroll/periods', [AccountingController::class, 'storePeriod'])->name('accounting.payroll.period.store');
+
+    // Business Reporting & Analytics Routes (Milestone 10)
+    Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
+    Route::get('reports/collections', [ReportController::class, 'collections'])->name('reports.collections');
+    Route::get('reports/dues', [ReportController::class, 'dues'])->name('reports.dues');
+    Route::get('reports/renewals', [ReportController::class, 'renewals'])->name('reports.renewals');
+    Route::get('reports/profit-loss', [ReportController::class, 'profitLoss'])->name('reports.profit-loss');
+    Route::get('reports/cash-flow', [ReportController::class, 'cashFlow'])->name('reports.cash-flow');
 });
 
 // Shared Collection, Renewal & Complaint Actions for Admin & Staff
