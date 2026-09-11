@@ -129,7 +129,7 @@ const navLinks = [
         </main>
 
         <!-- Modern Footer -->
-        <footer class="border-t border-brand-navy/80 bg-[#040C16] text-slate-400 text-xs">
+        <footer class="border-t border-brand-navy/80 bg-[#071527] text-slate-400 text-xs">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 grid grid-cols-1 md:grid-cols-4 gap-8">
                 <div class="space-y-3">
                     <ApplicationLogo size="sm" :animated="true" :with-text="true" />

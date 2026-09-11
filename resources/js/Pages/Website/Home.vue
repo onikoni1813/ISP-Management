@@ -88,7 +88,7 @@ const submitApplication = () => {
         </section>
 
         <!-- Feature Highlights -->
-        <section class="py-16 bg-[#040C16] border-b border-brand-navy/60">
+        <section class="py-16 bg-[#071527] border-b border-brand-navy/60">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-3 gap-8">
                 <div class="rounded-3xl border border-brand-navy bg-[#091A2E] p-6 space-y-3 hover:border-brand-sky/40 transition">
                     <div class="h-10 w-10 rounded-2xl bg-brand-sky/10 border border-brand-sky/30 flex items-center justify-center text-brand-sky font-bold text-lg">
@@ -170,7 +170,7 @@ const submitApplication = () => {
         </section>
 
         <!-- Online Connection Application Form Section -->
-        <section id="apply" class="py-20 bg-[#040C16] border-t border-brand-navy/60">
+        <section id="apply" class="py-20 bg-[#071527] border-t border-brand-navy/60">
             <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="rounded-3xl border border-brand-navy bg-[#091A2E]/90 p-8 shadow-2xl backdrop-blur-md">
                     <div class="mb-8">
