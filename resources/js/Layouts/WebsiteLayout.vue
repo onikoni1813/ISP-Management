@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
+import ApplicationLogo from '@/Components/ApplicationLogo.vue';
 
 const page = usePage();
 const user = page.props.auth?.user;
@@ -22,13 +23,9 @@ const navLinks = [
         <!-- Top Public Header -->
         <header class="sticky top-0 z-50 border-b border-slate-800/80 bg-slate-950/90 backdrop-blur-xl">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
-                <!-- Brand Logo -->
-                <Link :href="route('home')" class="flex items-center gap-3">
-                    <img src="/logo.png" alt="Pirgacha Internet" class="h-10 w-10 rounded-2xl shadow-lg shadow-cyan-500/20 object-cover" />
-                    <div>
-                        <span class="text-lg font-black tracking-tight text-white block leading-none">Pirgacha Internet</span>
-                        <span class="text-[10px] font-bold text-cyan-400 tracking-widest uppercase mt-1 block">Ultra Fast Optical Fiber</span>
-                    </div>
+                <!-- Brand Logo with animation -->
+                <Link :href="route('home')">
+                    <ApplicationLogo size="default" :animated="true" :with-text="true" />
                 </Link>
 
                 <!-- Desktop Nav -->
@@ -133,10 +130,7 @@ const navLinks = [
         <footer class="border-t border-slate-800 bg-slate-950 text-slate-400 text-xs">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 grid grid-cols-1 md:grid-cols-4 gap-8">
                 <div class="space-y-3">
-                    <div class="flex items-center gap-2">
-                        <img src="/logo.png" alt="Logo" class="h-8 w-8 rounded-xl object-cover" />
-                        <span class="text-base font-black text-white">Pirgacha Internet</span>
-                    </div>
+                    <ApplicationLogo size="sm" :animated="true" :with-text="true" />
                     <p class="text-slate-400 text-xs leading-relaxed">
                         Leading optical broadband internet service provider in Pirgacha, delivering high-speed optical fiber connectivity with 99.9% uptime.
                     </p>

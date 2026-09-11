@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
+import ApplicationLogo from '@/Components/ApplicationLogo.vue';
 
 defineProps({
     title: {
@@ -53,14 +54,14 @@ const navItems = [
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
                     </svg>
                 </button>
-                <div class="flex items-center gap-2">
-                    <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 font-bold text-white shadow-lg shadow-indigo-500/25">
-                        P
-                    </div>
-                    <div>
-                        <span class="text-base font-bold tracking-tight text-white">Pirgacha Internet</span>
-                        <span class="ml-2 rounded-md bg-indigo-500/10 px-2 py-0.5 text-xs font-semibold text-indigo-400 border border-indigo-500/20">Admin</span>
-                    </div>
+                <div class="flex items-center gap-3">
+                    <Link :href="route('admin.dashboard')" class="flex items-center gap-2">
+                        <ApplicationLogo size="sm" :animated="true" />
+                        <div class="flex items-center gap-2">
+                            <span class="text-base font-bold tracking-tight text-white">Pirgacha Internet</span>
+                            <span class="rounded-md bg-indigo-500/10 px-2 py-0.5 text-xs font-semibold text-indigo-400 border border-indigo-500/20">Admin</span>
+                        </div>
+                    </Link>
                 </div>
             </div>
 

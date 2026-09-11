@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
+import ApplicationLogo from '@/Components/ApplicationLogo.vue';
 
 defineProps({
     title: {
@@ -28,16 +29,16 @@ const navLinks = [
         <header class="sticky top-0 z-30 border-b border-slate-800/80 bg-slate-900/90 px-4 py-3.5 backdrop-blur-md lg:px-8">
             <div class="max-w-6xl mx-auto flex items-center justify-between">
                 <div class="flex items-center gap-3">
-                    <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-tr from-cyan-600 via-teal-500 to-emerald-400 font-black text-white shadow-lg shadow-cyan-500/20">
-                        PI
-                    </div>
-                    <div>
-                        <div class="text-sm font-black text-white tracking-tight leading-tight flex items-center gap-2">
-                            <span>Pirgacha Internet</span>
-                            <span class="rounded-full bg-cyan-500/10 border border-cyan-500/30 px-2 py-0.5 text-[10px] font-bold text-cyan-400">Portal</span>
+                    <Link :href="route('account.dashboard')" class="flex items-center gap-3">
+                        <ApplicationLogo size="sm" :animated="true" />
+                        <div>
+                            <div class="text-sm font-black text-white tracking-tight leading-tight flex items-center gap-2">
+                                <span>Pirgacha Internet</span>
+                                <span class="rounded-full bg-cyan-500/10 border border-cyan-500/30 px-2 py-0.5 text-[10px] font-bold text-cyan-400">Portal</span>
+                            </div>
+                            <div class="text-xs text-slate-400 mt-0.5">Welcome, {{ user?.name }}</div>
                         </div>
-                        <div class="text-xs text-slate-400 mt-0.5">Welcome, {{ user?.name }}</div>
-                    </div>
+                    </Link>
                 </div>
 
                 <!-- Right Actions -->

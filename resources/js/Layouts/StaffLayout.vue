@@ -2,6 +2,7 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
 import { syncService } from '@/Services/syncService';
+import ApplicationLogo from '@/Components/ApplicationLogo.vue';
 
 defineProps({
     title: {
@@ -92,15 +93,13 @@ const quickActions = [
     <div class="min-h-screen bg-slate-950 text-slate-100 flex flex-col antialiased selection:bg-emerald-500 selection:text-white pb-20 md:pb-6">
         <!-- Staff Top App Bar -->
         <header class="sticky top-0 z-30 flex items-center justify-between border-b border-slate-800 bg-slate-900/90 px-4 py-3 backdrop-blur-md">
-            <div class="flex items-center gap-3">
-                <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 font-bold text-white shadow-lg shadow-emerald-500/20">
-                    S
-                </div>
+            <Link :href="route('staff.dashboard')" class="flex items-center gap-3">
+                <ApplicationLogo size="sm" :animated="true" />
                 <div>
                     <h1 class="text-sm font-bold text-white leading-tight">Field Assistant</h1>
                     <p class="text-[11px] text-slate-400 font-medium">{{ user?.name }}</p>
                 </div>
-            </div>
+            </Link>
 
             <!-- Connection Status Badge & Sync Control -->
             <div class="flex items-center gap-2">
