@@ -98,3 +98,18 @@
 - **Online Connection Application (`POST /apply`):**
   - Captures prospective subscriber details (name, phone, area, package, installation address) and records initial customer entity via `CustomerService`.
 
+## 10. Website CMS & Dynamic Publishing Engine (Milestone 16)
+- **CMS Database Foundation:**
+  - `cms_pages`: Dynamic content pages with customizable URL slugs (`/p/{slug}`), rich markdown/HTML body, display ordering, and dedicated SEO fields (`seo_title`, `seo_description`).
+  - `cms_banners`: High-impact promotional hero banners, badge texts, gradient styling, call-to-action buttons (`button_text`, `button_url`), and display ordering.
+  - `cms_faqs`: Categorized questions and answers (`General`, `Setup & Connection`, `Billing & Payments`, `Troubleshooting`, `Technical`) with display sequencing and publishing status.
+  - `cms_notices`: Official ISP notices and NOC announcements categorized by type (`General`, `Maintenance`, `Expansion`, `System`, `Billing`) with scheduled/effective dates.
+- **Admin CMS Management (`/admin/cms`):**
+  - Intuitive overview dashboard displaying managed content counts and real-time live site link.
+  - Granular CRUD interfaces for Custom Pages, Banners, FAQs, and Notices.
+  - Instant publish/draft toggle actions (`toggle`) and delete safeguards.
+  - Automatic audit trail integration (`AuditLog::log`) for creation, editing, status toggling, and deletion of all CMS entities.
+- **Security & Authorization:**
+  - Restricted strictly to users holding the `website.manage` permission under the Admin domain.
+  - Dynamic page resolution (`/p/{slug}`) protects draft/unpublished pages with 404 responses until explicitly published by an administrator.
+

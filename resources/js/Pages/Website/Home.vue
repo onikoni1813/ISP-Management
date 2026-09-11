@@ -1,10 +1,23 @@
 <script setup>
+import { computed } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import WebsiteLayout from '@/Layouts/WebsiteLayout.vue';
 
 const props = defineProps({
     packages: Array,
     coverageAreas: Array,
+    banners: {
+        type: Array,
+        default: () => [],
+    },
+    latestNotices: {
+        type: Array,
+        default: () => [],
+    },
+});
+
+const activeBanner = computed(() => {
+    return props.banners && props.banners.length > 0 ? props.banners[0] : null;
 });
 
 const applyForm = useForm({
@@ -36,23 +49,28 @@ const submitApplication = () => {
                 <div class="max-w-3xl">
                     <div class="inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-1 text-xs font-bold text-cyan-300 mb-6 shadow-lg shadow-cyan-500/10">
                         <span class="h-2 w-2 rounded-full bg-cyan-400 animate-pulse"></span>
-                        <span>Gigabit Ready Optical Fiber Network</span>
+                        <span>{{ activeBanner?.badge_text || 'Gigabit Ready Optical Fiber Network' }}</span>
                     </div>
 
                     <h1 class="text-4xl sm:text-6xl font-black text-white tracking-tight leading-tight">
-                        Experience Seamless Internet with <span class="bg-gradient-to-r from-cyan-400 via-teal-300 to-emerald-400 bg-clip-text text-transparent">Pirgacha Internet</span>.
+                        <template v-if="activeBanner">
+                            {{ activeBanner.title }}
+                        </template>
+                        <template v-else>
+                            Experience Seamless Internet with <span class="bg-gradient-to-r from-cyan-400 via-teal-300 to-emerald-400 bg-clip-text text-transparent">Pirgacha Internet</span>.
+                        </template>
                     </h1>
 
                     <p class="mt-6 text-base sm:text-lg text-slate-300 leading-relaxed max-w-2xl">
-                        Uninterrupted buffer-free 4K streaming, zero-latency gaming, and rock-solid optical fiber connectivity for homes, businesses, and institutions in Pirgacha.
+                        {{ activeBanner?.subtitle || 'Uninterrupted buffer-free 4K streaming, zero-latency gaming, and rock-solid optical fiber connectivity for homes, businesses, and institutions in Pirgacha.' }}
                     </p>
 
                     <div class="mt-8 flex flex-wrap items-center gap-4">
                         <a
-                            href="#packages"
+                            :href="activeBanner?.button_url || '#packages'"
                             class="rounded-2xl bg-gradient-to-r from-cyan-600 to-teal-500 hover:from-cyan-500 hover:to-teal-400 px-6 py-3.5 text-xs font-extrabold text-white shadow-xl shadow-cyan-600/30 transition active:scale-95"
                         >
-                            Explore Packages →
+                            {{ activeBanner?.button_text || 'Explore Packages →' }}
                         </a>
                         <a
                             href="#apply"

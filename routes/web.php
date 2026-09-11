@@ -26,6 +26,7 @@ Route::get('/coverage', [WebsiteController::class, 'coverage'])->name('coverage'
 Route::get('/faq', [WebsiteController::class, 'faq'])->name('faq');
 Route::get('/notices', [WebsiteController::class, 'notices'])->name('notices');
 Route::get('/contact', [WebsiteController::class, 'contact'])->name('contact');
+Route::get('/p/{slug}', [WebsiteController::class, 'customPage'])->name('page.custom');
 Route::post('/apply', [WebsiteController::class, 'apply'])->name('apply');
 
 // Authenticated Gateway redirect
@@ -97,6 +98,32 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::post('sms/gateways', [SmsController::class, 'storeGateway'])->name('sms.gateways.store');
     Route::post('sms/gateways/{gateway}/activate', [SmsController::class, 'activateGateway'])->name('sms.gateways.activate');
     Route::post('sms/{log}/retry', [SmsController::class, 'retry'])->name('sms.retry');
+
+    // Website CMS Routes (Milestone 16)
+    Route::get('cms', [App\Http\Controllers\CmsController::class, 'index'])->name('cms.index');
+    Route::get('cms/pages', [App\Http\Controllers\CmsController::class, 'pages'])->name('cms.pages');
+    Route::post('cms/pages', [App\Http\Controllers\CmsController::class, 'storePage'])->name('cms.pages.store');
+    Route::patch('cms/pages/{page}', [App\Http\Controllers\CmsController::class, 'updatePage'])->name('cms.pages.update');
+    Route::post('cms/pages/{page}/toggle', [App\Http\Controllers\CmsController::class, 'togglePagePublish'])->name('cms.pages.toggle');
+    Route::delete('cms/pages/{page}', [App\Http\Controllers\CmsController::class, 'destroyPage'])->name('cms.pages.destroy');
+
+    Route::get('cms/banners', [App\Http\Controllers\CmsController::class, 'banners'])->name('cms.banners');
+    Route::post('cms/banners', [App\Http\Controllers\CmsController::class, 'storeBanner'])->name('cms.banners.store');
+    Route::patch('cms/banners/{banner}', [App\Http\Controllers\CmsController::class, 'updateBanner'])->name('cms.banners.update');
+    Route::post('cms/banners/{banner}/toggle', [App\Http\Controllers\CmsController::class, 'toggleBannerActive'])->name('cms.banners.toggle');
+    Route::delete('cms/banners/{banner}', [App\Http\Controllers\CmsController::class, 'destroyBanner'])->name('cms.banners.destroy');
+
+    Route::get('cms/faqs', [App\Http\Controllers\CmsController::class, 'faqs'])->name('cms.faqs');
+    Route::post('cms/faqs', [App\Http\Controllers\CmsController::class, 'storeFaq'])->name('cms.faqs.store');
+    Route::patch('cms/faqs/{faq}', [App\Http\Controllers\CmsController::class, 'updateFaq'])->name('cms.faqs.update');
+    Route::post('cms/faqs/{faq}/toggle', [App\Http\Controllers\CmsController::class, 'toggleFaqPublish'])->name('cms.faqs.toggle');
+    Route::delete('cms/faqs/{faq}', [App\Http\Controllers\CmsController::class, 'destroyFaq'])->name('cms.faqs.destroy');
+
+    Route::get('cms/notices', [App\Http\Controllers\CmsController::class, 'notices'])->name('cms.notices');
+    Route::post('cms/notices', [App\Http\Controllers\CmsController::class, 'storeNotice'])->name('cms.notices.store');
+    Route::patch('cms/notices/{notice}', [App\Http\Controllers\CmsController::class, 'updateNotice'])->name('cms.notices.update');
+    Route::post('cms/notices/{notice}/toggle', [App\Http\Controllers\CmsController::class, 'toggleNoticePublish'])->name('cms.notices.toggle');
+    Route::delete('cms/notices/{notice}', [App\Http\Controllers\CmsController::class, 'destroyNotice'])->name('cms.notices.destroy');
 });
 
 // Shared Collection, Renewal & Complaint Actions for Admin & Staff

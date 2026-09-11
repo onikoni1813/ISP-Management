@@ -1,29 +1,41 @@
 <script setup>
-import { Head, Link } from '@inertiajs/vue3';
+import { computed } from 'vue';
+import { Head } from '@inertiajs/vue3';
 import WebsiteLayout from '@/Layouts/WebsiteLayout.vue';
 
-const faqs = [
+const props = defineProps({
+    faqs: {
+        type: Array,
+        default: () => [],
+    }
+});
+
+const defaultFaqs = [
     {
-        q: 'How long does a new connection setup take?',
-        a: 'Once your application is received, our field technicians conduct a signal test and complete optical fiber wiring within 24 hours.'
+        question: 'How long does a new connection setup take?',
+        answer: 'Once your application is received, our field technicians conduct a signal test and complete optical fiber wiring within 24 hours.'
     },
     {
-        q: 'What equipment is provided with the connection?',
-        a: 'We provide an Optical Network Unit (ONU) configured with your PPPoE credentials and optical fiber drop cable up to your router.'
+        question: 'What equipment is provided with the connection?',
+        answer: 'We provide an Optical Network Unit (ONU) configured with your PPPoE credentials and optical fiber drop cable up to your router.'
     },
     {
-        q: 'How can I pay my monthly bill?',
-        a: 'You can pay instantly online via bKash and Nagad through your subscriber self-service portal, or hand over cash to our audited field collection agents.'
+        question: 'How can I pay my monthly bill?',
+        answer: 'You can pay instantly online via bKash and Nagad through your subscriber self-service portal, or hand over cash to our audited field collection agents.'
     },
     {
-        q: 'Is there any data limit or FUP (Fair Usage Policy)?',
-        a: 'No, all Pirgacha Internet residential and commercial plans come with truly unlimited data and zero throttling.'
+        question: 'Is there any data limit or FUP (Fair Usage Policy)?',
+        answer: 'No, all Pirgacha Internet residential and commercial plans come with truly unlimited data and zero throttling.'
     },
     {
-        q: 'What should I do if the router LOS light is blinking red?',
-        a: 'A blinking red LOS light indicates an optical signal disconnect or wire break. Please log a support ticket from your portal or call our 24/7 hotline at 01711-000000.'
+        question: 'What should I do if the router LOS light is blinking red?',
+        answer: 'A blinking red LOS light indicates an optical signal disconnect or wire break. Please log a support ticket from your portal or call our 24/7 hotline at 01711-000000.'
     },
 ];
+
+const displayFaqs = computed(() => {
+    return (props.faqs && props.faqs.length > 0) ? props.faqs : defaultFaqs;
+});
 </script>
 
 <template>
@@ -39,16 +51,21 @@ const faqs = [
 
             <div class="space-y-4">
                 <div
-                    v-for="(faq, idx) in faqs"
+                    v-for="(faq, idx) in displayFaqs"
                     :key="idx"
                     class="rounded-3xl border border-slate-800 bg-slate-900/60 p-6 backdrop-blur-sm space-y-2"
                 >
-                    <h3 class="text-base font-bold text-white flex items-center gap-2">
-                        <span class="text-cyan-400 font-mono">Q.</span>
-                        {{ faq.q }}
-                    </h3>
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-base font-bold text-white flex items-center gap-2">
+                            <span class="text-cyan-400 font-mono">Q.</span>
+                            {{ faq.question }}
+                        </h3>
+                        <span v-if="faq.category" class="text-[10px] font-bold text-slate-400 border border-slate-800 bg-slate-950 px-2 py-0.5 rounded-full">
+                            {{ faq.category }}
+                        </span>
+                    </div>
                     <p class="text-xs text-slate-300 pl-6 leading-relaxed">
-                        {{ faq.a }}
+                        {{ faq.answer }}
                     </p>
                 </div>
             </div>

@@ -1,19 +1,34 @@
 <script setup>
 import { Head, Link } from '@inertiajs/vue3';
 import WebsiteLayout from '@/Layouts/WebsiteLayout.vue';
+
+defineProps({
+    cmsPage: {
+        type: Object,
+        default: null,
+    }
+});
 </script>
 
 <template>
-    <Head title="About Us - Pirgacha Internet" />
+    <Head :title="`${cmsPage?.seo_title || 'About Us'} - Pirgacha Internet`">
+        <meta v-if="cmsPage?.seo_description" name="description" :content="cmsPage.seo_description" />
+    </Head>
 
     <WebsiteLayout>
         <div class="py-16 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
             <div class="text-center max-w-2xl mx-auto">
                 <span class="text-xs font-bold text-cyan-400 uppercase tracking-widest">Our Mission</span>
-                <h1 class="text-3xl sm:text-4xl font-black text-white mt-2">Connecting Pirgacha with High-Speed Fiber</h1>
+                <h1 class="text-3xl sm:text-4xl font-black text-white mt-2">{{ cmsPage?.title || 'Connecting Pirgacha with High-Speed Fiber' }}</h1>
             </div>
 
-            <div class="rounded-3xl border border-slate-800 bg-slate-900/60 p-8 backdrop-blur-sm space-y-6 text-sm text-slate-300 leading-relaxed">
+            <!-- If dynamic CMS content exists -->
+            <div v-if="cmsPage?.content" class="rounded-3xl border border-slate-800 bg-slate-900/60 p-8 backdrop-blur-sm space-y-6 text-sm text-slate-300 leading-relaxed whitespace-pre-line">
+                {{ cmsPage.content }}
+            </div>
+
+            <!-- Default fallback about page layout -->
+            <div v-else class="rounded-3xl border border-slate-800 bg-slate-900/60 p-8 backdrop-blur-sm space-y-6 text-sm text-slate-300 leading-relaxed">
                 <p>
                     <strong class="text-white">Pirgacha Internet</strong> is a licensed Internet Service Provider (ISP) dedicated to providing high-performance, affordable, and dependable broadband services to homes, educational institutions, healthcare centers, and businesses throughout the Pirgacha region.
                 </p>

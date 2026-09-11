@@ -3,6 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\Area;
+use App\Models\CmsBanner;
+use App\Models\CmsFaq;
+use App\Models\CmsNotice;
+use App\Models\CmsPage;
 use App\Models\Package;
 use App\Services\CustomerService;
 use Illuminate\Http\Request;
@@ -30,9 +34,20 @@ class WebsiteController extends Controller
             ->where('status', 'active')
             ->get();
 
+        $banners = CmsBanner::where('is_active', true)
+            ->orderBy('order')
+            ->get();
+
+        $latestNotices = CmsNotice::where('is_published', true)
+            ->latest('published_at')
+            ->take(3)
+            ->get();
+
         return Inertia::render('Website/Home', [
             'packages' => $packages,
             'coverageAreas' => $coverageAreas,
+            'banners' => $banners,
+            'latestNotices' => $latestNotices,
         ]);
     }
 
@@ -41,7 +56,11 @@ class WebsiteController extends Controller
      */
     public function about(): Response
     {
-        return Inertia::render('Website/About');
+        $page = CmsPage::where('slug', 'about')->where('is_published', true)->first();
+
+        return Inertia::render('Website/About', [
+            'cmsPage' => $page,
+        ]);
     }
 
     /**
@@ -79,7 +98,13 @@ class WebsiteController extends Controller
      */
     public function faq(): Response
     {
-        return Inertia::render('Website/Faq');
+        $faqs = CmsFaq::where('is_published', true)
+            ->orderBy('order')
+            ->get();
+
+        return Inertia::render('Website/Faq', [
+            'faqs' => $faqs,
+        ]);
     }
 
     /**
@@ -87,7 +112,13 @@ class WebsiteController extends Controller
      */
     public function notices(): Response
     {
-        return Inertia::render('Website/Notices');
+        $notices = CmsNotice::where('is_published', true)
+            ->orderByDesc('published_at')
+            ->get();
+
+        return Inertia::render('Website/Notices', [
+            'notices' => $notices,
+        ]);
     }
 
     /**
@@ -99,6 +130,20 @@ class WebsiteController extends Controller
 
         return Inertia::render('Website/Contact', [
             'areas' => $areas,
+        ]);
+    }
+
+    /**
+     * Custom Dynamic CMS Page (/p/{slug}).
+     */
+    public function customPage(string $slug): Response
+    {
+        $page = CmsPage::where('slug', $slug)
+            ->where('is_published', true)
+            ->firstOrFail();
+
+        return Inertia::render('Website/CustomPage', [
+            'page' => $page,
         ]);
     }
 
