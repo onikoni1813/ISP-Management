@@ -90,22 +90,22 @@ const quickActions = [
 </script>
 
 <template>
-    <div class="min-h-screen bg-slate-950 text-slate-100 flex flex-col antialiased selection:bg-emerald-500 selection:text-white pb-20 md:pb-6">
+    <div class="min-h-screen bg-[#071322] text-slate-100 flex flex-col antialiased selection:bg-brand-orange selection:text-white pb-20 md:pb-6">
         <!-- Staff Top App Bar -->
-        <header class="sticky top-0 z-30 flex items-center justify-between border-b border-slate-800 bg-slate-900/90 px-4 py-3 backdrop-blur-md">
+        <header class="sticky top-0 z-30 flex items-center justify-between border-b border-brand-navy bg-[#071322]/95 px-4 py-3 backdrop-blur-md">
             <Link :href="route('staff.dashboard')" class="flex items-center gap-3">
                 <ApplicationLogo size="sm" :animated="true" />
                 <div>
                     <h1 class="text-sm font-bold text-white leading-tight">Field Assistant</h1>
-                    <p class="text-[11px] text-slate-400 font-medium">{{ user?.name }}</p>
+                    <p class="text-[11px] text-brand-orange font-semibold">{{ user?.name }}</p>
                 </div>
             </Link>
 
             <!-- Connection Status Badge & Sync Control -->
             <div class="flex items-center gap-2">
                 <!-- Pending Queue Indicator -->
-                <div v-if="pendingSyncCount > 0" class="flex items-center gap-1 rounded-full bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 text-xs font-semibold text-amber-400">
-                    <span class="h-2 w-2 rounded-full bg-amber-400 animate-pulse"></span>
+                <div v-if="pendingSyncCount > 0" class="flex items-center gap-1 rounded-full bg-brand-orange/10 border border-brand-orange/30 px-2.5 py-1 text-xs font-semibold text-brand-orange">
+                    <span class="h-2 w-2 rounded-full bg-brand-orange animate-pulse"></span>
                     <span>{{ pendingSyncCount }} Queued</span>
                 </div>
 
@@ -132,25 +132,25 @@ const quickActions = [
                     @click="triggerSync"
                     :disabled="isSyncing || !isOnline"
                     :class="[
-                        isOnline ? 'text-slate-300 hover:text-white hover:bg-slate-800' : 'text-slate-600 cursor-not-allowed',
-                        'rounded-lg border border-slate-700 bg-slate-900/80 p-1.5 transition flex items-center gap-1 text-xs font-medium'
+                        isOnline ? 'text-slate-300 hover:text-white hover:bg-brand-navy/60' : 'text-slate-600 cursor-not-allowed',
+                        'rounded-xl border border-brand-navy bg-[#0B1E36] p-2 transition flex items-center gap-1 text-xs font-medium'
                     ]"
                     :title="isOnline ? 'Sync with Server' : 'Offline'"
                 >
-                    <svg :class="['h-4 w-4 text-cyan-400', isSyncing ? 'animate-spin' : '']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg :class="['h-4 w-4 text-brand-sky', isSyncing ? 'animate-spin' : '']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                     </svg>
-                    <span v-if="syncMessage" class="text-[10px] text-cyan-300 pr-1">{{ syncMessage }}</span>
+                    <span v-if="syncMessage" class="text-[10px] text-brand-cyan pr-1">{{ syncMessage }}</span>
                 </button>
 
                 <!-- Admin Link if Admin -->
                 <Link
                     v-if="user?.roles?.includes('admin')"
                     :href="route('admin.dashboard')"
-                    class="rounded-lg border border-slate-700 bg-slate-800 p-1.5 text-slate-300 hover:text-white"
+                    class="rounded-xl border border-brand-navy bg-[#0B1E36] p-2 text-brand-sky hover:text-white"
                     title="Switch to Admin Console"
                 >
-                    <svg class="h-5 w-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="h-5 w-5 text-brand-sky" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
                     </svg>
                 </Link>
@@ -159,7 +159,8 @@ const quickActions = [
                     :href="route('logout')"
                     method="post"
                     as="button"
-                    class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white"
+                    class="rounded-xl border border-brand-navy bg-[#0B1E36] p-2 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10"
+                    title="Logout"
                 >
                     <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -174,12 +175,12 @@ const quickActions = [
         </main>
 
         <!-- Mobile Bottom Navigation (PWA Optimized) -->
-        <nav class="fixed bottom-0 inset-x-0 z-40 flex items-center justify-around border-t border-slate-800 bg-slate-900/95 py-2 px-3 backdrop-blur-lg md:hidden">
+        <nav class="fixed bottom-0 inset-x-0 z-40 flex items-center justify-around border-t border-brand-navy bg-[#071322]/95 py-2 px-3 backdrop-blur-lg md:hidden">
             <Link
                 v-for="action in quickActions"
                 :key="action.name"
                 :href="action.href"
-                class="flex flex-col items-center gap-1 text-slate-400 hover:text-emerald-400 active:scale-95 transition"
+                class="flex flex-col items-center gap-1 text-slate-400 hover:text-brand-orange active:scale-95 transition"
             >
                 <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="action.icon" />
