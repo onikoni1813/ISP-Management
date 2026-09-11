@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Complaint;
 use App\Models\Connection;
 use App\Models\Customer;
 use App\Models\Payment;
@@ -50,12 +51,17 @@ class StaffController extends Controller
             ->take(5)
             ->get();
 
+        // Active assigned complaints count for this staff member
+        $openComplaintsCount = Complaint::where('assigned_to', $userId)
+            ->whereIn('status', ['open', 'assigned', 'in_progress'])
+            ->count();
+
         return Inertia::render('Staff/Dashboard', [
             'metrics' => [
                 'today_collection' => (float) $todayCollection,
                 'today_collection_count' => $todayCollectionCount,
                 'today_renewals_count' => $todayRenewalsCount,
-                'open_complaints_count' => 0, // Placeholder until Milestone 8
+                'open_complaints_count' => $openComplaintsCount,
             ],
             'recent_collections' => $recentCollections,
         ]);

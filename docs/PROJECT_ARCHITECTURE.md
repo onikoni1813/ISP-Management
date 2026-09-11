@@ -122,8 +122,19 @@
   - Password recovery requests throttled to 5 requests per minute (`throttle:5,1`).
   - New user registrations throttled to 10 requests per minute (`throttle:10,1`).
   - Public online connection applications throttled to 5 submissions per minute (`throttle:5,1`).
-- **Encrypted PPPoE Credentials & Audit Trail:**
-  - Passwords encrypted via Laravel `Crypt` payload.
-  - Restricted to explicit `pppoe.view_password` permission.
-  - Every password reveal logged in `audit_logs` with IP, actor, and timestamp.
+
+## 12. Performance & Database Query Optimization (Milestone 18)
+- **Targeted Composite Database Indexes:**
+  - `connections`: Added `(customer_id, status)` and `(expiry_date, status)` to accelerate customer portal queries, field staff connection reviews, and scheduled expiration/renewal cron jobs.
+  - `audit_logs`: Added `(user_id, created_at)` and `(module, created_at)` for high-speed audit ledger slicing, timeline ordering, and staff accountability reports.
+  - `complaints`: Composite index `(assigned_to, status)` supports instant retrieval of active tickets for logged-in technicians.
+- **Query Optimization & Eager Loading:**
+  - Standardized customer lookups across `CustomerService::searchCustomers` and `StaffController::search` with eager-loaded relations (`area`, `primaryContact`, `connections.currentPackage`, `connections.pppoeCredential`) to eliminate N+1 queries.
+  - Bounded paginated queries throughout billing, complaints, reporting, and audit trail ledger (`paginate(20)`).
+- **Application & Ledger Caching:**
+  - Cached high-frequency distinct aggregate queries (`audit_distinct_modules`, `audit_distinct_actions`) with a 5-minute TTL to prevent table scans on high-volume audit browsing.
+- **PWA Service Worker Cache Hierarchy:**
+  - Cache-First strategy for build chunks (`/build/`), WebP/PNG assets, SVG icons, and typography files.
+  - Network-First with offline cache fallback for Inertia HTML navigation pages.
+
 

@@ -57,8 +57,9 @@ class AuditLogController extends Controller
         $staffUsers = User::whereHas('roles', fn($r) => $r->whereIn('slug', ['admin', 'staff']))
             ->get(['id', 'name', 'email']);
 
-        $modules = AuditLog::select('module')->distinct()->pluck('module');
-        $actions = AuditLog::select('action')->distinct()->pluck('action');
+        // Cache distinct modules and actions to eliminate redundant sequential scans on high-traffic audit page
+        $modules = cache()->remember('audit_distinct_modules', 300, fn() => AuditLog::select('module')->distinct()->pluck('module'));
+        $actions = cache()->remember('audit_distinct_actions', 300, fn() => AuditLog::select('action')->distinct()->pluck('action'));
 
         return Inertia::render('Admin/Audit/Index', [
             'logs' => $logs,
