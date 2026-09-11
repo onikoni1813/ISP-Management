@@ -160,6 +160,11 @@ class CustomerController extends Controller
     {
         Gate::authorize('packages.update');
 
+        // Prevent IDOR: Ensure connection belongs to target customer
+        if ($connection->customer_id !== $customer->id) {
+            abort(404, 'Connection does not belong to specified customer.');
+        }
+
         $validated = $request->validate([
             'package_id' => 'required|exists:packages,id',
         ]);

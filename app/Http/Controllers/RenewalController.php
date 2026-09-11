@@ -45,6 +45,11 @@ class RenewalController extends Controller
     {
         Gate::authorize('renewals.create');
 
+        // Prevent IDOR: Verify connection belongs to specified customer
+        if ($connection->customer_id !== $customer->id) {
+            abort(404, 'Connection does not belong to specified customer.');
+        }
+
         $validated = $request->validate([
             'package_id' => 'nullable|exists:packages,id',
             'validity_days' => 'required|integer|min:1|max:365',

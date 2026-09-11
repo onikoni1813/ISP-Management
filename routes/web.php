@@ -27,7 +27,7 @@ Route::get('/faq', [WebsiteController::class, 'faq'])->name('faq');
 Route::get('/notices', [WebsiteController::class, 'notices'])->name('notices');
 Route::get('/contact', [WebsiteController::class, 'contact'])->name('contact');
 Route::get('/p/{slug}', [WebsiteController::class, 'customPage'])->name('page.custom');
-Route::post('/apply', [WebsiteController::class, 'apply'])->name('apply');
+Route::post('/apply', [WebsiteController::class, 'apply'])->middleware('throttle:5,1')->name('apply');
 
 // Authenticated Gateway redirect
 Route::get('/dashboard', function (Request $request) {
@@ -153,6 +153,7 @@ Route::middleware(['auth'])->prefix('account')->name('account.')->group(function
     Route::get('/', [CustomerPortalController::class, 'dashboard'])->name('dashboard');
     Route::get('/invoices', [CustomerPortalController::class, 'invoices'])->name('invoices');
     Route::get('/payments', [CustomerPortalController::class, 'payments'])->name('payments');
+    Route::get('/receipts/{payment}', [CustomerPortalController::class, 'receipt'])->name('receipt');
     Route::get('/renewal', [CustomerPortalController::class, 'renewal'])->name('renewal');
     Route::post('/renewal', [CustomerPortalController::class, 'storeRenewal'])->name('renewal.store');
     Route::get('/complaints', [CustomerPortalController::class, 'complaints'])->name('complaints');

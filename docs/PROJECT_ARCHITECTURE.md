@@ -109,7 +109,21 @@
   - Granular CRUD interfaces for Custom Pages, Banners, FAQs, and Notices.
   - Instant publish/draft toggle actions (`toggle`) and delete safeguards.
   - Automatic audit trail integration (`AuditLog::log`) for creation, editing, status toggling, and deletion of all CMS entities.
-- **Security & Authorization:**
-  - Restricted strictly to users holding the `website.manage` permission under the Admin domain.
-  - Dynamic page resolution (`/p/{slug}`) protects draft/unpublished pages with 404 responses until explicitly published by an administrator.
+## 11. Security Hardening & Defenses (Milestone 17)
+- **HTTP Security Headers (`SecurityHeadersMiddleware`):**
+  - Enforces `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`, `X-XSS-Protection: 1; mode=block`, `Referrer-Policy: strict-origin-when-cross-origin`, and `Permissions-Policy`.
+  - Disables client-side and intermediary proxy caching (`no-store, no-cache, must-revalidate, max-age=0, private`) on all authenticated responses to prevent credential/ledger leakage on shared terminals.
+- **IDOR Protection & Tenant Integrity:**
+  - Subscriber portal receipt viewing (`/account/receipts/{payment}`) strictly validates customer ownership before rendering.
+  - Cross-customer complaint replies (`/account/complaints/{complaint}/comments`) verify authenticated customer ownership.
+  - Package changes and connection renewal operations cross-check relationship integrity between `Customer` and `Connection` models (`$connection->customer_id === $customer->id`).
+- **Rate Limiting & Anti-Brute Force:**
+  - Login attempts throttled to 5 requests per minute (`throttle:5,1`).
+  - Password recovery requests throttled to 5 requests per minute (`throttle:5,1`).
+  - New user registrations throttled to 10 requests per minute (`throttle:10,1`).
+  - Public online connection applications throttled to 5 submissions per minute (`throttle:5,1`).
+- **Encrypted PPPoE Credentials & Audit Trail:**
+  - Passwords encrypted via Laravel `Crypt` payload.
+  - Restricted to explicit `pppoe.view_password` permission.
+  - Every password reveal logged in `audit_logs` with IP, actor, and timestamp.
 

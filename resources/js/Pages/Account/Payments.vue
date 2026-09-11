@@ -28,6 +28,7 @@ defineProps({
                             <th class="p-4">Reference</th>
                             <th class="p-4 text-right">Amount Paid</th>
                             <th class="p-4 text-center">Status</th>
+                            <th class="p-4 text-right">Receipt</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-800/60">
@@ -41,6 +42,15 @@ defineProps({
                                 <span class="rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 text-[10px] font-extrabold uppercase text-emerald-400">
                                     {{ pay.status }}
                                 </span>
+                            </td>
+                            <td class="p-4 text-right">
+                                <a
+                                    :href="route('account.receipt', pay.id)"
+                                    target="_blank"
+                                    class="rounded-xl border border-slate-700 bg-slate-800 px-3 py-1.5 text-[11px] font-bold text-cyan-400 hover:bg-slate-700 hover:text-white transition"
+                                >
+                                    View Receipt ↗
+                                </a>
                             </td>
                         </tr>
                     </tbody>

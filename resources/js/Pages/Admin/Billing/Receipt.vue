@@ -70,12 +70,13 @@ const printReceipt = () => {
 
             <!-- Receipt Actions -->
             <div class="pt-6 flex items-center justify-between print:hidden">
-                <Link
-                    :href="route('admin.billing.payments')"
+                <button
+                    @click="window?.history?.back ? window.history.back() : null"
+                    type="button"
                     class="rounded-xl border border-slate-700 bg-slate-800 px-4 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-700"
                 >
-                    Back to Payments
-                </Link>
+                    ← Back
+                </button>
                 <button
                     @click="printReceipt"
                     class="rounded-xl bg-indigo-600 hover:bg-indigo-500 px-5 py-2 text-xs font-bold text-white shadow-lg shadow-indigo-600/30"

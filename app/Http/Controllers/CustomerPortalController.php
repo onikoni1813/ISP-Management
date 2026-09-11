@@ -133,6 +133,25 @@ class CustomerPortalController extends Controller
     }
 
     /**
+     * View customer's money receipt with IDOR check.
+     */
+    public function receipt(Request $request, Payment $payment): Response
+    {
+        $customer = $this->getCustomer($request);
+
+        // Prevent IDOR: Customer can only view their own receipts
+        if ($payment->customer_id !== $customer->id) {
+            abort(403, 'Unauthorized access to money receipt.');
+        }
+
+        $payment->load(['customer.primaryContact', 'customer.installationAddress', 'account', 'collector', 'allocations.invoice']);
+
+        return Inertia::render('Admin/Billing/Receipt', [
+            'payment' => $payment,
+        ]);
+    }
+
+    /**
      * Complaints listing and ticket submission (/account/complaints).
      */
     public function complaints(Request $request): Response
