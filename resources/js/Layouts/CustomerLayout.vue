@@ -24,9 +24,9 @@ const navLinks = [
 </script>
 
 <template>
-    <div class="min-h-screen bg-slate-950 text-slate-100 flex flex-col antialiased selection:bg-cyan-500 selection:text-white">
+    <div class="min-h-screen bg-[#071322] text-slate-100 flex flex-col antialiased selection:bg-brand-orange selection:text-white">
         <!-- Top App Navigation -->
-        <header class="sticky top-0 z-30 border-b border-slate-800/80 bg-slate-900/90 px-4 py-3.5 backdrop-blur-md lg:px-8">
+        <header class="sticky top-0 z-30 border-b border-brand-navy bg-[#071322]/95 px-4 py-3.5 backdrop-blur-md lg:px-8">
             <div class="max-w-6xl mx-auto flex items-center justify-between">
                 <div class="flex items-center gap-3">
                     <Link :href="route('account.dashboard')" class="flex items-center gap-3">
@@ -34,7 +34,7 @@ const navLinks = [
                         <div>
                             <div class="text-sm font-black text-white tracking-tight leading-tight flex items-center gap-2">
                                 <span>Pirgacha Internet</span>
-                                <span class="rounded-full bg-cyan-500/10 border border-cyan-500/30 px-2 py-0.5 text-[10px] font-bold text-cyan-400">Portal</span>
+                                <span class="rounded-full bg-brand-orange/10 border border-brand-orange/30 px-2 py-0.5 text-[10px] font-bold text-brand-orange">Subscriber Portal</span>
                             </div>
                             <div class="text-xs text-slate-400 mt-0.5">Welcome, {{ user?.name }}</div>
                         </div>
@@ -46,14 +46,14 @@ const navLinks = [
                     <Link
                         v-if="user?.roles?.includes('admin')"
                         :href="route('admin.dashboard')"
-                        class="rounded-xl border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:text-white transition"
+                        class="rounded-xl border border-brand-navy bg-[#0B1E36] px-3 py-1.5 text-xs font-semibold text-slate-300 hover:text-white transition"
                     >
                         Admin
                     </Link>
                     <Link
                         v-if="user?.roles?.includes('staff')"
                         :href="route('staff.dashboard')"
-                        class="rounded-xl border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition"
+                        class="rounded-xl border border-brand-navy bg-[#0B1E36] px-3 py-1.5 text-xs font-semibold text-brand-sky hover:text-brand-cyan transition"
                     >
                         Staff
                     </Link>
@@ -62,7 +62,7 @@ const navLinks = [
                         :href="route('logout')"
                         method="post"
                         as="button"
-                        class="rounded-xl border border-slate-800 bg-slate-900 px-3 py-1.5 text-xs font-bold text-rose-400 hover:bg-rose-500/10 hover:border-rose-500/30 transition"
+                        class="rounded-xl border border-brand-navy bg-[#0B1E36] px-3 py-1.5 text-xs font-bold text-rose-400 hover:bg-rose-500/10 hover:border-rose-500/30 transition"
                     >
                         Sign Out
                     </Link>
@@ -70,16 +70,16 @@ const navLinks = [
             </div>
 
             <!-- Desktop Sub-Navigation Bar -->
-            <div class="max-w-6xl mx-auto mt-3 pt-3 border-t border-slate-800/60 hidden md:flex items-center gap-1">
+            <div class="max-w-6xl mx-auto mt-3 pt-3 border-t border-brand-navy/60 hidden md:flex items-center gap-1.5">
                 <Link
                     v-for="item in navLinks"
                     :key="item.name"
                     :href="item.href"
                     :class="[
                         route().current(item.active)
-                            ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30'
-                            : 'text-slate-400 hover:text-white hover:bg-slate-800/60 border-transparent',
-                        'rounded-xl border px-3 py-1.5 text-xs font-bold transition'
+                            ? 'bg-gradient-to-r from-brand-sky/20 to-brand-blue/30 text-white border-brand-sky/50 shadow-sm shadow-brand-sky/20'
+                            : 'text-slate-400 hover:text-white hover:bg-brand-navy/40 border-transparent',
+                        'rounded-xl border px-3.5 py-1.5 text-xs font-bold transition'
                     ]"
                 >
                     {{ item.name }}
@@ -104,13 +104,13 @@ const navLinks = [
         </main>
 
         <!-- Mobile Bottom Tab Bar (Customer Portal) -->
-        <nav class="fixed bottom-0 inset-x-0 z-40 flex items-center justify-around border-t border-slate-800 bg-slate-900/95 py-2 px-2 backdrop-blur-xl md:hidden">
+        <nav class="fixed bottom-0 inset-x-0 z-40 flex items-center justify-around border-t border-brand-navy bg-[#071322]/95 py-2 px-2 backdrop-blur-xl md:hidden">
             <Link
                 v-for="item in navLinks.slice(0, 5)"
                 :key="item.name"
                 :href="item.href"
                 :class="[
-                    route().current(item.active) ? 'text-cyan-400 font-black' : 'text-slate-400 font-medium',
+                    route().current(item.active) ? 'text-brand-orange font-black' : 'text-slate-400 font-medium',
                     'flex flex-col items-center gap-1 text-[11px] p-1.5 transition active:scale-95'
                 ]"
             >

@@ -42,7 +42,7 @@ const displayNotices = computed(() => {
     <WebsiteLayout>
         <div class="py-16 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
             <div class="text-center max-w-2xl mx-auto">
-                <span class="text-xs font-bold text-cyan-400 uppercase tracking-widest">NOC Bulletin</span>
+                <span class="text-xs font-bold text-brand-orange uppercase tracking-widest">NOC Bulletin</span>
                 <h1 class="text-3xl sm:text-4xl font-black text-white mt-2">Notices & Network Updates</h1>
                 <p class="text-xs text-slate-400 mt-2">Official service announcements, scheduled maintenance windows, and system updates.</p>
             </div>
@@ -51,19 +51,19 @@ const displayNotices = computed(() => {
                 <div
                     v-for="(n, idx) in displayNotices"
                     :key="idx"
-                    class="rounded-3xl border border-slate-800 bg-slate-900/60 p-6 backdrop-blur-sm space-y-3"
+                    class="rounded-3xl border border-brand-navy bg-[#091A2E]/80 p-6 backdrop-blur-sm space-y-3 hover:border-brand-sky/40 transition"
                 >
                     <div class="flex items-center justify-between">
-                        <span class="rounded-full bg-cyan-500/10 border border-cyan-500/20 px-2.5 py-0.5 text-[10px] font-bold text-cyan-400">
+                        <span class="rounded-full bg-brand-orange/10 border border-brand-orange/30 px-2.5 py-0.5 text-[10px] font-bold text-brand-orange">
                             {{ n.category }}
                         </span>
-                        <span class="text-xs font-mono text-slate-500">
-                            {{ n.published_at ? new Date(n.published_at).toLocaleDateString() : 'Active' }}
+                        <span class="text-xs font-mono text-brand-sky">
+                            {{ n.published_at }}
                         </span>
                     </div>
 
-                    <h3 class="text-base font-bold text-white">{{ n.title }}</h3>
-                    <p class="text-xs text-slate-300 leading-relaxed whitespace-pre-line">{{ n.content }}</p>
+                    <h3 class="text-lg font-bold text-white">{{ n.title }}</h3>
+                    <p class="text-xs text-slate-300 leading-relaxed">{{ n.content }}</p>
                 </div>
             </div>
         </div>

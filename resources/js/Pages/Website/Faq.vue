@@ -44,7 +44,7 @@ const displayFaqs = computed(() => {
     <WebsiteLayout>
         <div class="py-16 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
             <div class="text-center max-w-2xl mx-auto">
-                <span class="text-xs font-bold text-cyan-400 uppercase tracking-widest">Help & Support</span>
+                <span class="text-xs font-bold text-brand-orange uppercase tracking-widest">Help & Support</span>
                 <h1 class="text-3xl sm:text-4xl font-black text-white mt-2">Frequently Asked Questions</h1>
                 <p class="text-xs text-slate-400 mt-2">Answers to common inquiries about connection setup, billing, and technical support.</p>
             </div>
@@ -53,18 +53,18 @@ const displayFaqs = computed(() => {
                 <div
                     v-for="(faq, idx) in displayFaqs"
                     :key="idx"
-                    class="rounded-3xl border border-slate-800 bg-slate-900/60 p-6 backdrop-blur-sm space-y-2"
+                    class="rounded-3xl border border-brand-navy bg-[#091A2E]/80 p-6 backdrop-blur-sm space-y-2 hover:border-brand-sky/40 transition"
                 >
                     <div class="flex items-center justify-between">
                         <h3 class="text-base font-bold text-white flex items-center gap-2">
-                            <span class="text-cyan-400 font-mono">Q.</span>
+                            <span class="text-brand-orange font-mono">Q.</span>
                             {{ faq.question }}
                         </h3>
-                        <span v-if="faq.category" class="text-[10px] font-bold text-slate-400 border border-slate-800 bg-slate-950 px-2 py-0.5 rounded-full">
+                        <span v-if="faq.category" class="rounded-full bg-brand-sky/10 border border-brand-sky/30 px-2.5 py-0.5 text-[10px] font-bold text-brand-sky">
                             {{ faq.category }}
                         </span>
                     </div>
-                    <p class="text-xs text-slate-300 pl-6 leading-relaxed">
+                    <p class="text-xs text-slate-300 leading-relaxed pl-6">
                         {{ faq.answer }}
                     </p>
                 </div>
