@@ -130,8 +130,8 @@ const banglaPresets = [
     },
     {
         id: 'preset_pppoe_credentials',
-        name: '🔑 PPPoE আইডি, পাসওয়ার্ড ও লগইন লিংক',
-        message: 'প্রিয় {name}, আপনার পীরগাছা ইন্টারনেট কানেকশন প্রস্তুত। PPPoE আইডি: {pppoe_username}, পাসওয়ার্ড: {pppoe_password}। পোর্টাল লগইন: {login_url}',
+        name: '🔑 PPPoE আইডি, পাসওয়ার্ড ও পোর্টাল লিংক',
+        message: 'প্রিয় {name}, আপনার পীরগাছা ইন্টারনেট কানেকশন প্রস্তুত। PPPoE আইডি: {pppoe_username}, পাসওয়ার্ড: {pppoe_password}। পোর্টাল: {login_url}',
     },
 ];
 
