@@ -232,8 +232,13 @@ class CustomerService
                 'updated_by' => auth()->id(),
             ]);
 
-            // If billing day changed, also align active connection's expiry date
-            if ($billingDayChanged) {
+            // If explicit expiry_date is provided by admin, update connection expiry directly
+            if (!empty($data['expiry_date'])) {
+                foreach ($customer->connections as $conn) {
+                    $conn->update(['expiry_date' => $data['expiry_date']]);
+                }
+            } elseif ($billingDayChanged) {
+                // Otherwise if billing day changed, align active connection's expiry date
                 foreach ($customer->connections as $conn) {
                     if ($conn->expiry_date) {
                         $currentExpiry = \Carbon\Carbon::parse($conn->expiry_date);

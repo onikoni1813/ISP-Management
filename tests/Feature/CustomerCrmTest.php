@@ -172,6 +172,19 @@ class CustomerCrmTest extends TestCase
         $connection->refresh();
         $this->assertEquals('2026-10-15', $connection->expiry_date->toDateString());
 
+        // Test explicit manual override of connection expiry date by admin
+        $this->actingAs($this->admin)->put("/admin/customers/{$customer->id}", [
+            'name' => 'Saju Test Updated',
+            'phone' => '01711223344',
+            'area_id' => $area->id,
+            'status' => 'active',
+            'billing_day' => 15,
+            'expiry_date' => '2026-11-20',
+        ]);
+
+        $connection->refresh();
+        $this->assertEquals('2026-11-20', $connection->expiry_date->toDateString());
+
         \Carbon\Carbon::setTestNow(); // Clear frozen time
     }
 }

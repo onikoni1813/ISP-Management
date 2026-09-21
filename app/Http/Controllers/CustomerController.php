@@ -132,7 +132,7 @@ class CustomerController extends Controller
     {
         Gate::authorize('customers.update');
 
-        $customer->load(['area', 'primaryContact', 'installationAddress']);
+        $customer->load(['area', 'primaryContact', 'installationAddress', 'connections.currentPackage']);
         $areas = Area::where('status', 'active')->get(['id', 'name', 'code']);
 
         return Inertia::render('Admin/Customers/Edit', [
@@ -154,6 +154,7 @@ class CustomerController extends Controller
             'area_id' => 'required|exists:areas,id',
             'status' => 'required|in:active,expired,suspended,disconnected,pending,archived',
             'billing_day' => 'required|integer|min:1|max:31',
+            'expiry_date' => 'nullable|date',
             'notes' => 'nullable|string',
         ]);
 
