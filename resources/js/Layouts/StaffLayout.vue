@@ -131,6 +131,22 @@ let syncInterval = null;
 let autoSyncRoutine = null;
 let liveComplaintInterval = null;
 
+const cacheCurrentPageForOffline = async () => {
+    if ('caches' in window && 'serviceWorker' in navigator) {
+        try {
+            const cache = await caches.open('pirgacha-isp-cache-v5');
+            const res = await fetch(window.location.href, { credentials: 'same-origin' });
+            if (res && res.status === 200) {
+                await cache.put(window.location.href, res.clone());
+                await cache.put('/staff/dashboard', res.clone());
+                await cache.put('/staff/login', res.clone());
+            }
+        } catch (e) {
+            // silent catch
+        }
+    }
+};
+
 onMounted(() => {
     window.addEventListener('online', updateOnlineStatus);
     window.addEventListener('offline', updateOnlineStatus);
@@ -138,6 +154,7 @@ onMounted(() => {
     // Initial status check and initial background sync
     checkSyncStatus();
     if (navigator.onLine) {
+        cacheCurrentPageForOffline();
         autoSync(true);
         checkLiveAssignedComplaints();
     }
