@@ -1,5 +1,5 @@
-// Pirgacha Internet PWA Service Worker v4.0
-const CACHE_NAME = 'pirgacha-isp-cache-v4';
+// Pirgacha Internet PWA Service Worker v5.0
+const CACHE_NAME = 'pirgacha-isp-cache-v5';
 const STATIC_ASSETS = [
     '/',
     '/staff/login',
@@ -74,8 +74,11 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // HTML Navigation Pages (Inertia views) -> Network-First with Cache Fallback
-    if (request.mode === 'navigate' || request.headers.get('accept')?.includes('text/html')) {
+    // Inertia X-Inertia requests & HTML Navigation Pages -> Network-First with Cache Fallback
+    const isInertiaRequest = request.headers.get('x-inertia') === 'true';
+    const isNavigation = request.mode === 'navigate' || request.headers.get('accept')?.includes('text/html');
+
+    if (isNavigation || isInertiaRequest) {
         event.respondWith(
             fetch(request)
                 .then((networkResponse) => {
@@ -89,7 +92,11 @@ self.addEventListener('fetch', (event) => {
                 })
                 .catch(() => {
                     return caches.match(request).then((cached) => {
-                        return cached || caches.match('/staff/login') || caches.match('/staff/dashboard') || caches.match('/');
+                        if (cached) return cached;
+                        if (url.pathname.startsWith('/staff')) {
+                            return caches.match('/staff/dashboard') || caches.match('/staff/login');
+                        }
+                        return caches.match('/');
                     });
                 })
         );
@@ -113,3 +120,4 @@ self.addEventListener('fetch', (event) => {
         })
     );
 });
+

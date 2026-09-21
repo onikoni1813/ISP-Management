@@ -126,19 +126,59 @@ watch(searchQuery, (newVal) => {
 });
 
 const loadFilteredCustomers = async () => {
-    if (!navigator.onLine) return;
-    
     isFiltering.value = true;
     try {
-        const res = await axios.get(route('staff.api.filtered-customers'), {
-            params: {
-                area_id: selectedArea.value || undefined,
-                filter: activeFilter.value,
+        if (navigator.onLine) {
+            const res = await axios.get(route('staff.api.filtered-customers'), {
+                params: {
+                    area_id: selectedArea.value || undefined,
+                    filter: activeFilter.value,
+                }
+            });
+            filteredCustomersList.value = res.data.customers || [];
+            if (res.data.counts) {
+                filterCounts.value = res.data.counts;
             }
-        });
-        filteredCustomersList.value = res.data.customers || [];
-        if (res.data.counts) {
-            filterCounts.value = res.data.counts;
+        } else {
+            // Offline Mode: Pull from local IndexedDB
+            const { getAllFromStore } = await import('@/Services/offlineStorage');
+            const localCustomers = await getAllFromStore('customers');
+            let matched = localCustomers;
+            
+            if (selectedArea.value) {
+                matched = matched.filter(c => c.area_name === selectedArea.value);
+            }
+            
+            if (activeFilter.value === 'due') {
+                matched = matched.filter(c => Number(c.balance) < 0);
+            } else if (activeFilter.value === 'paid') {
+                matched = matched.filter(c => Number(c.balance) >= 0);
+            }
+            
+            filteredCustomersList.value = matched.map(c => ({
+                id: c.id,
+                name: c.name,
+                customer_code: c.customer_code,
+                balance: c.balance,
+                primary_contact: { phone: c.phone },
+                connections: [{
+                    current_package: { 
+                        name: c.package_name, 
+                        current_price: { price: c.monthly_rate } 
+                    },
+                    expiry_date: c.expiry_date,
+                    pppoe_credential: { username: c.pppoe_username },
+                }],
+            }));
+            
+            filterCounts.value = {
+                all: localCustomers.length,
+                due: localCustomers.filter(c => Number(c.balance) < 0).length,
+                paid: localCustomers.filter(c => Number(c.balance) >= 0).length,
+                renewed: 0,
+                expiring_72h: 0,
+                expired: 0,
+            };
         }
     } catch (error) {
         console.error('Filter fetch failed:', error);
