@@ -26,7 +26,11 @@ const staffDisplayName = computed(() => {
         .trim() || user.name;
 });
 
-const activeTab = ref('collections'); // 'collections' or 'complaints'
+// Read initial tab from URL query params (e.g., ?tab=complaints)
+const urlParams = new URLSearchParams(window.location.search);
+const initialTab = urlParams.get('tab') === 'complaints' ? 'complaints' : 'collections';
+
+const activeTab = ref(initialTab); // 'collections' or 'complaints'
 const selectedPeriod = ref('today'); // 'today', 'week', 'month'
 
 const currentMetrics = computed(() => {

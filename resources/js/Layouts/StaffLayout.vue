@@ -238,7 +238,7 @@ onUnmounted(() => {
 
                 <!-- Live Complaint Notification Bell -->
                 <Link
-                    :href="route('staff.complaints.index')"
+                    :href="route('staff.dashboard', { tab: 'complaints' })"
                     class="relative rounded-xl border border-brand-navy bg-[#0B1E36] p-2 text-slate-300 hover:text-white transition flex items-center justify-center"
                     title="Assigned Tasks / Complaints"
                 >
@@ -303,7 +303,7 @@ onUnmounted(() => {
 
                 <div class="flex items-center gap-2">
                     <Link
-                        :href="route('staff.complaints.index')"
+                        :href="route('staff.dashboard', { tab: 'complaints' })"
                         @click="hasNewTaskAlert = false"
                         class="rounded-xl bg-rose-500 hover:bg-rose-600 px-3 py-1.5 text-xs font-black text-white shadow-md transition"
                     >

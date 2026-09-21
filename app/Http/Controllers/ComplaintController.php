@@ -20,12 +20,16 @@ class ComplaintController extends Controller
     /**
      * Display complaints list.
      */
-    public function index(Request $request): Response
+    public function index(Request $request)
     {
         Gate::authorize('complaints.view');
 
         $user = $request->user();
         $isStaffOnly = $user->hasRole('staff') && !$user->hasRole('admin');
+
+        if ($isStaffOnly || $request->routeIs('staff.*')) {
+            return redirect()->route('staff.dashboard', ['tab' => 'complaints']);
+        }
 
         $query = Complaint::with(['customer.primaryContact', 'assignee', 'creator'])
             ->when($request->status, fn($q, $status) => $q->where('status', $status))
