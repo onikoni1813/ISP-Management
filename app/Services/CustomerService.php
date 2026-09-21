@@ -92,52 +92,81 @@ class CustomerService
     }
 
     /**
-     * Create a new Customer along with initial contact, installation address, connection, and PPPoE credential.
+     * Calculate next expiry date aligned with the customer's monthly Billing Day.
+     * E.g. Joined 21 Sep with Billing Day 8 -> Expiry 08 Oct (upcoming 8th).
+     */
+    public function calculateExpiryFromBillingDay(?int $billingDay, ?\Carbon\Carbon $fromDate = null): string
+    {
+        $today = $fromDate ? $fromDate->copy() : now();
+        $billingDay = (int) ($billingDay ?: 1);
+        $billingDay = max(1, min(31, $billingDay));
+
+        // Attempt target date in the current calendar month
+        $targetThisMonth = $today->copy();
+        $dayThisMonth = min($billingDay, $targetThisMonth->daysInMonth);
+        $targetThisMonth->day($dayThisMonth);
+
+        // If target day in current month is strictly after today, expiry is in current month.
+        // Otherwise (it is today or earlier in the month), expiry falls into the upcoming next month.
+        if ($targetThisMonth->greaterThan($today->copy()->startOfDay())) {
+            return $targetThisMonth->toDateString();
+        }
+
+        $targetNextMonth = $today->copy()->addMonthNoOverflow();
+        $dayNextMonth = min($billingDay, $targetNextMonth->daysInMonth);
+        $targetNextMonth->day($dayNextMonth);
+
+        return $targetNextMonth->toDateString();
+    }
+
+    /**
+     * Create a customer with contact, address, connection, and PPPoE credentials atomically.
      */
     public function createCustomer(array $data, ?int $userId = null): Customer
     {
         return DB::transaction(function () use ($data, $userId) {
-            // Generate next customer code: CUST-000001
             $lastCustomer = Customer::lockForUpdate()->latest('id')->first();
             $nextNumber = $lastCustomer ? ($lastCustomer->id + 1) : 1;
             $customerCode = 'CUST-' . str_pad((string) $nextNumber, 6, '0', STR_PAD_LEFT);
 
+            $billingDay = (int) ($data['billing_day'] ?? 1);
+
             $customer = Customer::create([
                 'customer_code' => $customerCode,
-                'area_id' => $data['area_id'] ?? null,
                 'name' => $data['name'],
-                'status' => 'active',
+                'area_id' => $data['area_id'],
+                'status' => $data['status'] ?? 'active',
                 'join_date' => $data['join_date'] ?? now()->toDateString(),
-                'billing_day' => $data['billing_day'] ?? 1,
                 'balance' => 0.00,
+                'billing_day' => $billingDay,
                 'created_by' => $userId,
                 'notes' => $data['notes'] ?? null,
             ]);
 
-            // Contact
+            // Create Primary Contact
             CustomerContact::create([
                 'customer_id' => $customer->id,
-                'contact_type' => 'primary',
                 'name' => $data['name'],
                 'phone' => $data['phone'],
                 'email' => $data['email'] ?? null,
+                'is_primary' => true,
             ]);
 
-            // Address
+            // Create Installation Address
             CustomerAddress::create([
                 'customer_id' => $customer->id,
                 'address_type' => 'installation',
-                'village_or_area' => $data['village_or_area'] ?? null,
-                'post_office' => $data['post_office'] ?? 'Pirgacha',
-                'police_station' => 'Pirgacha',
-                'district' => 'Rangpur',
-                'full_address' => $data['address'] ?? ($data['village_or_area'] ?? 'Pirgacha'),
+                'full_address' => $data['address'],
+                'is_default' => true,
             ]);
 
             // Create initial Connection if package provided
             if (!empty($data['package_id'])) {
                 $package = Package::with('currentPrice')->findOrFail($data['package_id']);
                 $connCode = 'CON-' . str_pad((string) $nextNumber, 6, '0', STR_PAD_LEFT);
+
+                // Expiry calculation aligned to customer's monthly Billing Day
+                $expiryDate = $this->calculateExpiryFromBillingDay($billingDay);
 
                 $connection = Connection::create([
                     'connection_code' => $connCode,
@@ -150,7 +179,7 @@ class CustomerService
                     'router_model' => $data['router_model'] ?? null,
                     'status' => 'active',
                     'installation_date' => now()->toDateString(),
-                    'expiry_date' => now()->addDays(30)->toDateString(),
+                    'expiry_date' => $expiryDate,
                 ]);
 
                 // Encrypted PPPoE Credentials
@@ -191,14 +220,29 @@ class CustomerService
         return DB::transaction(function () use ($customer, $data) {
             $oldValues = $customer->toArray();
 
+            $newBillingDay = isset($data['billing_day']) ? (int) $data['billing_day'] : null;
+            $billingDayChanged = $newBillingDay && ($newBillingDay !== (int) $oldValues['billing_day']);
+
             $customer->update([
                 'name' => $data['name'] ?? $customer->name,
                 'area_id' => $data['area_id'] ?? $customer->area_id,
                 'status' => $data['status'] ?? $customer->status,
-                'billing_day' => $data['billing_day'] ?? $customer->billing_day,
+                'billing_day' => $newBillingDay ?? $customer->billing_day,
                 'notes' => $data['notes'] ?? $customer->notes,
                 'updated_by' => auth()->id(),
             ]);
+
+            // If billing day changed, also align active connection's expiry date
+            if ($billingDayChanged) {
+                foreach ($customer->connections as $conn) {
+                    if ($conn->expiry_date) {
+                        $currentExpiry = \Carbon\Carbon::parse($conn->expiry_date);
+                        $targetDay = min($newBillingDay, $currentExpiry->daysInMonth);
+                        $newConnExpiry = $currentExpiry->copy()->day($targetDay);
+                        $conn->update(['expiry_date' => $newConnExpiry->toDateString()]);
+                    }
+                }
+            }
 
             if (!empty($data['phone'])) {
                 $contact = $customer->primaryContact;

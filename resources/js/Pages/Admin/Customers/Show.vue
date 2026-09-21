@@ -64,6 +64,48 @@ const submitPackageChange = () => {
         }
     });
 };
+
+// Collect Payment Form & Modal
+const showPaymentModal = ref(false);
+const defaultPrice = primaryConnection?.current_package?.current_price?.price || 0;
+const payForm = useForm({
+    amount: defaultPrice,
+    discount: 0,
+    payment_method: 'cash',
+    notes: 'Central office collection',
+});
+
+const openPaymentModal = () => {
+    payForm.amount = defaultPrice;
+    payForm.discount = 0;
+    payForm.payment_method = 'cash';
+    payForm.notes = 'Central office collection';
+    showPaymentModal.value = true;
+};
+
+const handleDiscountChange = () => {
+    const base = Number(defaultPrice) || 0;
+    const disc = Number(payForm.discount) || 0;
+    payForm.amount = Math.max(0, base - disc);
+};
+
+const submitPayment = () => {
+    if (!payForm.amount || payForm.amount <= 0) {
+        alert('সঠিক টাকার অঙ্ক লিখুন (Amount must be greater than 0)');
+        return;
+    }
+
+    payForm.post(route('customers.pay', props.customer.id), {
+        preserveScroll: true,
+        onSuccess: () => {
+            showPaymentModal.value = false;
+        },
+        onError: (errors) => {
+            const errList = Object.values(errors).flat().join('\n');
+            alert('বিল আদায়ে ত্রুটি:\n' + (errList || 'অনুগ্রহ করে পুনরায় চেষ্টা করুন'));
+        }
+    });
+};
 </script>
 
 <template>
@@ -107,7 +149,8 @@ const submitPackageChange = () => {
                 </Link>
                 <button
                     type="button"
-                    class="rounded-xl bg-emerald-600 hover:bg-emerald-500 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-emerald-600/25 transition"
+                    @click="openPaymentModal"
+                    class="rounded-xl bg-emerald-600 hover:bg-emerald-500 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-emerald-600/25 transition cursor-pointer"
                 >
                     Collect Payment
                 </button>
@@ -424,6 +467,103 @@ const submitPackageChange = () => {
                         <div class="text-xs text-slate-400 mt-1 italic">{{ customer.notes }}</div>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- Collect Payment Modal -->
+        <div v-if="showPaymentModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <div class="w-full max-w-sm rounded-3xl border border-slate-700 bg-[#071527] p-6 shadow-2xl space-y-4">
+                <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+                    <div>
+                        <h3 class="text-base font-bold text-white">বিল আদায় (Collect Payment)</h3>
+                        <p class="text-xs text-slate-400 mt-0.5">{{ customer.name }} ({{ customer.customer_code }})</p>
+                    </div>
+                    <button @click="showPaymentModal = false" class="text-slate-400 hover:text-white text-base">✕</button>
+                </div>
+
+                <form @submit.prevent="submitPayment" class="space-y-3.5">
+                    <!-- Package Price Reference -->
+                    <div class="p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-xs">
+                        <div class="flex justify-between text-slate-400">
+                            <span>প্যাকেজ রেট:</span>
+                            <span class="font-bold text-white font-mono">৳{{ defaultPrice }}</span>
+                        </div>
+                        <div class="flex justify-between text-slate-400 mt-1">
+                            <span>বিলিং ডে:</span>
+                            <span class="font-bold text-emerald-400 font-mono">{{ customer.billing_day }} তারিখ</span>
+                        </div>
+                    </div>
+
+                    <!-- Discount -->
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">ডিস্কাউন্ট বা ছাড় (৳)</label>
+                        <input
+                            v-model.number="payForm.discount"
+                            type="number"
+                            min="0"
+                            :max="defaultPrice"
+                            @input="handleDiscountChange"
+                            placeholder="0"
+                            class="w-full rounded-xl bg-slate-900 border border-slate-700 p-2.5 text-xs text-white font-mono focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none"
+                        />
+                    </div>
+
+                    <!-- Net Payable Amount -->
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">মোট আদায়যোগ্য পরিমাণ (৳) *</label>
+                        <input
+                            v-model.number="payForm.amount"
+                            type="number"
+                            min="1"
+                            required
+                            class="w-full rounded-xl bg-slate-900 border border-slate-700 p-2.5 text-xs font-bold text-emerald-400 font-mono focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none"
+                        />
+                    </div>
+
+                    <!-- Payment Method -->
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">পেমেন্ট মেথড *</label>
+                        <select
+                            v-model="payForm.payment_method"
+                            class="w-full rounded-xl bg-slate-900 border border-slate-700 p-2.5 text-xs text-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none"
+                        >
+                            <option value="cash">নগদ ক্যাশ (Cash)</option>
+                            <option value="bkash">বিকাশ (bKash)</option>
+                            <option value="nagad">নগদ (Nagad)</option>
+                            <option value="bank">ব্যাংক (Bank)</option>
+                            <option value="other">অন্যান্য (Other)</option>
+                        </select>
+                    </div>
+
+                    <!-- Notes -->
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">মন্তব্য (নোট)</label>
+                        <input
+                            v-model="payForm.notes"
+                            type="text"
+                            placeholder="নোট বা রেফারেন্স..."
+                            class="w-full rounded-xl bg-slate-900 border border-slate-700 p-2.5 text-xs text-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none"
+                        />
+                    </div>
+
+                    <div class="flex gap-2 pt-2">
+                        <button
+                            type="button"
+                            @click="showPaymentModal = false"
+                            class="flex-1 rounded-xl bg-slate-800 border border-slate-700 py-2.5 text-xs font-semibold text-slate-300 hover:text-white transition"
+                        >
+                            বাতিল
+                        </button>
+                        <button
+                            type="submit"
+                            :disabled="payForm.processing"
+                            class="flex-1 rounded-xl bg-emerald-600 hover:bg-emerald-500 py-2.5 text-xs font-bold text-white shadow-lg shadow-emerald-600/30 transition disabled:opacity-50 flex items-center justify-center gap-1.5"
+                        >
+                            <span v-if="payForm.processing">সংরক্ষণ হচ্ছে...</span>
+                            <span v-else>আদায় কনফার্ম করুন</span>
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </AdminLayout>
