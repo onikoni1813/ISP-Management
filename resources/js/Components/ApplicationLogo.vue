@@ -64,14 +64,22 @@ defineProps({
             </div>
         </div>
 
-        <!-- Typography with Logo brand colors -->
+        <!-- Typography with Logo brand colors (Option 3: Brand Sky Blue & Vibrant Orange Dual-Tone) -->
         <div v-if="withText" class="flex flex-col justify-center text-left">
-            <span class="text-base sm:text-lg font-black tracking-tight text-white leading-none transition-colors duration-300 group-hover:text-brand-cyan">
-                Pirgacha <span class="bg-gradient-to-r from-brand-sky to-brand-orange bg-clip-text text-transparent">Internet</span>
-            </span>
-            <span v-if="subText" class="text-[10px] sm:text-[11px] font-semibold tracking-wider text-brand-orange mt-1 block">
-                {{ subText }}
-            </span>
+            <div class="flex items-baseline tracking-tight font-black leading-none">
+                <span class="text-base sm:text-xl font-black bg-gradient-to-r from-sky-400 to-cyan-300 bg-clip-text text-transparent drop-shadow-[0_2px_8px_rgba(56,189,248,0.25)] transition-all duration-300 group-hover:from-white group-hover:to-sky-300">
+                    Pirgacha
+                </span>
+                <span class="text-base sm:text-xl font-black bg-gradient-to-r from-orange-400 via-brand-orange to-amber-400 bg-clip-text text-transparent ml-1.5 drop-shadow-[0_2px_8px_rgba(249,115,22,0.3)] transition-all duration-300 group-hover:from-orange-300 group-hover:to-amber-300">
+                    Internet
+                </span>
+            </div>
+            <div v-if="subText" class="flex items-center gap-1.5 mt-1.5">
+                <span class="h-1.5 w-1.5 rounded-full bg-gradient-to-r from-sky-400 to-brand-orange shadow-sm shadow-brand-orange"></span>
+                <span class="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.2em] text-slate-300 group-hover:text-white transition-colors">
+                    {{ subText }}
+                </span>
+            </div>
         </div>
     </div>
 </template>

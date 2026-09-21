@@ -126,4 +126,101 @@ class SmsEngineTest extends TestCase
         $this->assertEquals('sent', $failedLog->fresh()->status);
         $this->assertNull($failedLog->fresh()->error_message);
     }
+
+    public function test_bdbulksms_driver_sends_sms_and_checks_balance(): void
+    {
+        \Illuminate\Support\Facades\Http::fake([
+            'https://api.bdbulksms.net/api.php*' => \Illuminate\Support\Facades\Http::response([
+                [
+                    'status' => 'SENT',
+                    'status_code' => '1000',
+                    'message_id' => 'BDBULK-TEST-9988',
+                ]
+            ], 200),
+            'https://api.bdbulksms.net/g_api.php*' => \Illuminate\Support\Facades\Http::response([
+                'balance' => '150.50',
+            ], 200),
+        ]);
+
+        $gateway = SmsGateway::create([
+            'name' => 'BDBulkSMS Production',
+            'driver' => 'bdbulksms',
+            'api_url' => 'https://api.bdbulksms.net/api.php',
+            'api_key' => 'test_bdbulksms_token_123',
+            'sender_id' => 'PirgachaNet',
+            'is_active' => true,
+        ]);
+
+        $driver = $this->smsService->resolveDriver('bdbulksms');
+        $sendResult = $driver->send('01712345678', 'Testing BDBulkSMS Gateway integration', $gateway);
+
+        $this->assertTrue($sendResult['success']);
+        $this->assertEquals('BDBULK-TEST-9988', $sendResult['message_id']);
+
+        $balanceResult = $driver->getBalance($gateway);
+        $this->assertTrue($balanceResult['success']);
+        $this->assertEquals('150.50', $balanceResult['balance']);
+    }
+
+    public function test_bulksmsdhaka_driver_sends_sms_and_checks_balance(): void
+    {
+        \Illuminate\Support\Facades\Http::fake([
+            'https://bulksmsdhaka.net/api/sendtext*' => \Illuminate\Support\Facades\Http::response([
+                'Status' => '1000',
+                'Success' => 'true',
+                'Message' => 'Your OTP Send Successful!!',
+                'message_id' => 'BSMD-9988',
+            ], 200),
+            'https://bulksmsdhaka.net/api/getBalance*' => \Illuminate\Support\Facades\Http::response([
+                'Balance' => '250.75',
+                'Status' => '100',
+                'Success' => 'true',
+                'Message' => 'Successfully Done.',
+            ], 200),
+        ]);
+
+        $gateway = SmsGateway::create([
+            'name' => 'Bulk SMS Dhaka Live',
+            'driver' => 'bulksmsdhaka',
+            'api_url' => 'https://bulksmsdhaka.net/api',
+            'api_key' => 'test_bulksmsdhaka_key_123',
+            'sender_id' => '1234',
+            'is_active' => true,
+        ]);
+
+        $driver = $this->smsService->resolveDriver('bulksmsdhaka');
+        $sendResult = $driver->send('01712345678', 'Testing Bulk SMS Dhaka API', $gateway);
+
+        $this->assertTrue($sendResult['success']);
+        $this->assertEquals('BSMD-9988', $sendResult['message_id']);
+
+        $balanceResult = $driver->getBalance($gateway);
+        $this->assertTrue($balanceResult['success']);
+        $this->assertEquals('250.75', $balanceResult['balance']);
+    }
+
+    public function test_admin_can_delete_sms_gateway(): void
+    {
+        $gateway1 = SmsGateway::create([
+            'name' => 'Gateway to Delete',
+            'driver' => 'bdbulksms',
+            'is_active' => true,
+        ]);
+
+        $gateway2 = SmsGateway::create([
+            'name' => 'Fallback Gateway',
+            'driver' => 'log',
+            'is_active' => false,
+        ]);
+
+        $response = $this->actingAs($this->admin)->delete(route('admin.sms.gateways.destroy', $gateway1->id));
+
+        $response->assertRedirect();
+        $response->assertSessionHas('success');
+
+        $this->assertDatabaseMissing('sms_gateways', ['id' => $gateway1->id]);
+        $this->assertTrue((bool)$gateway2->fresh()->is_active);
+    }
 }
+
+

@@ -1,6 +1,7 @@
 <script setup>
 import { Head, Link } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import { formatDate, formatDateTime } from '@/Utils/date';
 
 defineProps({
     renewals: Object,
@@ -64,8 +65,8 @@ defineProps({
                                 <div class="text-xs text-slate-500">{{ ren.validity_days }} Days</div>
                             </td>
                             <td class="px-5 py-4 font-mono text-xs">
-                                <div class="text-slate-400">Prev: {{ ren.previous_expiry || 'N/A' }}</div>
-                                <div class="text-emerald-400 font-bold">New: {{ ren.new_expiry }}</div>
+                                <div class="text-slate-400">Prev: {{ formatDate(ren.previous_expiry) }}</div>
+                                <div class="text-emerald-400 font-bold">New: {{ formatDate(ren.new_expiry) }}</div>
                             </td>
                             <td class="px-5 py-4 font-mono font-extrabold text-white">
                                 <span v-if="ren.is_zero_charge" class="rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 text-xs">
@@ -84,7 +85,7 @@ defineProps({
                                 {{ ren.renewer?.name || 'System' }}
                             </td>
                             <td class="px-5 py-4 font-mono text-xs text-slate-400">
-                                {{ ren.renewed_at }}
+                                {{ formatDateTime(ren.renewed_at) }}
                             </td>
                         </tr>
                         <tr v-if="renewals.data.length === 0">

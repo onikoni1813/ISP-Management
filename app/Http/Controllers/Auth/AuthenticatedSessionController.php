@@ -33,7 +33,20 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        $user = $request->user();
+
+        // If user has admin/staff role, redirect to admin/staff
+        if ($user && $user->hasRole('admin')) {
+            return redirect()->intended(route('admin.dashboard', absolute: false));
+        }
+        if ($user && $user->hasRole('staff')) {
+            return redirect()->intended(route('staff.dashboard', absolute: false));
+        }
+
+        // Customer subscriber must ALWAYS go directly to customer account dashboard,
+        // clearing any previous intended admin URL stored in session
+        $request->session()->forget('url.intended');
+        return redirect()->route('account.dashboard');
     }
 
     /**

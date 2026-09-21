@@ -39,16 +39,27 @@ class ComplaintController extends Controller
 
         $complaints = $query->latest('id')->paginate(15)->withQueryString();
 
+        $countsQuery = Complaint::query()
+            ->when($isStaffOnly, fn($q) => $q->where('assigned_to', $user->id));
+
+        $counts = [
+            'total' => (clone $countsQuery)->count(),
+            'open' => (clone $countsQuery)->where('status', 'open')->count(),
+            'in_progress' => (clone $countsQuery)->whereIn('status', ['assigned', 'in_progress'])->count(),
+            'resolved' => (clone $countsQuery)->whereIn('status', ['resolved', 'closed'])->count(),
+        ];
+
         return Inertia::render('Admin/Complaints/Index', [
             'complaints' => $complaints,
             'filters' => $request->only(['search', 'status', 'priority']),
+            'counts' => $counts,
         ]);
     }
 
     /**
      * Show complaint ticket detail.
      */
-    public function show(Complaint $complaint): Response
+    public function show(Request $request, Complaint $complaint): Response
     {
         Gate::authorize('complaints.view');
 
@@ -63,6 +74,14 @@ class ComplaintController extends Controller
             'comments.user',
             'statusHistories.changer',
         ]);
+
+        $isStaffRoute = $request->routeIs('staff.*') || ($request->user()?->hasRole('staff') && !$request->user()?->hasRole('admin'));
+
+        if ($isStaffRoute) {
+            return Inertia::render('Staff/ComplaintDetails', [
+                'complaint' => $complaint,
+            ]);
+        }
 
         $staffUsers = User::whereHas('roles', fn($r) => $r->whereIn('slug', ['staff', 'admin']))->get(['id', 'name']);
 

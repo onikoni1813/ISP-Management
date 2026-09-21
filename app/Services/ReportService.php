@@ -27,8 +27,9 @@ class ReportService
         $method = $filters['payment_method'] ?? null;
         $collectorId = $filters['collector_id'] ?? null;
         $accountId = $filters['account_id'] ?? null;
+        $areaId = $filters['area_id'] ?? null;
 
-        $query = Payment::with(['customer', 'account', 'collector'])
+        $query = Payment::with(['customer.area', 'account', 'collector'])
             ->where('status', 'completed')
             ->whereBetween('paid_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
 
@@ -42,6 +43,10 @@ class ReportService
 
         if ($accountId) {
             $query->where('account_id', $accountId);
+        }
+
+        if ($areaId) {
+            $query->whereHas('customer', fn($c) => $c->where('area_id', $areaId));
         }
 
         $totalAmount = (float) (clone $query)->sum('amount');

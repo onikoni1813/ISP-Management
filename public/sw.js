@@ -1,11 +1,17 @@
-// Pirgacha Internet PWA Service Worker v2.0
-const CACHE_NAME = 'pirgacha-isp-cache-v2';
+// Pirgacha Internet PWA Service Worker v4.0
+const CACHE_NAME = 'pirgacha-isp-cache-v4';
 const STATIC_ASSETS = [
     '/',
+    '/staff/login',
     '/staff/dashboard',
     '/manifest.json',
     '/logo.png',
+    '/icon-192.png',
+    '/icon-512.png',
     '/favicon.ico',
+    '/favicon-32x32.png',
+    '/favicon-16x16.png',
+    '/apple-touch-icon.png',
 ];
 
 // Install: Pre-cache static app shell and critical resources
@@ -44,6 +50,7 @@ self.addEventListener('fetch', (event) => {
     if (
         url.pathname.startsWith('/build/') ||
         url.pathname.endsWith('.png') ||
+        url.pathname.endsWith('.ico') ||
         url.pathname.endsWith('.jpg') ||
         url.pathname.endsWith('.svg') ||
         url.pathname.endsWith('.woff2') ||
@@ -82,7 +89,7 @@ self.addEventListener('fetch', (event) => {
                 })
                 .catch(() => {
                     return caches.match(request).then((cached) => {
-                        return cached || caches.match('/staff/dashboard') || caches.match('/');
+                        return cached || caches.match('/staff/login') || caches.match('/staff/dashboard') || caches.match('/');
                     });
                 })
         );

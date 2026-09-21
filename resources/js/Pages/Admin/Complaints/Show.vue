@@ -2,6 +2,7 @@
 import { ref } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import { formatDateTime } from '@/Utils/date';
 
 const props = defineProps({
     complaint: Object,
@@ -77,7 +78,7 @@ const submitComment = () => {
                         <div v-for="c in complaint.comments" :key="c.id" class="py-3">
                             <div class="flex items-center justify-between text-xs">
                                 <span class="font-bold text-white">{{ c.user?.name }}</span>
-                                <span class="text-slate-500 font-mono">{{ c.created_at }}</span>
+                                <span class="text-slate-500 font-mono">{{ formatDateTime(c.created_at) }}</span>
                             </div>
                             <p class="text-xs text-slate-300 mt-1">{{ c.comment }}</p>
                         </div>

@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Expense extends Model
 {
-    use HasFactory;
+    use HasFactory, \App\Traits\FormatsSerializedDates;
 
     protected $fillable = [
         'expense_number',
@@ -26,7 +26,7 @@ class Expense extends Model
     {
         return [
             'amount' => 'decimal:2',
-            'expense_date' => 'date',
+            'expense_date' => 'date:Y-m-d',
         ];
     }
 

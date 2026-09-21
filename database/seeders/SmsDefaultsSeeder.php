@@ -13,12 +13,22 @@ class SmsDefaultsSeeder extends Seeder
      */
     public function run(): void
     {
-        // 1. Default Log Gateway
+        // 1. Default Gateways
         SmsGateway::firstOrCreate(
             ['driver' => 'log'],
             [
                 'name' => 'System Log (Testing)',
                 'is_active' => true,
+            ]
+        );
+
+        SmsGateway::firstOrCreate(
+            ['driver' => 'bdbulksms'],
+            [
+                'name' => 'BDBulkSMS (bdbulksms.net / Greenweb)',
+                'api_url' => 'https://api.bdbulksms.net/api.php',
+                'api_key' => null,
+                'is_active' => false,
             ]
         );
 
@@ -58,6 +68,12 @@ class SmsDefaultsSeeder extends Seeder
                 'name' => 'Complaint Resolved',
                 'code' => 'complaint_resolved',
                 'template' => 'Dear {name}, your support ticket #{complaint_number} has been resolved. If you still face issues, please call us. - Pirgacha Internet',
+                'is_auto_enabled' => true,
+            ],
+            [
+                'name' => 'PPPoE Credentials & Login Info',
+                'code' => 'pppoe_credentials',
+                'template' => 'Dear {name}, your Pirgacha Internet account is ready. PPPoE User: {pppoe_username}, Pass: {pppoe_password}. Login portal: {login_url}',
                 'is_auto_enabled' => true,
             ],
         ];

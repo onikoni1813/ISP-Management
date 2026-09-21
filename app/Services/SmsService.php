@@ -8,6 +8,7 @@ use App\Models\Customer;
 use App\Models\SmsGateway;
 use App\Models\SmsLog;
 use App\Models\SmsTemplate;
+use App\Services\SmsDrivers\AlphaSmsDriver;
 use App\Services\SmsDrivers\GenericHttpSmsDriver;
 use App\Services\SmsDrivers\LogSmsDriver;
 use Exception;
@@ -21,7 +22,10 @@ class SmsService
     public function resolveDriver(?string $driverName = null): SmsGatewayInterface
     {
         return match ($driverName) {
-            'generic_http', 'greenweb', 'bulksmsbd' => new GenericHttpSmsDriver(),
+            'alphasms', 'sms_net_bd', 'sms.net.bd' => new AlphaSmsDriver(),
+            'bulksmsdhaka', 'bulksmsdhaka.com' => new \App\Services\SmsDrivers\BulkSmsDhakaDriver(),
+            'bdbulksms', 'bdbulksms.net', 'greenweb' => new \App\Services\SmsDrivers\BdBulkSmsDriver(),
+            'generic_http', 'bulksmsbd' => new GenericHttpSmsDriver(),
             default => new LogSmsDriver(),
         };
     }
@@ -97,10 +101,11 @@ class SmsService
         array $extraVariables = [],
         ?int $userId = null,
         ?string $entityType = null,
-        ?int $entityId = null
+        ?int $entityId = null,
+        bool $force = false
     ): ?SmsLog {
         $template = SmsTemplate::where('code', $templateCode)->first();
-        if (!$template || !$template->is_auto_enabled) {
+        if (!$template || (!$template->is_auto_enabled && !$force)) {
             return null;
         }
 
@@ -123,14 +128,20 @@ class SmsService
         }
 
         // Default standard variables
-        $activeConnection = $customer->connections()->latest('id')->first();
+        $activeConnection = $customer->connections()->with(['currentPackage', 'pppoeCredential'])->latest('id')->first();
+        $pppoe = $activeConnection?->pppoeCredential;
+        $loginUrl = url('/login');
+
         $variables = array_merge([
             'name' => $customer->name,
             'customer_code' => $customer->customer_code,
-            'package' => $activeConnection?->package?->name ?? 'Standard Package',
+            'package' => $activeConnection?->currentPackage?->name ?? 'Standard Package',
             'amount' => '0.00',
             'expiry_date' => $activeConnection?->expiry_date?->toDateString() ?? 'N/A',
             'due' => number_format((float) max(0, -$customer->balance), 2),
+            'pppoe_username' => $pppoe?->username ?? 'N/A',
+            'pppoe_password' => $pppoe?->password ?? 'N/A',
+            'login_url' => $loginUrl,
         ], $extraVariables);
 
         $message = $this->parseTemplate($template->template, $variables);
@@ -170,5 +181,29 @@ class SmsService
         ]);
 
         return $log;
+    }
+
+    /**
+     * Check Gateway live account balance if supported (e.g. Alpha SMS).
+     */
+    public function getBalance(?SmsGateway $gateway = null): array
+    {
+        $targetGateway = $gateway ?? SmsGateway::where('is_active', true)->first();
+
+        if (!$targetGateway) {
+            return ['success' => false, 'balance' => null, 'error' => 'No active SMS gateway found.'];
+        }
+
+        $driver = $this->resolveDriver($targetGateway->driver);
+
+        if (method_exists($driver, 'getBalance')) {
+            return $driver->getBalance($targetGateway);
+        }
+
+        return [
+            'success' => false,
+            'balance' => null,
+            'error' => "Gateway driver '{$targetGateway->driver}' does not support balance inquiry.",
+        ];
     }
 }

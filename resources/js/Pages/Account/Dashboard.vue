@@ -1,15 +1,18 @@
 <script setup>
+import { ref } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import CustomerLayout from '@/Layouts/CustomerLayout.vue';
+import { formatDate, formatDateTime } from '@/Utils/date';
 
 const props = defineProps({
     customer: Object,
     primaryConnection: Object,
-    invoices: Array,
     payments: Array,
+    invoices: Array,
     complaints: Array,
 });
 
+const showPassword = ref(false);
 const currentPackage = props.primaryConnection?.current_package;
 const currentPrice = currentPackage?.current_price;
 const pppoe = props.primaryConnection?.pppoe_credential;
@@ -68,10 +71,15 @@ const dueAmount = Math.max(0, -balance);
         </div>
 
         <!-- 4 Key Subscriber Metrics -->
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <!-- Active Package -->
-            <div class="rounded-3xl border border-brand-navy bg-[#071527]/90 p-5 backdrop-blur-sm shadow-lg">
-                <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Subscribed Package</div>
+            <div class="rounded-3xl border border-brand-navy bg-[#071527]/90 p-5 backdrop-blur-sm shadow-lg relative">
+                <div class="flex justify-between items-start">
+                    <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Subscribed Package</div>
+                    <Link :href="route('account.upgrade')" class="text-[10px] font-bold uppercase tracking-wider bg-brand-navy hover:bg-brand-sky/20 border border-brand-navy hover:border-brand-sky/40 text-brand-sky px-2 py-1 rounded-lg transition shrink-0">
+                        Upgrade
+                    </Link>
+                </div>
                 <div class="text-xl font-black text-white mt-2">{{ currentPackage?.name || 'Standard Plan' }}</div>
                 <div class="text-xs font-bold text-brand-cyan mt-1 font-mono">{{ currentPackage?.speed_mbps || 10 }} Mbps Optical Fiber</div>
             </div>
@@ -80,7 +88,7 @@ const dueAmount = Math.max(0, -balance);
             <div class="rounded-3xl border border-brand-navy bg-[#071527]/90 p-5 backdrop-blur-sm shadow-lg">
                 <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Connection Expiry</div>
                 <div class="text-xl font-black text-brand-orange font-mono mt-2">
-                    {{ primaryConnection?.expiry_date || 'N/A' }}
+                    {{ formatDate(primaryConnection?.expiry_date) }}
                 </div>
                 <div class="text-xs text-slate-400 mt-1">Daily Automated Expiry Check</div>
             </div>
@@ -106,85 +114,111 @@ const dueAmount = Math.max(0, -balance);
             </div>
         </div>
 
-        <!-- PPPoE & Technical Information Card -->
+        <!-- PPPoE Only Technical Information Card -->
         <div class="rounded-3xl border border-brand-navy bg-[#071527]/90 p-5 mb-6 shadow-lg">
-            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Connection Technical Overview</h2>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs font-mono">
-                <div>
-                    <span class="text-slate-400 block text-[11px]">PPPoE Username</span>
-                    <span class="text-white font-bold">{{ pppoe?.username || 'None configured' }}</span>
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400">Connection Technical Overview</h2>
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                    {{ pppoe?.status || 'Active' }}
+                </span>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-mono">
+                <div class="rounded-2xl bg-[#040D18] border border-brand-navy/60 p-3.5">
+                    <span class="text-slate-400 block text-[11px] font-sans">PPPoE Username / ID</span>
+                    <span class="text-white font-bold text-sm select-all mt-0.5 block">{{ pppoe?.username || 'None configured' }}</span>
                 </div>
-                <div>
-                    <span class="text-slate-400 block text-[11px]">IP Address</span>
-                    <span class="text-brand-sky">{{ primaryConnection?.ip_address || 'Dynamic' }}</span>
-                </div>
-                <div>
-                    <span class="text-slate-400 block text-[11px]">Protocol</span>
-                    <span class="text-slate-200 uppercase">{{ primaryConnection?.protocol || 'PPPoE' }}</span>
-                </div>
-                <div>
-                    <span class="text-slate-400 block text-[11px]">Connected Router</span>
-                    <span class="text-slate-200">{{ primaryConnection?.router_model || 'Standard ONT' }}</span>
+                <div class="rounded-2xl bg-[#040D18] border border-brand-navy/60 p-3.5">
+                    <div class="flex items-center justify-between">
+                        <span class="text-slate-400 block text-[11px] font-sans">PPPoE Password</span>
+                        <button
+                            v-if="pppoe?.password"
+                            type="button"
+                            @click="showPassword = !showPassword"
+                            class="text-[10px] text-brand-sky hover:text-brand-cyan transition font-sans font-semibold cursor-pointer"
+                        >
+                            {{ showPassword ? 'Hide' : 'Show' }}
+                        </button>
+                    </div>
+                    <span class="text-brand-orange font-bold text-sm select-all mt-0.5 block">
+                        {{ showPassword ? pppoe?.password : '••••••••••••' }}
+                    </span>
                 </div>
             </div>
         </div>
 
-        <!-- Recent Invoices & Recent Payments Grid -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <!-- Recent Invoices -->
-            <div class="rounded-3xl border border-brand-navy bg-[#071527]/90 p-5 backdrop-blur-sm shadow-lg">
-                <div class="flex items-center justify-between mb-4">
-                    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400">Recent Invoices</h2>
-                    <Link :href="route('account.invoices')" class="text-xs font-bold text-brand-sky hover:text-brand-cyan">
-                        View All →
-                    </Link>
+        <!-- Recent Invoices Section -->
+        <div class="rounded-3xl border border-brand-navy bg-[#071527]/90 p-5 backdrop-blur-sm shadow-lg mb-6">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-2">
+                    <span class="text-sm">🧾</span>
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400">My Billing Invoices</h2>
                 </div>
+                <Link :href="route('account.invoices')" class="text-xs font-bold text-brand-sky hover:text-brand-cyan transition">
+                    View All Invoices →
+                </Link>
+            </div>
 
-                <div v-if="invoices?.length > 0" class="divide-y divide-brand-navy/80">
-                    <div v-for="inv in invoices" :key="inv.id" class="py-3 flex items-center justify-between">
-                        <div>
-                            <div class="text-sm font-bold text-white font-mono">{{ inv.invoice_number }}</div>
-                            <div class="text-[11px] text-slate-400 mt-0.5">Due: {{ inv.due_date }}</div>
-                        </div>
-                        <div class="text-right">
-                            <div class="text-sm font-mono font-black text-white">৳{{ inv.total }}</div>
-                            <span 
+            <div v-if="invoices?.length > 0" class="divide-y divide-brand-navy/80">
+                <div v-for="inv in invoices" :key="inv.id" class="py-3 flex items-center justify-between">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm font-bold text-white font-mono">{{ inv.invoice_number }}</span>
+                            <span
                                 :class="[
-                                    inv.status === 'paid' ? 'text-brand-cyan' : 'text-brand-orange',
-                                    'text-[10px] font-bold uppercase'
+                                    inv.status === 'paid' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : '',
+                                    inv.status === 'partial' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : '',
+                                    inv.status === 'unpaid' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : '',
+                                    'rounded-full border px-2 py-0.5 text-[9px] font-extrabold uppercase'
                                 ]"
                             >
                                 {{ inv.status }}
                             </span>
                         </div>
+                        <div class="text-[11px] text-slate-400 mt-0.5">Due: {{ formatDate(inv.due_date) }}</div>
                     </div>
-                </div>
-                <div v-else class="text-xs text-slate-400 py-4 text-center">No invoices generated yet.</div>
-            </div>
-
-            <!-- Recent Payments -->
-            <div class="rounded-3xl border border-brand-navy bg-[#071527]/90 p-5 backdrop-blur-sm shadow-lg">
-                <div class="flex items-center justify-between mb-4">
-                    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400">Payment History</h2>
-                    <Link :href="route('account.payments')" class="text-xs font-bold text-brand-sky hover:text-brand-cyan">
-                        View All →
-                    </Link>
-                </div>
-
-                <div v-if="payments?.length > 0" class="divide-y divide-brand-navy/80">
-                    <div v-for="pay in payments" :key="pay.id" class="py-3 flex items-center justify-between">
-                        <div>
-                            <div class="text-sm font-bold text-white font-mono">{{ pay.payment_number }}</div>
-                            <div class="text-[11px] text-slate-400 mt-0.5">{{ pay.paid_at }} • {{ pay.payment_method }}</div>
-                        </div>
+                    <div class="flex items-center gap-3">
                         <div class="text-right">
-                            <div class="text-sm font-mono font-black text-brand-orange">৳{{ pay.amount }}</div>
-                            <span class="text-[10px] font-bold text-brand-sky uppercase">{{ pay.status }}</span>
+                            <div class="text-sm font-mono font-bold text-white">৳{{ Number(inv.total) }}</div>
+                            <div v-if="Number(inv.due_amount) > 0" class="text-[10px] text-rose-400 font-mono font-semibold">
+                                Due: ৳{{ Number(inv.due_amount) }}
+                            </div>
                         </div>
+                        <Link
+                            :href="route('account.invoices.show', inv.id)"
+                            class="px-2.5 py-1 rounded-lg border border-slate-700 bg-slate-800 text-[11px] font-bold text-brand-sky hover:bg-slate-700 hover:text-white transition flex items-center gap-1"
+                        >
+                            <span>🖨️</span>
+                            <span>Print</span>
+                        </Link>
                     </div>
                 </div>
-                <div v-else class="text-xs text-slate-400 py-4 text-center">No payments recorded yet.</div>
             </div>
+            <div v-else class="text-xs text-slate-400 py-4 text-center">No invoices issued yet.</div>
+        </div>
+
+        <!-- Recent Payments / Payment History -->
+        <div class="rounded-3xl border border-brand-navy bg-[#071527]/90 p-5 backdrop-blur-sm shadow-lg mb-6">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400">Payment History</h2>
+                <Link :href="route('account.payments')" class="text-xs font-bold text-brand-sky hover:text-brand-cyan transition">
+                    View All →
+                </Link>
+            </div>
+
+            <div v-if="payments?.length > 0" class="divide-y divide-brand-navy/80">
+                <div v-for="pay in payments" :key="pay.id" class="py-3 flex items-center justify-between">
+                    <div>
+                        <div class="text-sm font-bold text-white font-mono">{{ pay.payment_number }}</div>
+                        <div class="text-[11px] text-slate-400 mt-0.5">{{ formatDateTime(pay.paid_at) }} • {{ pay.payment_method }}</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-sm font-mono font-black text-brand-orange">৳{{ pay.amount }}</div>
+                        <span class="text-[10px] font-bold text-brand-sky uppercase">{{ pay.status }}</span>
+                    </div>
+                </div>
+            </div>
+            <div v-else class="text-xs text-slate-400 py-4 text-center">No payments recorded yet.</div>
         </div>
     </CustomerLayout>
 </template>

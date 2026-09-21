@@ -2,13 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Account;
 use App\Models\Complaint;
 use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\Renewal;
+use App\Models\Setting;
+use App\Models\Package;
 use App\Services\BillingService;
 use App\Services\ComplaintService;
+use App\Services\CustomerService;
 use App\Services\RenewalService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -21,6 +25,7 @@ class CustomerPortalController extends Controller
         protected BillingService $billingService,
         protected RenewalService $renewalService,
         protected ComplaintService $complaintService,
+        protected CustomerService $customerService,
     ) {}
 
     /**
@@ -70,15 +75,14 @@ class CustomerPortalController extends Controller
 
         $primaryConnection = $customer->connections->first();
 
-        // Active package & billing metrics
-        $invoices = Invoice::where('customer_id', $customer->id)
-            ->latest('id')
-            ->take(5)
-            ->get();
-
         $payments = Payment::where('customer_id', $customer->id)
             ->where('status', 'completed')
             ->latest('paid_at')
+            ->take(5)
+            ->get();
+
+        $invoices = Invoice::where('customer_id', $customer->id)
+            ->latest('id')
             ->take(5)
             ->get();
 
@@ -90,27 +94,9 @@ class CustomerPortalController extends Controller
         return Inertia::render('Account/Dashboard', [
             'customer' => $customer,
             'primaryConnection' => $primaryConnection,
-            'invoices' => $invoices,
             'payments' => $payments,
-            'complaints' => $complaints,
-        ]);
-    }
-
-    /**
-     * Invoices list (/account/invoices).
-     */
-    public function invoices(Request $request): Response
-    {
-        $customer = $this->getCustomer($request);
-
-        $invoices = Invoice::with('items')
-            ->where('customer_id', $customer->id)
-            ->latest('id')
-            ->paginate(10);
-
-        return Inertia::render('Account/Invoices', [
-            'customer' => $customer,
             'invoices' => $invoices,
+            'complaints' => $complaints,
         ]);
     }
 
@@ -152,13 +138,58 @@ class CustomerPortalController extends Controller
     }
 
     /**
+     * Invoices list for logged-in subscriber (/account/invoices).
+     */
+    public function invoices(Request $request): Response
+    {
+        $customer = $this->getCustomer($request);
+
+        $invoices = Invoice::with('items')
+            ->where('customer_id', $customer->id)
+            ->latest('id')
+            ->paginate(10);
+
+        return Inertia::render('Account/Invoices', [
+            'customer' => $customer,
+            'invoices' => $invoices,
+        ]);
+    }
+
+    /**
+     * View subscriber's printable invoice with IDOR protection (/account/invoices/{invoice}).
+     */
+    public function showInvoice(Request $request, Invoice $invoice): Response
+    {
+        $customer = $this->getCustomer($request);
+
+        // Prevent IDOR: Customer can only view their own invoices
+        if ($invoice->customer_id !== $customer->id) {
+            abort(403, 'Unauthorized access to invoice.');
+        }
+
+        $invoice->load([
+            'customer.primaryContact',
+            'customer.installationAddress',
+            'customer.connections.pppoeCredential',
+            'items',
+            'allocations.payment',
+        ]);
+
+        return Inertia::render('Admin/Billing/Invoice', [
+            'invoice' => $invoice,
+        ]);
+    }
+
+    /**
      * Complaints listing and ticket submission (/account/complaints).
      */
     public function complaints(Request $request): Response
     {
         $customer = $this->getCustomer($request);
 
-        $complaints = Complaint::with(['comments.user'])
+        $complaints = Complaint::with(['comments' => function ($q) {
+            $q->where('is_internal', false)->with('user');
+        }])
             ->where('customer_id', $customer->id)
             ->latest('id')
             ->paginate(10);
@@ -166,6 +197,7 @@ class CustomerPortalController extends Controller
         return Inertia::render('Account/Complaints', [
             'customer' => $customer,
             'complaints' => $complaints,
+            'nocHotline' => Setting::get('noc_hotline', '01711-000000 / 01722-000000'),
         ]);
     }
 
@@ -217,9 +249,14 @@ class CustomerPortalController extends Controller
         $customer->load(['connections.currentPackage.currentPrice']);
         $primaryConnection = $customer->connections->first();
 
+        $paymentAccounts = Account::where('status', 'active')
+            ->whereIn('type', ['Mobile Banking', 'Bangla QR'])
+            ->get(['id', 'name', 'account_number', 'type', 'qr_image']);
+
         return Inertia::render('Account/Renewal', [
             'customer' => $customer,
             'primaryConnection' => $primaryConnection,
+            'paymentAccounts' => $paymentAccounts,
         ]);
     }
 
@@ -237,9 +274,17 @@ class CustomerPortalController extends Controller
 
         $validated = $request->validate([
             'validity_days' => 'required|integer|in:30,60,90',
-            'payment_method' => 'required|string|in:bkash,nagad,cash',
+            'account_id' => 'nullable|exists:accounts,id',
+            'payment_method' => 'nullable|string|max:100',
             'reference' => 'nullable|string|max:100',
         ]);
+
+        $account = null;
+        if (!empty($validated['account_id'])) {
+            $account = Account::where('id', $validated['account_id'])->where('status', 'active')->first();
+        }
+
+        $paymentMethod = $account ? strtolower($account->name) : ($validated['payment_method'] ?? 'Online Payment');
 
         $pkgPrice = $primaryConnection->currentPackage?->currentPrice?->price ?? 500;
         $multiplier = (int) ($validated['validity_days'] / 30);
@@ -249,9 +294,10 @@ class CustomerPortalController extends Controller
             'validity_days' => $validated['validity_days'],
             'amount' => $totalAmount,
             'collect_payment' => true,
-            'payment_method' => $validated['payment_method'],
+            'payment_method' => $paymentMethod,
+            'account_id' => $account?->id,
             'reference' => $validated['reference'] ?? 'Online Self-Renewal',
-            'notes' => 'Customer self-service portal renewal',
+            'notes' => 'Customer self-service portal renewal' . ($account ? " via {$account->name}" : ''),
         ], $request->user()->id);
 
         return redirect()->route('account.dashboard')->with('success', "Renewal successful! Your internet validity has been extended to {$renewal->new_expiry}.");
@@ -269,5 +315,55 @@ class CustomerPortalController extends Controller
             'customer' => $customer,
             'user' => $request->user(),
         ]);
+    }
+
+    /**
+     * Display the Package Upgrade screen (/account/upgrade).
+     */
+    public function upgrade(Request $request): Response
+    {
+        $customer = $this->getCustomer($request);
+        $customer->load(['connections.currentPackage.currentPrice']);
+
+        $primaryConnection = $customer->connections->first();
+        $packages = Package::with('currentPrice')->where('status', 'active')->get();
+
+        return Inertia::render('Account/Upgrade', [
+            'customer' => $customer,
+            'primaryConnection' => $primaryConnection,
+            'packages' => $packages,
+        ]);
+    }
+
+    /**
+     * Submit a Package Upgrade request.
+     */
+    public function storeUpgrade(Request $request)
+    {
+        $customer = $this->getCustomer($request);
+        $primaryConnection = $customer->connections->first();
+
+        if (!$primaryConnection) {
+            return back()->withErrors(['error' => 'No active connection found to upgrade.']);
+        }
+
+        $validated = $request->validate([
+            'package_id' => 'required|exists:packages,id',
+        ]);
+
+        $newPackage = Package::with('currentPrice')->find($validated['package_id']);
+        $newPrice = $newPackage->currentPrice ? $newPackage->currentPrice->price : 0;
+        
+        $currentPackage = $primaryConnection->currentPackage;
+        $currentPrice = $currentPackage && $currentPackage->currentPrice ? $currentPackage->currentPrice->price : 0;
+
+        if ($newPrice <= $currentPrice) {
+            return back()->withErrors(['error' => 'You can only upgrade to a package with a higher tier/price.']);
+        }
+
+        // Process instant package upgrade
+        $this->customerService->assignPackage($customer, $primaryConnection, $validated['package_id'], $request->user()->id);
+
+        return redirect()->route('account.dashboard')->with('success', 'Your package has been upgraded successfully. The new billing rate will apply from your next cycle.');
     }
 }

@@ -11,6 +11,8 @@
         "laravel/framework": "^12.0",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.10.1",
+        "mysoftit/bulksmsdhaka": "^1.0",
+        "sms_net_bd/sms": "^1.0",
         "tightenco/ziggy": "^2.0"
     },
     "require-dev": {

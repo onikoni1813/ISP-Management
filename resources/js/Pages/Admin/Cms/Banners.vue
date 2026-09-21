@@ -1,7 +1,8 @@
 <script setup>
 import { ref } from 'vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import ConfirmModal from '@/Components/ConfirmModal.vue';
 
 const props = defineProps({
     banners: Array,
@@ -10,13 +11,17 @@ const props = defineProps({
 const isCreating = ref(false);
 const editingBanner = ref(null);
 
+const showDeleteConfirm = ref(false);
+const bannerToDelete = ref(null);
+const deletingBanner = ref(false);
+
 const form = useForm({
     title: '',
     subtitle: '',
-    badge_text: '',
+    badge: '',
     button_text: '',
     button_url: '',
-    background_gradient: 'from-indigo-600 via-blue-600 to-emerald-500',
+    image_url: '',
     order: 0,
     is_active: true,
 });
@@ -35,10 +40,10 @@ const openEditModal = (banner) => {
     form.clearErrors();
     form.title = banner.title;
     form.subtitle = banner.subtitle || '';
-    form.badge_text = banner.badge_text || '';
+    form.badge = banner.badge || '';
     form.button_text = banner.button_text || '';
     form.button_url = banner.button_url || '';
-    form.background_gradient = banner.background_gradient || 'from-indigo-600 via-blue-600 to-emerald-500';
+    form.image_url = banner.image_url || '';
     form.order = banner.order;
     form.is_active = Boolean(banner.is_active);
     isCreating.value = true;
@@ -67,9 +72,20 @@ const toggleActive = (banner) => {
 };
 
 const deleteBanner = (banner) => {
-    if (confirm(`Are you sure you want to delete banner "${banner.title}"?`)) {
-        useForm({}).delete(route('admin.cms.banners.destroy', banner.id));
-    }
+    bannerToDelete.value = banner;
+    showDeleteConfirm.value = true;
+};
+
+const confirmDeleteBanner = () => {
+    if (!bannerToDelete.value) return;
+    deletingBanner.value = true;
+    router.delete(route('admin.cms.banners.destroy', bannerToDelete.value.id), {
+        onFinish: () => {
+            deletingBanner.value = false;
+            showDeleteConfirm.value = false;
+            bannerToDelete.value = null;
+        }
+    });
 };
 </script>
 
@@ -270,6 +286,19 @@ const deleteBanner = (banner) => {
                     </form>
                 </div>
             </div>
+
+            <!-- Professional Delete Banner Modal -->
+            <ConfirmModal
+                :show="showDeleteConfirm"
+                :title="'Delete Promotional Banner'"
+                :message="`Are you sure you want to delete banner &quot;${bannerToDelete?.title}&quot;? It will be removed from the homepage hero carousel.`"
+                confirm-text="Delete Banner"
+                cancel-text="Keep Banner"
+                type="danger"
+                :processing="deletingBanner"
+                @confirm="confirmDeleteBanner"
+                @cancel="showDeleteConfirm = false; bannerToDelete = null;"
+            />
         </div>
     </AdminLayout>
 </template>

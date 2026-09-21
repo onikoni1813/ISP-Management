@@ -35,12 +35,32 @@ defineProps({
                             {{ pkg.speed_mbps }} <span class="text-sm font-normal text-slate-400">Mbps</span>
                         </div>
 
+                        <div v-if="pkg.recommended_devices" class="mt-2.5 inline-flex items-center gap-1.5 rounded-lg bg-brand-sky/10 border border-brand-sky/20 px-2 py-1 text-[11px] text-brand-sky font-semibold">
+                            <span>📱</span>
+                            <span>{{ pkg.recommended_devices }}</span>
+                        </div>
+
                         <div class="mt-6 pt-6 border-t border-brand-navy space-y-2.5 text-xs text-slate-300">
-                            <div class="flex items-center gap-2"><span class="text-brand-orange font-bold">✓</span> Optical Fiber ONU Setup</div>
-                            <div class="flex items-center gap-2"><span class="text-brand-orange font-bold">✓</span> Unlimited Data, No FUP</div>
-                            <div class="flex items-center gap-2"><span class="text-brand-orange font-bold">✓</span> BDIX & Youtube Cache 100Mbps</div>
-                            <div class="flex items-center gap-2"><span class="text-brand-orange font-bold">✓</span> Low Latency Gaming Peering</div>
-                            <div class="flex items-center gap-2"><span class="text-brand-orange font-bold">✓</span> 24/7 Field Support</div>
+                            <template v-if="pkg.features && pkg.features.length > 0">
+                                <div
+                                    v-for="(feat, fIndex) in pkg.features.filter(f => f.enabled)"
+                                    :key="fIndex"
+                                    class="flex items-center justify-between"
+                                >
+                                    <span class="flex items-center gap-2">
+                                        <span class="text-brand-orange font-bold">✓</span>
+                                        <span>{{ feat.name }}</span>
+                                    </span>
+                                    <span class="font-mono font-bold text-brand-sky text-xs">{{ feat.value }}</span>
+                                </div>
+                            </template>
+                            <template v-else>
+                                <div class="flex items-center gap-2"><span class="text-brand-orange font-bold">✓</span> Optical Fiber ONU Setup</div>
+                                <div class="flex items-center gap-2"><span class="text-brand-orange font-bold">✓</span> Unlimited Data, No FUP</div>
+                                <div class="flex items-center gap-2"><span class="text-brand-orange font-bold">✓</span> YouTube & BDIX 100 Mbps</div>
+                                <div class="flex items-center gap-2"><span class="text-brand-orange font-bold">✓</span> Facebook & IMO Unlimited</div>
+                                <div class="flex items-center gap-2"><span class="text-brand-orange font-bold">✓</span> 24/7 Field Support</div>
+                            </template>
                         </div>
                     </div>
 

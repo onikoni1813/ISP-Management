@@ -151,10 +151,10 @@ const navLinks = [
                 <div>
                     <h3 class="text-xs font-extrabold uppercase tracking-wider text-brand-sky mb-3">Support & NOC</h3>
                     <ul class="space-y-2">
-                        <li>Hotline: <span class="text-white font-mono font-bold">01711-000000</span></li>
-                        <li>Email: <span class="text-white">support@pirgachainternet.com</span></li>
-                        <li>Support: <span class="text-brand-orange font-semibold">24/7 Field & Remote NOC</span></li>
-                        <li>Town Center, Pirgacha Sadar, Rangpur</li>
+                        <li>Hotline: <span class="text-white font-mono font-bold">{{ $page.props.company?.hotline || '01711-000000' }}</span></li>
+                        <li>Email: <span class="text-white">{{ $page.props.company?.email || 'support@pirgachainternet.com' }}</span></li>
+                        <li>Support: <span class="text-brand-orange font-semibold">{{ $page.props.company?.working_hours || '24/7 Field & Remote NOC' }}</span></li>
+                        <li>{{ $page.props.company?.address || 'Town Center, Pirgacha Sadar, Rangpur' }}</li>
                     </ul>
                 </div>
 
@@ -171,7 +171,11 @@ const navLinks = [
             </div>
 
             <div class="border-t border-brand-navy/50 py-6 text-center text-[11px] text-slate-500">
-                © 2026 Pirgacha Internet. All rights reserved. BTRC Licensed Broadband Provider.
+                <p class="mb-1">© {{ new Date().getFullYear() }} Pirgacha Internet. All rights reserved. BTRC Licensed Broadband Provider.</p>
+                <p class="font-medium tracking-wide text-slate-500">
+                    Developed with <span class="text-rose-500 mx-0.5">❤️</span> by 
+                    <a href="https://www.facebook.com/rashedsarkarofficial" target="_blank" class="font-bold text-brand-sky hover:text-brand-cyan transition ml-0.5">Rashed Sarkar</a>
+                </p>
             </div>
         </footer>
     </div>

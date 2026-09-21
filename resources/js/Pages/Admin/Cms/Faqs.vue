@@ -1,7 +1,8 @@
 <script setup>
 import { ref } from 'vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import ConfirmModal from '@/Components/ConfirmModal.vue';
 
 const props = defineProps({
     faqs: Array,
@@ -9,6 +10,10 @@ const props = defineProps({
 
 const isCreating = ref(false);
 const editingFaq = ref(null);
+
+const showDeleteConfirm = ref(false);
+const faqToDelete = ref(null);
+const deletingFaq = ref(false);
 
 const form = useForm({
     question: '',
@@ -64,9 +69,20 @@ const togglePublish = (faq) => {
 };
 
 const deleteFaq = (faq) => {
-    if (confirm(`Are you sure you want to delete FAQ: "${faq.question}"?`)) {
-        useForm({}).delete(route('admin.cms.faqs.destroy', faq.id));
-    }
+    faqToDelete.value = faq;
+    showDeleteConfirm.value = true;
+};
+
+const confirmDeleteFaq = () => {
+    if (!faqToDelete.value) return;
+    deletingFaq.value = true;
+    router.delete(route('admin.cms.faqs.destroy', faqToDelete.value.id), {
+        onFinish: () => {
+            deletingFaq.value = false;
+            showDeleteConfirm.value = false;
+            faqToDelete.value = null;
+        }
+    });
 };
 </script>
 
@@ -245,6 +261,19 @@ const deleteFaq = (faq) => {
                     </form>
                 </div>
             </div>
+
+            <!-- Professional Delete FAQ Modal -->
+            <ConfirmModal
+                :show="showDeleteConfirm"
+                :title="'Delete FAQ Item'"
+                :message="`Are you sure you want to delete this FAQ: &quot;${faqToDelete?.question}&quot;? It will be removed from customer guidance.`"
+                confirm-text="Delete FAQ"
+                cancel-text="Keep FAQ"
+                type="danger"
+                :processing="deletingFaq"
+                @confirm="confirmDeleteFaq"
+                @cancel="showDeleteConfirm = false; faqToDelete = null;"
+            />
         </div>
     </AdminLayout>
 </template>

@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class SalaryPayment extends Model
 {
-    use HasFactory;
+    use HasFactory, \App\Traits\FormatsSerializedDates;
 
     protected $fillable = [
         'payroll_number',
@@ -36,7 +36,7 @@ class SalaryPayment extends Model
             'advance_deduction' => 'decimal:2',
             'other_deductions' => 'decimal:2',
             'net_salary' => 'decimal:2',
-            'payment_date' => 'date',
+            'payment_date' => 'date:Y-m-d',
         ];
     }
 

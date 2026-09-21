@@ -2,6 +2,7 @@
 import { ref, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import { formatDateTime } from '@/Utils/date';
 
 const props = defineProps({
     logs: Object,
@@ -132,7 +133,7 @@ watch(search, () => {
                                 {{ log.ip_address || '127.0.0.1' }}
                             </td>
                             <td class="px-5 py-3 font-mono text-slate-400">
-                                {{ log.created_at }}
+                                {{ formatDateTime(log.created_at) }}
                             </td>
                             <td class="px-5 py-3 text-right">
                                 <span v-if="log.new_values" :title="JSON.stringify(log.new_values)" class="cursor-pointer text-indigo-400 hover:text-indigo-300 font-semibold underline">

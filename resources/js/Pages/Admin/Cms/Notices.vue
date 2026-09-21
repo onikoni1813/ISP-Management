@@ -1,7 +1,9 @@
 <script setup>
-import { ref } from 'vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { ref, computed } from 'vue';
+import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import ConfirmModal from '@/Components/ConfirmModal.vue';
+import { formatDate } from '@/Utils/date';
 
 const props = defineProps({
     notices: Array,
@@ -9,6 +11,21 @@ const props = defineProps({
 
 const isCreating = ref(false);
 const editingNotice = ref(null);
+const searchQuery = ref('');
+
+const showDeleteConfirm = ref(false);
+const noticeToDelete = ref(null);
+const deletingNotice = ref(false);
+
+const filteredNotices = computed(() => {
+    if (!searchQuery.value.trim()) return props.notices;
+    const q = searchQuery.value.toLowerCase();
+    return props.notices.filter(n => 
+        n.title.toLowerCase().includes(q) ||
+        n.category.toLowerCase().includes(q) ||
+        (n.content && n.content.toLowerCase().includes(q))
+    );
+});
 
 const form = useForm({
     title: '',
@@ -64,9 +81,20 @@ const togglePublish = (notice) => {
 };
 
 const deleteNotice = (notice) => {
-    if (confirm(`Are you sure you want to delete notice "${notice.title}"?`)) {
-        useForm({}).delete(route('admin.cms.notices.destroy', notice.id));
-    }
+    noticeToDelete.value = notice;
+    showDeleteConfirm.value = true;
+};
+
+const confirmDeleteNotice = () => {
+    if (!noticeToDelete.value) return;
+    deletingNotice.value = true;
+    router.delete(route('admin.cms.notices.destroy', noticeToDelete.value.id), {
+        onFinish: () => {
+            deletingNotice.value = false;
+            showDeleteConfirm.value = false;
+            noticeToDelete.value = null;
+        }
+    });
 };
 </script>
 
@@ -98,8 +126,76 @@ const deleteNotice = (notice) => {
                 </button>
             </div>
 
-            <!-- Notices Table -->
-            <div class="rounded-3xl border border-slate-800 bg-slate-900/60 backdrop-blur-sm overflow-hidden">
+            <!-- Search Bar -->
+            <div class="flex items-center justify-between gap-4">
+                <div class="relative flex-1 max-w-md">
+                    <input
+                        v-model="searchQuery"
+                        type="text"
+                        placeholder="Search notices by title, category or content..."
+                        class="w-full pl-9 pr-4 py-2 text-xs rounded-xl bg-slate-900/80 border border-slate-800 text-white placeholder-slate-500 focus:border-rose-500 focus:ring-1 focus:ring-rose-500"
+                    />
+                    <svg class="w-4 h-4 text-slate-500 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                </div>
+                <div class="text-xs text-slate-400 font-mono">
+                    Showing {{ filteredNotices.length }} of {{ notices.length }} notices
+                </div>
+            </div>
+
+            <!-- Mobile Cards View (block md:hidden) -->
+            <div class="block md:hidden space-y-3">
+                <div v-if="filteredNotices.length === 0" class="rounded-3xl border border-slate-800 bg-slate-900/60 p-8 text-center text-slate-500 text-xs">
+                    No notices published matching your search.
+                </div>
+                <div
+                    v-for="notice in filteredNotices"
+                    :key="'mobile-' + notice.id"
+                    class="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 space-y-3 shadow-lg"
+                >
+                    <div class="flex items-center justify-between">
+                        <span class="rounded-full bg-rose-500/10 border border-rose-500/20 px-2.5 py-0.5 text-[10px] font-bold text-rose-300">
+                            {{ notice.category }}
+                        </span>
+                        <button
+                            @click="togglePublish(notice)"
+                            :class="[
+                                notice.is_published ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-slate-800 text-slate-400 border-slate-700',
+                                'rounded-full border px-2.5 py-0.5 text-[10px] font-bold transition hover:opacity-80'
+                            ]"
+                        >
+                            {{ notice.is_published ? 'Published' : 'Draft' }}
+                        </button>
+                    </div>
+
+                    <div>
+                        <div class="font-bold text-white text-sm">{{ notice.title }}</div>
+                        <p class="text-xs text-slate-300 mt-1 line-clamp-3 leading-relaxed">{{ notice.content }}</p>
+                    </div>
+
+                    <div class="flex items-center justify-between pt-2 border-t border-slate-800/80 text-xs">
+                        <span class="text-slate-500 font-mono text-[11px]">{{ notice.published_at ? formatDate(notice.published_at) : 'Draft' }}</span>
+                        <div class="flex items-center gap-2">
+                            <button
+                                @click="openEditModal(notice)"
+                                class="rounded-lg px-2.5 py-1 text-slate-300 bg-slate-800 hover:text-white transition text-xs"
+                            >
+                                Edit
+                            </button>
+                            <button
+                                @click="deleteNotice(notice)"
+                                class="rounded-lg px-2.5 py-1 text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 transition text-xs"
+                            >
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Desktop Notices Table (hidden md:block) -->
+            <div class="hidden md:block rounded-3xl border border-slate-800 bg-slate-900/60 backdrop-blur-sm overflow-hidden">
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-xs text-slate-300">
                         <thead class="border-b border-slate-800 bg-slate-950/60 text-[11px] uppercase tracking-wider text-slate-400 font-semibold">
@@ -112,12 +208,12 @@ const deleteNotice = (notice) => {
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-800/60">
-                            <tr v-if="notices.length === 0">
+                            <tr v-if="filteredNotices.length === 0">
                                 <td colspan="5" class="py-8 text-center text-slate-500">
-                                    No notices published yet. Click "New Notice" to broadcast an ISP announcement.
+                                    No notices published matching your search.
                                 </td>
                             </tr>
-                            <tr v-for="notice in notices" :key="notice.id" class="hover:bg-slate-800/30 transition">
+                            <tr v-for="notice in filteredNotices" :key="notice.id" class="hover:bg-slate-800/30 transition">
                                 <td class="py-3 px-4">
                                     <div class="font-bold text-white">{{ notice.title }}</div>
                                     <div class="text-[11px] text-slate-400 truncate max-w-md mt-0.5">{{ notice.content }}</div>
@@ -128,7 +224,7 @@ const deleteNotice = (notice) => {
                                     </span>
                                 </td>
                                 <td class="py-3 px-4 text-slate-400 font-mono">
-                                    {{ notice.published_at ? new Date(notice.published_at).toLocaleDateString() : 'Draft' }}
+                                    {{ notice.published_at ? formatDate(notice.published_at) : 'Draft' }}
                                 </td>
                                 <td class="py-3 px-4">
                                     <button
@@ -253,6 +349,19 @@ const deleteNotice = (notice) => {
                     </form>
                 </div>
             </div>
+
+            <!-- Professional Delete Notice Modal -->
+            <ConfirmModal
+                :show="showDeleteConfirm"
+                :title="'Delete Notice Bulletin'"
+                :message="`Are you sure you want to delete notice bulletin &quot;${noticeToDelete?.title}&quot;? Subscribers will no longer see this notice on the notice board.`"
+                confirm-text="Delete Notice"
+                cancel-text="Keep Notice"
+                type="danger"
+                :processing="deletingNotice"
+                @confirm="confirmDeleteNotice"
+                @cancel="showDeleteConfirm = false; noticeToDelete = null;"
+            />
         </div>
     </AdminLayout>
 </template>

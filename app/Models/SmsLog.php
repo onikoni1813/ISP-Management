@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class SmsLog extends Model
 {
-    use HasFactory;
+    use HasFactory, \App\Traits\FormatsSerializedDates;
 
     protected $fillable = [
         'recipient',

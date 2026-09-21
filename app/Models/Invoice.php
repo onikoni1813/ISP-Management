@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Invoice extends Model
 {
-    use HasFactory;
+    use HasFactory, \App\Traits\FormatsSerializedDates;
 
     protected $fillable = [
         'invoice_number',
@@ -32,9 +32,9 @@ class Invoice extends Model
     protected function casts(): array
     {
         return [
-            'period_start' => 'date',
-            'period_end' => 'date',
-            'due_date' => 'date',
+            'period_start' => 'date:Y-m-d',
+            'period_end' => 'date:Y-m-d',
+            'due_date' => 'date:Y-m-d',
             'subtotal' => 'decimal:2',
             'discount' => 'decimal:2',
             'tax' => 'decimal:2',

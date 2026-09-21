@@ -14,6 +14,7 @@ class Account extends Model
         'name',
         'type',
         'account_number',
+        'qr_image',
         'balance',
         'status',
     ];

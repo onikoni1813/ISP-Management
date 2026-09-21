@@ -35,4 +35,15 @@ return [
         ],
     ],
 
+    'sms_net_bd' => [
+        'api_key' => env('SMS_NET_BD_API_KEY'),
+        'sender_id' => env('SMS_NET_BD_SENDER_ID'),
+    ],
+
+    'bdbulksms' => [
+        'api_url' => env('BDBULKSMS_API_URL', 'https://api.bdbulksms.net/api.php'),
+        'token' => env('BDBULKSMS_TOKEN', env('GREENWEB_SMS_TOKEN')),
+    ],
+
 ];
+

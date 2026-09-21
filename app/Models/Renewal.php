@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Renewal extends Model
 {
-    use HasFactory;
+    use HasFactory, \App\Traits\FormatsSerializedDates;
 
     protected $fillable = [
         'renewal_number',
@@ -32,12 +32,12 @@ class Renewal extends Model
     protected function casts(): array
     {
         return [
-            'previous_expiry' => 'date',
-            'new_expiry' => 'date',
+            'previous_expiry' => 'date:Y-m-d',
+            'new_expiry' => 'date:Y-m-d',
             'validity_days' => 'integer',
             'amount' => 'decimal:2',
             'is_zero_charge' => 'boolean',
-            'renewed_at' => 'datetime',
+            'renewed_at' => 'datetime:Y-m-d h:i A',
         ];
     }
 

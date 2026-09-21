@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Customer extends Model
 {
-    use HasFactory;
+    use HasFactory, \App\Traits\FormatsSerializedDates;
 
     protected $fillable = [
         'customer_code',
@@ -29,7 +29,7 @@ class Customer extends Model
     protected function casts(): array
     {
         return [
-            'join_date' => 'date',
+            'join_date' => 'date:Y-m-d',
             'billing_day' => 'integer',
             'balance' => 'decimal:2',
         ];
@@ -84,4 +84,25 @@ class Customer extends Model
     {
         return $this->hasMany(CustomerPackage::class);
     }
+
+    public function customerNotes(): HasMany
+    {
+        return $this->hasMany(CustomerNote::class)->latest('id');
+    }
+
+    public function invoices(): HasMany
+    {
+        return $this->hasMany(Invoice::class)->latest('id');
+    }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class)->latest('id');
+    }
+
+    public function renewals(): HasMany
+    {
+        return $this->hasMany(Renewal::class)->latest('id');
+    }
 }
+

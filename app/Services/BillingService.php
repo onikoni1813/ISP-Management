@@ -95,7 +95,14 @@ class BillingService
                 throw new Exception('Payment amount must be greater than zero.');
             }
 
-            // Target Account
+            $discount = (float) ($data['discount'] ?? 0.00);
+
+            // Check if user is staff (non-admin) collecting in the field
+            $user = \App\Models\User::find($userId);
+            $isFieldStaff = $user && $user->hasRole('staff') && !$user->hasRole('admin');
+            $status = $isFieldStaff ? 'pending' : 'completed';
+
+            // Target Account (if pending, account balance increments upon admin approval)
             $account = !empty($data['account_id']) 
                 ? Account::lockForUpdate()->findOrFail($data['account_id'])
                 : Account::firstOrCreate(['name' => 'Cash in Hand'], ['type' => 'cash', 'balance' => 0.00]);
@@ -105,16 +112,25 @@ class BillingService
                 'customer_id' => $customer->id,
                 'account_id' => $account->id,
                 'amount' => $amount,
+                'discount' => $discount,
                 'payment_method' => $data['payment_method'] ?? 'cash',
                 'reference' => $data['reference'] ?? null,
                 'idempotency_key' => $data['idempotency_key'] ?? null,
                 'paid_at' => $data['paid_at'] ?? now(),
                 'collected_by' => $userId,
-                'status' => 'completed',
+                'status' => $status,
+                'approved_by' => !$isFieldStaff ? $userId : null,
+                'approved_at' => !$isFieldStaff ? now() : null,
                 'notes' => $data['notes'] ?? null,
             ]);
 
-            // Update target account balance
+            // If field staff, keep as pending approval - Do not alter accounts or generate paid invoice yet
+            if ($isFieldStaff) {
+                AuditLog::log('payment_collected_pending_approval', 'billing', $payment, null, $payment->toArray());
+                return $payment;
+            }
+
+            // For admin or direct collections: complete immediately
             $account->increment('balance', $amount);
 
             // 2. Allocate payment across unpaid or partial invoices (oldest first or specified)
@@ -169,6 +185,111 @@ class BillingService
                     'due' => number_format((float) max(0, -$customer->fresh()->balance), 2),
                 ],
                 $userId,
+                \App\Models\Payment::class,
+                $payment->id
+            );
+
+            return $payment;
+        });
+    }
+
+    /**
+     * Approve a pending payment, generate official paid invoice, and reconcile accounts.
+     */
+    public function approvePayment(Payment $payment, int $adminId): Payment
+    {
+        return DB::transaction(function () use ($payment, $adminId) {
+            if ($payment->status !== 'pending') {
+                throw new Exception("Only pending payments can be approved. Current status: {$payment->status}");
+            }
+
+            $customer = $payment->customer()->lockForUpdate()->firstOrFail();
+            $amount = (float) $payment->amount;
+            $discount = (float) ($payment->discount ?? 0.00);
+
+            // 1. Reconcile receiving account balance
+            $account = $payment->account ? Account::lockForUpdate()->find($payment->account_id) : null;
+            if ($account) {
+                $account->increment('balance', $amount);
+            }
+
+            // 2. Determine PPPoE connection and active package
+            $connection = $customer->connections()
+                ->with(['currentPackage.currentPrice', 'pppoeCredential'])
+                ->first();
+
+            $package = $connection?->currentPackage;
+            $pppoeUsername = $connection?->pppoeCredential?->username ?? 'N/A';
+            $packageName = $package?->name ?? 'Internet Package';
+            $speed = $package?->speed_mbps ?? 0;
+
+            // 3. Generate Official Paid Invoice associated with Customer & PPPoE Service
+            $lastInvoice = Invoice::lockForUpdate()->latest('id')->first();
+            $nextNumber = $lastInvoice ? ($lastInvoice->id + 1) : 1;
+            $invoiceNumber = 'INV-' . date('Y') . '-' . str_pad((string) $nextNumber, 6, '0', STR_PAD_LEFT);
+
+            $periodStart = now()->startOfMonth()->toDateString();
+            $periodEnd = now()->endOfMonth()->toDateString();
+
+            $invoice = Invoice::create([
+                'invoice_number' => $invoiceNumber,
+                'customer_id' => $customer->id,
+                'billing_cycle_id' => null,
+                'period_start' => $periodStart,
+                'period_end' => $periodEnd,
+                'due_date' => now()->toDateString(),
+                'subtotal' => $amount + $discount,
+                'discount' => $discount,
+                'tax' => 0.00,
+                'total' => $amount,
+                'paid_amount' => $amount,
+                'due_amount' => 0.00,
+                'status' => 'paid',
+                'created_by' => $adminId,
+                'notes' => "Auto-generated upon payment approval. PPPoE: {$pppoeUsername}, Package: {$packageName} ({$speed} Mbps)",
+            ]);
+
+            // Create Invoice Item
+            InvoiceItem::create([
+                'invoice_id' => $invoice->id,
+                'item_type' => 'package',
+                'description' => "Internet Service: {$packageName} ({$speed} Mbps) - PPPoE: {$pppoeUsername}",
+                'unit_price' => $amount + $discount,
+                'quantity' => 1,
+                'total' => $amount + $discount,
+            ]);
+
+            // Allocate Payment to this Generated Invoice
+            PaymentAllocation::create([
+                'payment_id' => $payment->id,
+                'invoice_id' => $invoice->id,
+                'allocated_amount' => $amount,
+            ]);
+
+            // Update Payment to completed with approval audit info & invoice link
+            $payment->update([
+                'status' => 'completed',
+                'approved_by' => $adminId,
+                'approved_at' => now(),
+                'generated_invoice_id' => $invoice->id,
+            ]);
+
+            AuditLog::log('payment_approved', 'billing', $payment, null, [
+                'admin_id' => $adminId,
+                'generated_invoice_id' => $invoice->id,
+                'amount' => $amount,
+                'discount' => $discount,
+            ]);
+
+            // Automated Payment Confirmation SMS to Customer
+            \App\Jobs\SendCustomerSmsJob::dispatch(
+                'payment_received',
+                $customer->id,
+                [
+                    'amount' => number_format($amount, 2),
+                    'due' => number_format((float) max(0, -$customer->fresh()->balance), 2),
+                ],
+                $adminId,
                 \App\Models\Payment::class,
                 $payment->id
             );

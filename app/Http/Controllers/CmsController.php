@@ -7,6 +7,7 @@ use App\Models\CmsBanner;
 use App\Models\CmsFaq;
 use App\Models\CmsNotice;
 use App\Models\CmsPage;
+use App\Models\Setting;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -344,5 +345,43 @@ class CmsController extends Controller
         $notice->delete();
 
         return back()->with('success', 'Notice deleted successfully.');
+    }
+
+    /**
+     * General Website & NOC Hotline Settings.
+     */
+    public function settings(): Response
+    {
+        Gate::authorize('website.manage');
+
+        return Inertia::render('Admin/Cms/Settings', [
+            'settings' => Setting::getAll(),
+        ]);
+    }
+
+    public function updateSettings(Request $request): RedirectResponse
+    {
+        Gate::authorize('website.manage');
+
+        $validated = $request->validate([
+            'noc_hotline' => 'required|string|max:255',
+            'support_email' => 'nullable|email|max:255',
+            'office_address' => 'nullable|string|max:500',
+            'working_hours' => 'nullable|string|max:255',
+            'maintenance_mode' => 'nullable|boolean',
+            'maintenance_title' => 'nullable|string|max:255',
+            'maintenance_message' => 'nullable|string|max:1000',
+            'maintenance_estimated_time' => 'nullable|string|max:100',
+        ]);
+
+        $validated['maintenance_mode'] = !empty($validated['maintenance_mode']) ? '1' : '0';
+
+        foreach ($validated as $key => $value) {
+            Setting::set($key, (string)$value, 'website_settings');
+        }
+
+        AuditLog::log('cms_settings_updated', 'website', null, null, $validated);
+
+        return back()->with('success', 'Website settings and Maintenance Mode status updated successfully.');
     }
 }

@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "4f8f662a00be803791e6c3cecb3d6ed6",
+    "content-hash": "9b33847ec106ad1f8f0ffae585b7a5a9",
     "packages": [
         {
             "name": "brick/math",
@@ -2271,6 +2271,58 @@
             "time": "2026-09-09T08:34:20+00:00"
         },
         {
+            "name": "mysoftit/bulksmsdhaka",
+            "version": "1.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/mysoftit/bulksmsdhaka.git",
+                "reference": "aaefdd59a017371f9972423d87534f3431fe95af"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/mysoftit/bulksmsdhaka/zipball/aaefdd59a017371f9972423d87534f3431fe95af",
+                "reference": "aaefdd59a017371f9972423d87534f3431fe95af",
+                "shasum": ""
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "mysoftit\\bulksmsdhaka\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Md.Omar Faruqe",
+                    "email": "mysoftit13@gmail.com",
+                    "homepage": "https://github.com/mysoftit",
+                    "role": "Developer"
+                }
+            ],
+            "description": "Bulk SMS Dhaka Package for Laravel - Easy to SMS integration with the SMS Gateway from bulksmsdhaka.com Bulk send messages, check balances, get delivery reports, and manage SMS effortlessly in your Laravel applications.",
+            "homepage": "https://github.com/mysoftit/bulksmsdhaka",
+            "keywords": [
+                "Bulk SMS Dhaka",
+                "api",
+                "bulksmsdhaka.com",
+                "communication",
+                "gateway",
+                "laravel",
+                "message",
+                "notification",
+                "sms",
+                "sms-gateway"
+            ],
+            "support": {
+                "issues": "https://github.com/mysoftit/bulksmsdhaka/issues",
+                "source": "https://github.com/mysoftit/bulksmsdhaka/tree/1.0.0"
+            },
+            "time": "2024-12-31T17:18:08+00:00"
+        },
+        {
             "name": "nesbot/carbon",
             "version": "3.13.2",
             "source": {
@@ -3440,6 +3492,57 @@
                 "source": "https://github.com/ramsey/uuid/tree/4.9.3"
             },
             "time": "2026-06-18T03:57:49+00:00"
+        },
+        {
+            "name": "sms_net_bd/sms",
+            "version": "1.0.4",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/sms-bd/sms-bd-laravel.git",
+                "reference": "265206808e7dc3c0d1f47adbfc59657a1aab4320"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/sms-bd/sms-bd-laravel/zipball/265206808e7dc3c0d1f47adbfc59657a1aab4320",
+                "reference": "265206808e7dc3c0d1f47adbfc59657a1aab4320",
+                "shasum": ""
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "sms_net_bd\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "md-riaz",
+                    "email": "mdriazwd@gmail.com",
+                    "homepage": "https://github.com/md-riaz",
+                    "role": "Developer"
+                }
+            ],
+            "description": "SMS Package for Laravel - Simplify SMS integration with the SMS Gateway from sms.net.bd. Send message, check balance, get delivery reports, and manage SMS effortlessly in your Laravel applications.",
+            "homepage": "https://github.com/smsnetbd/sms-net-bd-laravel",
+            "keywords": [
+                "api",
+                "communication",
+                "gateway",
+                "laravel",
+                "message",
+                "notification",
+                "sms",
+                "sms-gateway",
+                "sms.net.bd"
+            ],
+            "support": {
+                "issues": "https://github.com/sms-bd/sms-bd-laravel/issues",
+                "source": "https://github.com/sms-bd/sms-bd-laravel/tree/1.0.4"
+            },
+            "time": "2024-03-24T09:33:18+00:00"
         },
         {
             "name": "symfony/clock",

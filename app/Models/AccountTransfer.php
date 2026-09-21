@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class AccountTransfer extends Model
 {
-    use HasFactory;
+    use HasFactory, \App\Traits\FormatsSerializedDates;
 
     protected $fillable = [
         'transfer_number',
@@ -24,7 +24,7 @@ class AccountTransfer extends Model
     {
         return [
             'amount' => 'decimal:2',
-            'transfer_date' => 'date',
+            'transfer_date' => 'date:Y-m-d',
         ];
     }
 

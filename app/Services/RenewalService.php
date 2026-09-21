@@ -25,11 +25,14 @@ class RenewalService
      * - Active / Early renewal: Appends days to current expiry_date.
      * - Expired customer renewal: Starts from today + validity days.
      * - Deduction / Zero-charge shift (Special user rule): Deducts or shifts specified days safely.
+     * - Auto Grace Deduction: When paying full renewal, deducts any previously availed unpaid grace days (e.g. 30 - 2 = 28 days).
      */
-    public function calculateNewExpiry(Connection $connection, int $days, string $mode = 'standard'): array
+    public function calculateNewExpiry(Connection $connection, int $days, string $mode = 'standard', bool $isZeroCharge = false): array
     {
         $today = Carbon::today();
         $prevExpiry = $connection->expiry_date ? Carbon::parse($connection->expiry_date) : null;
+        $adjustedDays = $days;
+        $graceDaysDeducted = 0;
 
         if ($mode === 'deduct_shift') {
             // User special rule: Reduces or shifts duration directly without charging extra fees
@@ -38,23 +41,43 @@ class RenewalService
             return [
                 'previous_expiry' => $prevExpiry?->toDateString(),
                 'new_expiry' => $newExpiry->toDateString(),
+                'validity_days' => $days,
+                'grace_deducted' => 0,
                 'type' => 'validity_shift',
             ];
         }
 
+        // If paying full package renewal, check if customer availed unpaid advance grace extension earlier
+        if (!$isZeroCharge && $connection->customer_id) {
+            $lastPaymentDate = Payment::where('customer_id', $connection->customer_id)->max('paid_at') ?? '1970-01-01';
+            
+            // Total zero charge grace days taken since last payment
+            $graceDaysTaken = (int) Renewal::where('customer_id', $connection->customer_id)
+                ->where('is_zero_charge', true)
+                ->where('renewed_at', '>=', $lastPaymentDate)
+                ->sum('validity_days');
+
+            if ($graceDaysTaken > 0) {
+                $graceDaysDeducted = min($graceDaysTaken, $days - 1); // Keep at least 1 day
+                $adjustedDays = max(1, $days - $graceDaysDeducted);
+            }
+        }
+
         if ($prevExpiry && $prevExpiry->greaterThanOrEqualTo($today)) {
             // Early renewal: extend from future expiry date
-            $newExpiry = $prevExpiry->copy()->addDays($days);
+            $newExpiry = $prevExpiry->copy()->addDays($adjustedDays);
             $type = 'early';
         } else {
             // Expired or new connection: extend from today
-            $newExpiry = $today->copy()->addDays($days);
+            $newExpiry = $today->copy()->addDays($adjustedDays);
             $type = $prevExpiry ? 'expired' : 'standard';
         }
 
         return [
             'previous_expiry' => $prevExpiry?->toDateString(),
             'new_expiry' => $newExpiry->toDateString(),
+            'validity_days' => $adjustedDays,
+            'grace_deducted' => $graceDaysDeducted,
             'type' => $type,
         ];
     }
@@ -82,7 +105,7 @@ class RenewalService
             $mode = $data['mode'] ?? ($isZeroCharge ? 'deduct_shift' : 'standard');
 
             // 2. Authoritative Expiry Calculation
-            $expiryData = $this->calculateNewExpiry($connection, $validityDays, $mode);
+            $expiryData = $this->calculateNewExpiry($connection, $validityDays, $mode, $isZeroCharge);
 
             $lastRenewal = Renewal::lockForUpdate()->latest('id')->first();
             $nextNumber = $lastRenewal ? ($lastRenewal->id + 1) : 1;

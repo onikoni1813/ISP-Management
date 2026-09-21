@@ -48,6 +48,17 @@ class HandleInertiaRequests extends Middleware
                         )->unique()->values()->all(),
                 ] : null,
             ],
+            'company' => [
+                'hotline' => \App\Models\Setting::get('noc_hotline', '01711-000000 / 01722-000000'),
+                'email' => \App\Models\Setting::get('support_email', 'support@pirgachainternet.com'),
+                'address' => \App\Models\Setting::get('office_address', 'Town Center, Pirgacha Sadar, Rangpur'),
+                'working_hours' => \App\Models\Setting::get('working_hours', '24 Hours Daily (7 Days a Week)'),
+            ],
+            'unread_complaints' => $user ? (
+                $user->hasRole('admin')
+                    ? \App\Models\Complaint::where('status', 'open')->count()
+                    : \App\Models\Complaint::where('assigned_to', $user->id)->whereIn('status', ['open', 'assigned', 'in_progress'])->count()
+            ) : 0,
         ];
     }
 }

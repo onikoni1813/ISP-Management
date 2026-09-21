@@ -42,7 +42,7 @@ const submitInquiry = () => {
                 <div class="rounded-3xl border border-brand-navy bg-[#091A2E]/80 p-8 backdrop-blur-sm space-y-6">
                     <div>
                         <h2 class="text-xl font-bold text-white">Central Operations Center</h2>
-                        <p class="text-xs text-slate-400 mt-1">Town Center, Pirgacha Sadar, Rangpur</p>
+                        <p class="text-xs text-slate-400 mt-1">{{ $page.props.company?.address || 'Town Center, Pirgacha Sadar, Rangpur' }}</p>
                     </div>
 
                     <div class="space-y-4 text-xs">
@@ -50,7 +50,7 @@ const submitInquiry = () => {
                             <span class="text-lg">📞</span>
                             <div>
                                 <span class="text-slate-400 block">Customer Care Hotline</span>
-                                <span class="text-brand-orange font-mono font-bold text-sm">01711-000000 / 01722-000000</span>
+                                <span class="text-brand-orange font-mono font-bold text-sm">{{ $page.props.company?.hotline || '01711-000000 / 01722-000000' }}</span>
                             </div>
                         </div>
 
@@ -58,7 +58,7 @@ const submitInquiry = () => {
                             <span class="text-lg">✉️</span>
                             <div>
                                 <span class="text-slate-400 block">Email Support</span>
-                                <span class="text-white font-bold">support@pirgachainternet.com</span>
+                                <span class="text-white font-bold">{{ $page.props.company?.email || 'support@pirgachainternet.com' }}</span>
                             </div>
                         </div>
 
@@ -66,7 +66,7 @@ const submitInquiry = () => {
                             <span class="text-lg">🕒</span>
                             <div>
                                 <span class="text-slate-400 block">Field Support Working Hours</span>
-                                <span class="text-brand-sky font-bold">24 Hours Daily (7 Days a Week)</span>
+                                <span class="text-brand-sky font-bold">{{ $page.props.company?.working_hours || '24 Hours Daily (7 Days a Week)' }}</span>
                             </div>
                         </div>
                     </div>

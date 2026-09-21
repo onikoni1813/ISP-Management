@@ -17,14 +17,42 @@ use Illuminate\Support\Facades\DB;
 class CustomerService
 {
     /**
-     * Search and paginate customers with eager loaded relationships.
+     * Search and paginate customers with eager loaded relationships and advanced filters.
      */
-    public function searchCustomers(?string $query = null, ?string $status = null, ?int $areaId = null, int $perPage = 15): LengthAwarePaginator
+    public function searchCustomers(?string $query = null, ?string $status = null, ?int $areaId = null, ?string $advancedFilter = null, int $perPage = 15): LengthAwarePaginator
     {
+        $today = now()->toDateString();
+        $in3Days = now()->addDays(3)->toDateString();
+        $in7Days = now()->addDays(7)->toDateString();
+
         return Customer::query()
             ->with(['area', 'primaryContact', 'connections.currentPackage', 'connections.pppoeCredential'])
             ->when($status, fn(Builder $q) => $q->where('status', $status))
             ->when($areaId, fn(Builder $q) => $q->where('area_id', $areaId))
+            ->when($advancedFilter, function (Builder $q) use ($advancedFilter, $today, $in3Days, $in7Days) {
+                if ($advancedFilter === 'expiring_3d') {
+                    // Next 3 days expiry
+                    $q->whereHas('connections', fn($c) => $c->whereBetween('expiry_date', [$today, $in3Days]));
+                } elseif ($advancedFilter === 'expiring_7d') {
+                    // Next 7 days expiry
+                    $q->whereHas('connections', fn($c) => $c->whereBetween('expiry_date', [$today, $in7Days]));
+                } elseif ($advancedFilter === 'expired') {
+                    // Already expired
+                    $q->whereHas('connections', fn($c) => $c->whereNotNull('expiry_date')->where('expiry_date', '<', $today));
+                } elseif ($advancedFilter === 'due') {
+                    // Has outstanding debt/balance or unpaid invoices
+                    $q->where(function ($sub) {
+                        $sub->where('balance', '<', 0)
+                            ->orWhereHas('invoices', fn($inv) => $inv->where('due_amount', '>', 0));
+                    });
+                } elseif ($advancedFilter === 'zero_charge_renewed') {
+                    // Customers who took advance grace validity (is_zero_charge = 1) without full paid renewal since
+                    $q->whereHas('renewals', function ($r) {
+                        $r->where('is_zero_charge', true)
+                          ->whereRaw('renewals.renewed_at >= COALESCE((SELECT MAX(p.paid_at) FROM payments p WHERE p.customer_id = renewals.customer_id), "1970-01-01")');
+                    });
+                }
+            })
             ->when($query, function (Builder $q) use ($query) {
                 $q->where(function (Builder $sub) use ($query) {
                     $sub->where('customer_code', 'like', "%{$query}%")
@@ -36,6 +64,31 @@ class CustomerService
             })
             ->latest('id')
             ->paginate($perPage);
+    }
+
+    /**
+     * Get real-time counts for advanced customer categories.
+     */
+    public function getCustomerFilterCounts(?int $areaId = null): array
+    {
+        $today = now()->toDateString();
+        $in3Days = now()->addDays(3)->toDateString();
+
+        $base = Customer::query()->when($areaId, fn($q) => $q->where('area_id', $areaId));
+
+        return [
+            'all' => (clone $base)->count(),
+            'due' => (clone $base)->where(function ($sub) {
+                $sub->where('balance', '<', 0)
+                    ->orWhereHas('invoices', fn($inv) => $inv->where('due_amount', '>', 0));
+            })->count(),
+            'expiring_3d' => (clone $base)->whereHas('connections', fn($c) => $c->whereBetween('expiry_date', [$today, $in3Days]))->count(),
+            'expired' => (clone $base)->whereHas('connections', fn($c) => $c->whereNotNull('expiry_date')->where('expiry_date', '<', $today))->count(),
+            'zero_charge_renewed' => (clone $base)->whereHas('renewals', function ($r) {
+                $r->where('is_zero_charge', true)
+                  ->whereRaw('renewals.renewed_at >= COALESCE((SELECT MAX(p.paid_at) FROM payments p WHERE p.customer_id = renewals.customer_id), "1970-01-01")');
+            })->count(),
+        ];
     }
 
     /**

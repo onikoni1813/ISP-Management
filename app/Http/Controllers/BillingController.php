@@ -25,18 +25,34 @@ class BillingController extends Controller
     {
         Gate::authorize('billing.view');
 
-        $invoices = Invoice::with(['customer', 'items'])
+        $query = Invoice::with(['customer', 'items'])
             ->when($request->status, fn($q) => $q->where('status', $request->status))
             ->when($request->search, function ($q, $search) {
-                $q->where('invoice_number', 'like', "%{$search}%")
-                    ->orWhereHas('customer', fn($c) => $c->where('name', 'like', "%{$search}%")->orWhere('customer_code', 'like', "%{$search}%"));
+                $q->where(function ($sub) use ($search) {
+                    $sub->where('invoice_number', 'like', "%{$search}%")
+                        ->orWhereHas('customer', fn($c) => $c->where('name', 'like', "%{$search}%")->orWhere('customer_code', 'like', "%{$search}%"));
+                });
             })
-            ->latest('id')
-            ->paginate(15);
+            ->when($request->date_from, fn($q) => $q->whereDate('due_date', '>=', $request->date_from))
+            ->when($request->date_to, fn($q) => $q->whereDate('due_date', '<=', $request->date_to));
+
+        $invoices = (clone $query)->latest('id')->paginate(15)->withQueryString();
+
+        // High-level ledger metrics
+        $metrics = [
+            'total_invoices' => Invoice::count(),
+            'paid_invoices' => Invoice::where('status', 'paid')->count(),
+            'partial_invoices' => Invoice::where('status', 'partial')->count(),
+            'unpaid_invoices' => Invoice::where('status', 'unpaid')->count(),
+            'total_billed' => (float) Invoice::sum('total'),
+            'total_collected' => (float) Invoice::sum('paid_amount'),
+            'total_due' => (float) Invoice::sum('due_amount'),
+        ];
 
         return Inertia::render('Admin/Billing/Invoices', [
             'invoices' => $invoices,
-            'filters' => $request->only(['search', 'status']),
+            'metrics' => $metrics,
+            'filters' => $request->only(['search', 'status', 'date_from', 'date_to']),
         ]);
     }
 
@@ -47,7 +63,8 @@ class BillingController extends Controller
     {
         Gate::authorize('payments.view');
 
-        $payments = Payment::with(['customer', 'account', 'collector', 'allocations.invoice'])
+        $payments = Payment::with(['customer', 'account', 'collector', 'approver', 'generatedInvoice', 'allocations.invoice'])
+            ->when($request->status, fn($q) => $q->where('status', $request->status))
             ->when($request->search, function ($q, $search) {
                 $q->where('payment_number', 'like', "%{$search}%")
                     ->orWhereHas('customer', fn($c) => $c->where('name', 'like', "%{$search}%")->orWhere('customer_code', 'like', "%{$search}%"));
@@ -57,7 +74,7 @@ class BillingController extends Controller
 
         return Inertia::render('Admin/Billing/Payments', [
             'payments' => $payments,
-            'filters' => $request->only(['search']),
+            'filters' => $request->only(['search', 'status']),
         ]);
     }
 
@@ -70,6 +87,7 @@ class BillingController extends Controller
 
         $validated = $request->validate([
             'amount' => 'required|numeric|min:1',
+            'discount' => 'nullable|numeric|min:0',
             'payment_method' => 'required|string|in:cash,bkash,nagad,bank,other',
             'account_id' => 'nullable|exists:accounts,id',
             'reference' => 'nullable|string|max:100',
@@ -79,9 +97,43 @@ class BillingController extends Controller
             'notes' => 'nullable|string|max:500',
         ]);
 
-        $payment = $this->billingService->collectPayment($customer, $validated, $request->user()->id);
+        $user = $request->user();
+        $isStaff = $user->hasRole('staff') && !$user->hasRole('admin');
+
+        // If collected by staff, strictly enforce package rate: staff cannot change base price, only discount
+        if ($isStaff) {
+            $connection = $customer->connections()->with('currentPackage.currentPrice')->first();
+            $basePrice = (float) ($connection?->currentPackage?->currentPrice?->price ?? 0);
+            $discount = (float) ($validated['discount'] ?? 0);
+
+            if ($discount > $basePrice) {
+                return back()->withErrors(['discount' => "ডিস্কাউন্ট (৳{$discount}) মূল প্যাকেজ বিল (৳{$basePrice})-এর চেয়ে বেশি হতে পারে না।"]);
+            }
+
+            // Enforce exact calculated amount
+            $validated['amount'] = max(1, $basePrice - $discount);
+        }
+
+        $payment = $this->billingService->collectPayment($customer, $validated, $user->id);
+
+        // If collected by staff, redirect to staff dashboard with success message
+        if ($isStaff) {
+            return redirect()->route('staff.dashboard')->with('success', "৳{$payment->amount} বিল আদায় সফল হয়েছে! অ্যাডমিন অনুমোদনের পর ইনভয়েস তৈরি হবে।");
+        }
 
         return back()->with('success', "Payment {$payment->payment_number} of ৳{$payment->amount} recorded successfully.");
+    }
+
+    /**
+     * Admin approve pending payment.
+     */
+    public function approve(Request $request, Payment $payment)
+    {
+        Gate::authorize('billing.collect');
+
+        $this->billingService->approvePayment($payment, $request->user()->id);
+
+        return back()->with('success', "পেমেন্ট {$payment->payment_number} সফলভাবে অনুমোদিত হয়েছে এবং ইনভয়েস জেনারেট হয়েছে।");
     }
 
     /**
@@ -95,6 +147,26 @@ class BillingController extends Controller
 
         return Inertia::render('Admin/Billing/Receipt', [
             'payment' => $payment,
+        ]);
+    }
+
+    /**
+     * Printable / Viewable Customer Invoice.
+     */
+    public function showInvoice(Invoice $invoice): Response
+    {
+        Gate::authorize('invoices.view');
+
+        $invoice->load([
+            'customer.primaryContact',
+            'customer.installationAddress',
+            'customer.connections.pppoeCredential',
+            'items',
+            'allocations.payment',
+        ]);
+
+        return Inertia::render('Admin/Billing/Invoice', [
+            'invoice' => $invoice,
         ]);
     }
 

@@ -8,6 +8,11 @@ import { ZiggyVue } from '../../vendor/tightenco/ziggy';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
+import { formatDate, formatDateTime } from './Utils/date';
+
+window.formatDate = formatDate;
+window.formatDateTime = formatDateTime;
+
 createInertiaApp({
     title: (title) => `${title} - ${appName}`,
     resolve: (name) =>
@@ -16,7 +21,13 @@ createInertiaApp({
             import.meta.glob('./Pages/**/*.vue'),
         ),
     setup({ el, App, props, plugin }) {
-        return createApp({ render: () => h(App, props) })
+        const vueApp = createApp({ render: () => h(App, props) });
+        vueApp.config.globalProperties.$formatDate = formatDate;
+        vueApp.config.globalProperties.$formatDateTime = formatDateTime;
+        vueApp.provide('formatDate', formatDate);
+        vueApp.provide('formatDateTime', formatDateTime);
+        
+        return vueApp
             .use(plugin)
             .use(ZiggyVue)
             .mount(el);

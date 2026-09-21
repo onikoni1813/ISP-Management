@@ -25,7 +25,7 @@ class SecurityHeadersMiddleware
         $response->headers->set('Permissions-Policy', 'geolocation=(), camera=(), microphone=()');
 
         // Prevent caching of sensitive authenticated responses
-        if ($request->user() && !$request->is('build/*', 'logo.png', 'favicon.ico')) {
+        if ($request->user() && !$request->is('build/*', 'logo.png', 'favicon.ico', 'favicon-*.png', 'apple-touch-icon.png')) {
             $response->headers->set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0, private');
             $response->headers->set('Pragma', 'no-cache');
         }

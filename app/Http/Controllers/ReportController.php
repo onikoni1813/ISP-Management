@@ -25,7 +25,31 @@ class ReportController extends Controller
     {
         Gate::authorize('reports.view');
 
-        return Inertia::render('Admin/Reports/Index');
+        $thisMonth = now()->month;
+        $thisYear = now()->year;
+
+        $metrics = [
+            'monthly_revenue' => (float) \App\Models\Payment::where('status', 'completed')
+                ->whereMonth('paid_at', $thisMonth)
+                ->whereYear('paid_at', $thisYear)
+                ->sum('amount'),
+            'total_due' => (float) \App\Models\Invoice::where('due_amount', '>', 0)
+                ->whereIn('status', ['unpaid', 'partially_paid'])
+                ->sum('due_amount'),
+            'monthly_expenses' => (float) \App\Models\Expense::where('status', 'posted')
+                ->whereMonth('expense_date', $thisMonth)
+                ->whereYear('expense_date', $thisYear)
+                ->sum('amount'),
+            'monthly_salaries' => (float) \App\Models\SalaryPayment::where('status', 'paid')
+                ->whereMonth('payment_date', $thisMonth)
+                ->whereYear('payment_date', $thisYear)
+                ->sum('net_salary'),
+            'active_accounts_balance' => (float) \App\Models\Account::where('status', 'active')->sum('balance'),
+        ];
+
+        return Inertia::render('Admin/Reports/Index', [
+            'metrics' => $metrics,
+        ]);
     }
 
     /**
@@ -39,11 +63,13 @@ class ReportController extends Controller
 
         $collectors = User::whereHas('roles', fn($r) => $r->whereIn('slug', ['admin', 'staff']))->get(['id', 'name']);
         $accounts = Account::where('status', 'active')->get(['id', 'name', 'type']);
+        $areas = Area::where('status', 'active')->orderBy('name')->get(['id', 'name']);
 
         return Inertia::render('Admin/Reports/Collections', array_merge($reportData, [
             'collectors' => $collectors,
             'accounts' => $accounts,
-            'filters' => $request->only(['start_date', 'end_date', 'payment_method', 'collector_id', 'account_id']),
+            'areas' => $areas,
+            'filters' => $request->only(['start_date', 'end_date', 'payment_method', 'collector_id', 'account_id', 'area_id']),
         ]));
     }
 

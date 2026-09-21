@@ -9,6 +9,7 @@ use App\Models\Customer;
 use App\Models\Package;
 use App\Models\PppoeCredential;
 use App\Services\CustomerService;
+use App\Services\SmsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -17,7 +18,8 @@ use Inertia\Response;
 class CustomerController extends Controller
 {
     public function __construct(
-        protected CustomerService $customerService
+        protected CustomerService $customerService,
+        protected SmsService $smsService
     ) {}
 
     /**
@@ -31,15 +33,20 @@ class CustomerController extends Controller
             query: $request->input('search'),
             status: $request->input('status'),
             areaId: $request->input('area_id'),
+            advancedFilter: $request->input('advanced_filter'),
             perPage: 15
         );
 
         $areas = Area::where('status', 'active')->get(['id', 'name', 'code']);
+        $filterCounts = $this->customerService->getCustomerFilterCounts($request->input('area_id'));
+        $smsTemplates = \App\Models\SmsTemplate::all(['id', 'name', 'template']);
 
         return Inertia::render('Admin/Customers/Index', [
             'customers' => $customers,
-            'filters' => $request->only(['search', 'status', 'area_id']),
+            'filters' => $request->only(['search', 'status', 'area_id', 'advanced_filter']),
             'areas' => $areas,
+            'filterCounts' => $filterCounts,
+            'smsTemplates' => $smsTemplates,
         ]);
     }
 
@@ -103,6 +110,9 @@ class CustomerController extends Controller
             'connections.pppoeCredential',
             'packageHistories.package',
             'packageHistories.assigner',
+            'customerNotes.author',
+            'invoices.items',
+            'payments.generatedInvoice',
             'creator',
         ]);
 
@@ -189,5 +199,38 @@ class CustomerController extends Controller
             'username' => $credential->username,
             'password' => $credential->password, // Model auto-decrypts
         ]);
+    }
+
+    /**
+     * Dispatch PPPoE ID, Password and Login portal link via SMS to customer.
+     */
+    public function sendCredentialsSms(Request $request, Customer $customer)
+    {
+        Gate::authorize('customers.edit');
+
+        $phone = $customer->primaryContact?->phone ?? $customer->primaryContact?->phone_number;
+        if (!$phone) {
+            return back()->with('error', 'গ্রাহকের কোনো সক্রিয় ফোন নম্বর পাওয়া যায়নি।');
+        }
+
+        $log = $this->smsService->sendByTemplate(
+            templateCode: 'pppoe_credentials',
+            customer: $customer,
+            extraVariables: [],
+            userId: $request->user()->id,
+            entityType: 'customer',
+            entityId: $customer->id,
+            force: true
+        );
+
+        if (!$log) {
+            return back()->with('error', 'SMS পাঠানো সম্ভব হয়নি। অনুগ্রহ করে SMS গেটওয়ে ও টেমপ্লেট সক্রিয় আছে কিনা পরীক্ষা করুন।');
+        }
+
+        if ($log->status === 'sent') {
+            return back()->with('success', "PPPoE ইউজারনেম, পাসওয়ার্ড ও লগইন লিংক সফলভাবে {$phone} নম্বরে SMS করা হয়েছে।");
+        }
+
+        return back()->with('error', "SMS পাঠাতে ত্রুটি হয়েছে: {$log->error_message}");
     }
 }

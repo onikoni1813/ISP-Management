@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
 import { syncService } from '@/Services/syncService';
 import ApplicationLogo from '@/Components/ApplicationLogo.vue';
@@ -14,17 +14,100 @@ defineProps({
 const page = usePage();
 const user = page.props.auth.user;
 
+const staffDisplayName = computed(() => {
+    if (!user?.name) return 'Staff';
+    return user.name
+        .replace(/^Field\s+Technician\s+/i, '')
+        .replace(/^Field\s+/i, '')
+        .trim() || user.name;
+});
+
 const isOnline = ref(navigator.onLine);
 const pendingSyncCount = ref(0);
 const isSyncing = ref(false);
 const syncMessage = ref('');
+const assignedComplaintsCount = ref(0);
+const hasNewTaskAlert = ref(false);
+let lastKnownComplaintId = null;
+
+const playNotificationSound = () => {
+    try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
+        osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.15); // A5
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.35);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.35);
+    } catch (e) {
+        // audio might be blocked until user interaction
+    }
+};
+
+const checkLiveAssignedComplaints = async () => {
+    if (!navigator.onLine) return;
+    try {
+        const res = await fetch(route('staff.api.live-counts'));
+        if (res.ok) {
+            const data = await res.json();
+            const prevCount = assignedComplaintsCount.value;
+            assignedComplaintsCount.value = data.open_complaints_count || 0;
+
+            if (data.latest_complaint) {
+                if (lastKnownComplaintId && data.latest_complaint.id > lastKnownComplaintId) {
+                    hasNewTaskAlert.value = true;
+                    playNotificationSound();
+                }
+                lastKnownComplaintId = data.latest_complaint.id;
+            }
+        }
+    } catch (e) {
+        // silent fail
+    }
+};
 
 const checkSyncStatus = async () => {
     try {
         const status = await syncService.getSyncStatus();
         pendingSyncCount.value = status.pendingCount;
+
+        // Auto-flush pending mutations whenever online and mutations exist
+        if (navigator.onLine && pendingSyncCount.value > 0 && !isSyncing.value) {
+            await autoSync();
+        }
     } catch (e) {
         console.error('Error getting sync status', e);
+    }
+};
+
+const autoSync = async (silent = true) => {
+    if (!navigator.onLine || isSyncing.value) return;
+
+    isSyncing.value = true;
+    if (!silent) syncMessage.value = 'Syncing...';
+
+    try {
+        // 1. Flush any pending offline mutations to server
+        await syncService.flushPendingMutations();
+        // 2. Download fresh cache updates from server
+        await syncService.downloadBootstrapCache();
+        await checkSyncStatus();
+        
+        syncMessage.value = 'Synced';
+        setTimeout(() => { syncMessage.value = ''; }, 2000);
+    } catch (err) {
+        console.error('Auto sync failed', err);
+        if (!silent) {
+            syncMessage.value = 'Sync error';
+            setTimeout(() => { syncMessage.value = ''; }, 3000);
+        }
+    } finally {
+        isSyncing.value = false;
     }
 };
 
@@ -33,60 +116,53 @@ const triggerSync = async () => {
         alert('Network offline. Connect to internet to sync.');
         return;
     }
-
-    isSyncing.value = true;
-    syncMessage.value = 'Syncing...';
-    try {
-        // 1. Flush pending offline actions
-        await syncService.flushPendingMutations();
-        // 2. Download fresh caches
-        await syncService.downloadBootstrapCache();
-        await checkSyncStatus();
-        syncMessage.value = 'Synced';
-        setTimeout(() => { syncMessage.value = ''; }, 2500);
-    } catch (err) {
-        console.error('Manual sync failed', err);
-        syncMessage.value = 'Sync error';
-        setTimeout(() => { syncMessage.value = ''; }, 3000);
-    } finally {
-        isSyncing.value = false;
-    }
+    await autoSync(false);
 };
 
 const updateOnlineStatus = () => {
     isOnline.value = navigator.onLine;
     if (isOnline.value) {
-        // Auto-flush pending mutations when coming back online
-        syncService.flushPendingMutations().then(checkSyncStatus);
+        // Automatically sync immediately when coming back online
+        autoSync(false);
     }
 };
 
 let syncInterval = null;
+let autoSyncRoutine = null;
+let liveComplaintInterval = null;
 
 onMounted(() => {
     window.addEventListener('online', updateOnlineStatus);
     window.addEventListener('offline', updateOnlineStatus);
+    
+    // Initial status check and initial background sync
     checkSyncStatus();
-    syncInterval = setInterval(checkSyncStatus, 15000);
-
-    // Initial cache download if online
     if (navigator.onLine) {
-        syncService.downloadBootstrapCache().catch(() => {});
+        autoSync(true);
+        checkLiveAssignedComplaints();
     }
+
+    // Check sync status every 10 seconds
+    syncInterval = setInterval(checkSyncStatus, 10000);
+    // Poll for new assigned tasks every 12 seconds
+    liveComplaintInterval = setInterval(checkLiveAssignedComplaints, 12000);
+    // Background auto-sync routine every 60 seconds
+    autoSyncRoutine = setInterval(() => {
+        if (navigator.onLine) {
+            autoSync(true);
+        }
+    }, 60000);
 });
 
 onUnmounted(() => {
     window.removeEventListener('online', updateOnlineStatus);
     window.removeEventListener('offline', updateOnlineStatus);
     if (syncInterval) clearInterval(syncInterval);
+    if (liveComplaintInterval) clearInterval(liveComplaintInterval);
+    if (autoSyncRoutine) clearInterval(autoSyncRoutine);
 });
 
-const quickActions = [
-    { name: 'Search', icon: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z', href: route('staff.dashboard') },
-    { name: 'Collect', icon: 'M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z', href: route('staff.dashboard') },
-    { name: 'Renew', icon: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15', href: route('staff.dashboard') },
-    { name: 'Tickets', icon: 'M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z', href: route('staff.dashboard') },
-];
+
 </script>
 
 <template>
@@ -97,7 +173,7 @@ const quickActions = [
                 <ApplicationLogo size="sm" :animated="true" />
                 <div>
                     <h1 class="text-sm font-bold text-white leading-tight">Field Assistant</h1>
-                    <p class="text-[11px] text-brand-orange font-semibold">{{ user?.name }}</p>
+                    <p class="text-[11px] text-brand-orange font-semibold">{{ staffDisplayName }}</p>
                 </div>
             </Link>
 
@@ -143,6 +219,24 @@ const quickActions = [
                     <span v-if="syncMessage" class="text-[10px] text-brand-cyan pr-1">{{ syncMessage }}</span>
                 </button>
 
+                <!-- Live Complaint Notification Bell -->
+                <Link
+                    :href="route('staff.complaints.index')"
+                    class="relative rounded-xl border border-brand-navy bg-[#0B1E36] p-2 text-slate-300 hover:text-white transition flex items-center justify-center"
+                    title="Assigned Tasks / Complaints"
+                >
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                    </svg>
+                    <!-- Badge -->
+                    <span 
+                        v-if="assignedComplaintsCount > 0" 
+                        class="absolute -top-1 -right-1 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-rose-500 text-[10px] font-black text-white shadow-md animate-pulse"
+                    >
+                        {{ assignedComplaintsCount }}
+                    </span>
+                </Link>
+
                 <!-- Admin Link if Admin -->
                 <Link
                     v-if="user?.roles?.includes('admin')"
@@ -171,22 +265,67 @@ const quickActions = [
 
         <!-- Main Content View -->
         <main class="flex-1 p-4 md:p-6 max-w-4xl mx-auto w-full">
+            <!-- New Task Assigned Real-Time Alert Banner -->
+            <div 
+                v-if="hasNewTaskAlert" 
+                class="mb-4 rounded-2xl border-2 border-rose-500 bg-rose-500/20 p-4 shadow-xl flex items-center justify-between animate-bounce"
+            >
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-rose-500 text-white flex items-center justify-center font-bold text-lg">
+                        🔔
+                    </div>
+                    <div>
+                        <div class="text-xs font-black uppercase text-rose-300 tracking-wider">
+                            নতুন কাজ এসাইন করা হয়েছে! (New Task Assigned)
+                        </div>
+                        <div class="text-xs text-white mt-0.5 font-medium">
+                            অ্যাডমিন থেকে আপনার নামে নতুন কমপ্লেইন টিকিট এসেছে।
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <Link
+                        :href="route('staff.complaints.index')"
+                        @click="hasNewTaskAlert = false"
+                        class="rounded-xl bg-rose-500 hover:bg-rose-600 px-3 py-1.5 text-xs font-black text-white shadow-md transition"
+                    >
+                        কাজ দেখুন →
+                    </Link>
+                    <button 
+                        @click="hasNewTaskAlert = false" 
+                        class="text-slate-400 hover:text-white p-1 text-xs"
+                    >
+                        ✕
+                    </button>
+                </div>
+            </div>
+            <!-- Flash Notification Banner -->
+            <div v-if="$page.props.flash?.success" class="mb-4 rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-3.5 text-xs font-bold text-emerald-400 flex items-center justify-between shadow-lg">
+                <div class="flex items-center gap-2">
+                    <span class="h-2 w-2 rounded-full bg-emerald-400"></span>
+                    <span>{{ $page.props.flash.success }}</span>
+                </div>
+            </div>
+            <div v-if="$page.props.flash?.error" class="mb-4 rounded-2xl border border-rose-500/40 bg-rose-500/10 p-3.5 text-xs font-bold text-rose-400 flex items-center justify-between shadow-lg">
+                <div class="flex items-center gap-2">
+                    <span class="h-2 w-2 rounded-full bg-rose-400"></span>
+                    <span>{{ $page.props.flash.error }}</span>
+                </div>
+            </div>
+
             <slot />
+
+            <!-- Project Credit Footer -->
+            <footer class="mt-12 text-center pb-4">
+                <p class="text-[11px] sm:text-xs text-slate-500 font-medium tracking-wide">
+                    &copy; {{ new Date().getFullYear() }} Pirgacha Internet. 
+                    Developed with <span class="text-rose-500 mx-0.5">❤️</span> by 
+                    <a href="https://www.facebook.com/rashedsarkarofficial" target="_blank" class="font-bold text-brand-sky hover:text-brand-cyan transition ml-0.5">Rashed Sarkar</a>
+                </p>
+            </footer>
         </main>
 
-        <!-- Mobile Bottom Navigation (PWA Optimized) -->
-        <nav class="fixed bottom-0 inset-x-0 z-40 flex items-center justify-around border-t border-brand-navy bg-[#071322]/95 py-2 px-3 backdrop-blur-lg md:hidden">
-            <Link
-                v-for="action in quickActions"
-                :key="action.name"
-                :href="action.href"
-                class="flex flex-col items-center gap-1 text-slate-400 hover:text-brand-orange active:scale-95 transition"
-            >
-                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="action.icon" />
-                </svg>
-                <span class="text-[10px] font-medium">{{ action.name }}</span>
-            </Link>
-        </nav>
+
     </div>
 </template>

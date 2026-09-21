@@ -15,8 +15,14 @@ class Package extends Model
         'name',
         'code',
         'speed_mbps',
+        'recommended_devices',
         'description',
+        'features',
         'status',
+    ];
+
+    protected $casts = [
+        'features' => 'array',
     ];
 
     public function prices(): HasMany

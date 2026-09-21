@@ -215,4 +215,67 @@ class WebsiteCmsTest extends TestCase
                 ->where('notices.0.title', 'Submarine Cable Emergency Optical Reroute')
             );
     }
+
+    public function test_admin_can_manage_noc_hotline_and_portal_settings(): void
+    {
+        $response = $this->actingAs($this->admin)->get(route('admin.cms.settings'));
+        $response->assertOk()
+            ->assertInertia(fn($page) => $page
+                ->component('Admin/Cms/Settings')
+                ->has('settings')
+            );
+
+        $updatePayload = [
+            'noc_hotline' => '01700-112233 / 01800-445566',
+            'support_email' => 'noc@pirgacha.net',
+            'office_address' => 'Station Road, Pirgacha',
+            'support_hours' => '24/7/365 Emergency NOC',
+        ];
+
+        $this->actingAs($this->admin)
+            ->post(route('admin.cms.settings.update'), $updatePayload)
+            ->assertRedirect();
+
+        $this->assertEquals('01700-112233 / 01800-445566', \App\Models\Setting::get('noc_hotline'));
+    }
+
+    public function test_maintenance_mode_blocks_public_visitors_but_allows_admin(): void
+    {
+        // 1. Enable Maintenance Mode via Admin Settings
+        $this->actingAs($this->admin)
+            ->post(route('admin.cms.settings.update'), [
+                'noc_hotline' => '01711-000000',
+                'support_email' => 'support@pirgacha.net',
+                'office_address' => 'Pirgacha',
+                'working_hours' => '24/7',
+                'maintenance_mode' => 1,
+                'maintenance_title' => 'Scheduled Upgrades in Progress',
+                'maintenance_message' => 'Network maintenance window active.',
+                'maintenance_estimated_time' => '2 Hours',
+            ])
+            ->assertRedirect();
+
+        $this->assertEquals('1', \App\Models\Setting::get('maintenance_mode'));
+
+        // 2. Public visitor (unauthenticated) is blocked and sees 503 Maintenance page
+        \Illuminate\Support\Facades\Auth::logout();
+        $this->app['auth']->forgetGuards();
+
+        $publicResponse = $this->get('/');
+        $publicResponse->assertStatus(503);
+        $publicResponse->assertSee('Scheduled Upgrades in Progress');
+        $publicResponse->assertSee('Network maintenance window active.');
+
+        // 3. Admin login page is always accessible
+        $loginResponse = $this->get(route('admin.login'));
+        $loginResponse->assertOk();
+
+        // 4. Admin logged in can still access admin panel and browse public website
+        $adminDashboard = $this->actingAs($this->admin)->get(route('admin.dashboard'));
+        $adminDashboard->assertOk();
+
+        $adminWebsiteAccess = $this->actingAs($this->admin)->get('/');
+        $adminWebsiteAccess->assertOk();
+    }
 }
+

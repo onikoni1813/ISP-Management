@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Payment extends Model
 {
-    use HasFactory;
+    use HasFactory, \App\Traits\FormatsSerializedDates;
 
     protected $fillable = [
         'payment_number',
@@ -23,13 +23,19 @@ class Payment extends Model
         'collected_by',
         'status',
         'notes',
+        'discount',
+        'approved_by',
+        'approved_at',
+        'generated_invoice_id',
     ];
 
     protected function casts(): array
     {
         return [
             'amount' => 'decimal:2',
-            'paid_at' => 'datetime',
+            'discount' => 'decimal:2',
+            'paid_at' => 'datetime:Y-m-d h:i A',
+            'approved_at' => 'datetime:Y-m-d h:i A',
         ];
     }
 
@@ -46,6 +52,16 @@ class Payment extends Model
     public function collector(): BelongsTo
     {
         return $this->belongsTo(User::class, 'collected_by');
+    }
+
+    public function approver(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function generatedInvoice(): BelongsTo
+    {
+        return $this->belongsTo(Invoice::class, 'generated_invoice_id');
     }
 
     public function allocations(): HasMany

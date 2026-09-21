@@ -14,12 +14,33 @@ const page = usePage();
 const user = page.props.auth.user;
 
 const navLinks = [
-    { name: 'Dashboard', href: route('account.dashboard'), active: 'account.dashboard' },
-    { name: 'My Invoices', href: route('account.invoices'), active: 'account.invoices' },
-    { name: 'Payments', href: route('account.payments'), active: 'account.payments' },
-    { name: 'Renew Connection', href: route('account.renewal'), active: 'account.renewal' },
-    { name: 'Support Tickets', href: route('account.complaints'), active: 'account.complaints' },
-    { name: 'Profile', href: route('account.profile'), active: 'account.profile' },
+    { 
+        name: 'Dashboard', 
+        href: route('account.dashboard'), 
+        active: 'account.dashboard',
+        icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' 
+    },
+    { 
+        name: 'Renew', 
+        fullName: 'Renew Connection',
+        href: route('account.renewal'), 
+        active: 'account.renewal',
+        icon: 'M13 10V3L4 14h7v7l9-11h-7z' 
+    },
+    { 
+        name: 'Upgrade', 
+        fullName: 'Upgrade Package',
+        href: route('account.upgrade'), 
+        active: 'account.upgrade',
+        icon: 'M7 11l5-5m0 0l5 5m-5-5v12' 
+    },
+    { 
+        name: 'Profile', 
+        fullName: 'My Profile',
+        href: route('account.profile'), 
+        active: 'account.profile',
+        icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' 
+    },
 ];
 </script>
 
@@ -34,7 +55,6 @@ const navLinks = [
                         <div>
                             <div class="text-sm font-black text-white tracking-tight leading-tight flex items-center gap-2">
                                 <span>Pirgacha Internet</span>
-                                <span class="rounded-full bg-brand-orange/10 border border-brand-orange/30 px-2 py-0.5 text-[10px] font-bold text-brand-orange">Subscriber Portal</span>
                             </div>
                             <div class="text-xs text-slate-400 mt-0.5">Welcome, {{ user?.name }}</div>
                         </div>
@@ -82,7 +102,7 @@ const navLinks = [
                         'rounded-xl border px-3.5 py-1.5 text-xs font-bold transition'
                     ]"
                 >
-                    {{ item.name }}
+                    {{ item.fullName || item.name }}
                 </Link>
             </div>
         </header>
@@ -101,21 +121,62 @@ const navLinks = [
             </div>
 
             <slot />
+
+            <!-- Project Credit Footer -->
+            <footer class="mt-8 mb-4 md:mb-0 text-center">
+                <p class="text-[11px] sm:text-xs text-slate-500 font-medium tracking-wide">
+                    &copy; {{ new Date().getFullYear() }} Pirgacha Internet. 
+                    Developed with <span class="text-rose-500 mx-0.5">❤️</span> by 
+                    <a href="https://www.facebook.com/rashedsarkarofficial" target="_blank" class="font-bold text-brand-sky hover:text-brand-cyan transition ml-0.5">Rashed Sarkar</a>
+                </p>
+            </footer>
         </main>
 
-        <!-- Mobile Bottom Tab Bar (Customer Portal) -->
-        <nav class="fixed bottom-0 inset-x-0 z-40 flex items-center justify-around border-t border-brand-navy bg-[#071322]/95 py-2 px-2 backdrop-blur-xl md:hidden">
-            <Link
-                v-for="item in navLinks.slice(0, 5)"
-                :key="item.name"
-                :href="item.href"
-                :class="[
-                    route().current(item.active) ? 'text-brand-orange font-black' : 'text-slate-400 font-medium',
-                    'flex flex-col items-center gap-1 text-[11px] p-1.5 transition active:scale-95'
-                ]"
-            >
-                <span>{{ item.name.split(' ')[0] }}</span>
-            </Link>
+        <!-- Mobile Bottom Tab Bar (Professional Native App Style) -->
+        <nav class="fixed bottom-0 inset-x-0 z-40 border-t border-brand-navy/80 bg-[#071322]/95 backdrop-blur-xl md:hidden px-3 py-1.5 shadow-2xl shadow-black/80">
+            <div class="grid grid-cols-4 gap-1">
+                <Link
+                    v-for="item in navLinks"
+                    :key="item.name"
+                    :href="item.href"
+                    :class="[
+                        route().current(item.active)
+                            ? 'text-brand-orange'
+                            : 'text-slate-400 hover:text-slate-200',
+                        'group flex flex-col items-center justify-center py-1 px-1 rounded-xl transition active:scale-90 relative'
+                    ]"
+                >
+                    <!-- Active background pill glow -->
+                    <div 
+                        v-if="route().current(item.active)" 
+                        class="absolute -top-1.5 w-6 h-1 rounded-full bg-brand-orange shadow-sm shadow-brand-orange"
+                    ></div>
+
+                    <!-- Icon Container -->
+                    <div 
+                        :class="[
+                            route().current(item.active)
+                                ? 'bg-brand-orange/15 text-brand-orange shadow-sm shadow-brand-orange/20'
+                                : 'text-slate-400 group-hover:text-slate-300',
+                            'p-1.5 rounded-xl transition duration-200'
+                        ]"
+                    >
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="item.icon" />
+                        </svg>
+                    </div>
+
+                    <!-- Label -->
+                    <span 
+                        :class="[
+                            route().current(item.active) ? 'font-black text-brand-orange' : 'font-medium text-slate-400',
+                            'text-[10px] tracking-tight leading-tight mt-0.5'
+                        ]"
+                    >
+                        {{ item.name }}
+                    </span>
+                </Link>
+            </div>
         </nav>
     </div>
 </template>

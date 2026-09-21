@@ -117,7 +117,7 @@ class SendAutomatedExpirySmsCommand extends Command
                     $customer,
                     [
                         'expiry_date' => $conn->expiry_date?->toDateString(),
-                        'package' => $conn->package?->name ?? 'Internet Package',
+                        'package' => $conn->currentPackage?->name ?? 'Internet Package',
                         'due' => number_format((float) max(0, -$customer->balance), 2),
                     ],
                     null,

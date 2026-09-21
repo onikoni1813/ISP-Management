@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Connection extends Model
 {
-    use HasFactory;
+    use HasFactory, \App\Traits\FormatsSerializedDates;
 
     protected $fillable = [
         'connection_code',
@@ -30,8 +30,8 @@ class Connection extends Model
     protected function casts(): array
     {
         return [
-            'installation_date' => 'date',
-            'expiry_date' => 'date',
+            'installation_date' => 'date:Y-m-d',
+            'expiry_date' => 'date:Y-m-d',
         ];
     }
 

@@ -1,6 +1,7 @@
 <script setup>
 import { Head, Link } from '@inertiajs/vue3';
 import WebsiteLayout from '@/Layouts/WebsiteLayout.vue';
+import { formatDate } from '@/Utils/date';
 
 defineProps({
     page: Object,
@@ -18,7 +19,7 @@ defineProps({
                 <div class="flex items-center gap-2 text-xs text-cyan-400 font-bold uppercase tracking-widest">
                     <span>Document</span>
                     <span>•</span>
-                    <span>{{ new Date(page.updated_at).toLocaleDateString() }}</span>
+                    <span>{{ formatDate(page.updated_at) }}</span>
                 </div>
                 <h1 class="text-3xl sm:text-4xl font-black text-white">{{ page.title }}</h1>
             </div>

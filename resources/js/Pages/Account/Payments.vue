@@ -1,6 +1,7 @@
 <script setup>
-import { Head } from '@inertiajs/vue3';
+import { Head, Link } from '@inertiajs/vue3';
 import CustomerLayout from '@/Layouts/CustomerLayout.vue';
+import { formatDateTime } from '@/Utils/date';
 
 defineProps({
     customer: Object,
@@ -20,7 +21,7 @@ defineProps({
         <div class="overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/60 backdrop-blur-sm">
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-xs text-slate-300">
-                    <thead class="border-b border-slate-800 bg-slate-900/90 text-[11px] font-extrabold uppercase text-slate-400">
+                    <thead class="border-b border-slate-800 bg-slate-900/90 text-[11px] font-extrabold uppercase text-slate-400 whitespace-nowrap">
                         <tr>
                             <th class="p-4">Receipt #</th>
                             <th class="p-4">Date & Time</th>
@@ -32,9 +33,9 @@ defineProps({
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-800/60">
-                        <tr v-for="pay in payments.data" :key="pay.id" class="hover:bg-slate-800/40 transition">
+                        <tr v-for="pay in payments.data" :key="pay.id" class="hover:bg-slate-800/40 transition whitespace-nowrap">
                             <td class="p-4 font-mono font-bold text-cyan-400">{{ pay.payment_number }}</td>
-                            <td class="p-4 text-slate-400">{{ pay.paid_at }}</td>
+                            <td class="p-4 text-slate-400">{{ formatDateTime(pay.paid_at) }}</td>
                             <td class="p-4 font-semibold uppercase text-white">{{ pay.payment_method }}</td>
                             <td class="p-4 font-mono text-slate-400">{{ pay.reference || 'None' }}</td>
                             <td class="p-4 text-right font-mono font-black text-emerald-400 text-sm">৳{{ pay.amount }}</td>
@@ -44,13 +45,12 @@ defineProps({
                                 </span>
                             </td>
                             <td class="p-4 text-right">
-                                <a
+                                <Link
                                     :href="route('account.receipt', pay.id)"
-                                    target="_blank"
                                     class="rounded-xl border border-slate-700 bg-slate-800 px-3 py-1.5 text-[11px] font-bold text-cyan-400 hover:bg-slate-700 hover:text-white transition"
                                 >
-                                    View Receipt ↗
-                                </a>
+                                    View Receipt →
+                                </Link>
                             </td>
                         </tr>
                     </tbody>

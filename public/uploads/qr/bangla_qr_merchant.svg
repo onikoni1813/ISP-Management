@@ -1,0 +1,135 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 450 560" width="100%" height="100%" style="border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.4); background: #ffffff;">
+  <defs>
+    <linearGradient id="headerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#006A4E" />
+      <stop offset="100%" stop-color="#0B4B36" />
+    </linearGradient>
+    <linearGradient id="qrFrame" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F43F5E" />
+      <stop offset="100%" stop-color="#E11D48" />
+    </linearGradient>
+  </defs>
+
+  <!-- Card Background -->
+  <rect width="450" height="560" rx="20" fill="#FFFFFF" />
+
+  <!-- Top Header Banner (Bangla QR National Style) -->
+  <rect width="450" height="110" rx="20" fill="url(#headerGrad)" />
+  <rect y="90" width="450" height="20" fill="url(#headerGrad)" />
+
+  <!-- Bangladesh Bank / National Logo Emblem -->
+  <g transform="translate(30, 20)">
+    <!-- Red circle inside green -->
+    <circle cx="35" cy="35" r="30" fill="#F42A41" />
+    <circle cx="35" cy="35" r="14" fill="#006A4E" />
+    <text x="35" y="40" font-family="'Noto Sans Bengali', Arial, sans-serif" font-size="14" font-weight="900" fill="#FFFFFF" text-anchor="middle">QR</text>
+  </g>
+
+  <!-- Header Titles -->
+  <text x="110" y="45" font-family="'Noto Sans Bengali', Arial, sans-serif" font-size="24" font-weight="900" fill="#FFFFFF" letter-spacing="0.5">বাংলা QR</text>
+  <text x="110" y="68" font-family="'Inter', Arial, sans-serif" font-size="13" font-weight="700" fill="#86EFAC" letter-spacing="1">INTEROPERABLE BANGLA QR</text>
+  <text x="110" y="85" font-family="'Inter', Arial, sans-serif" font-size="10" font-weight="500" fill="#D1FAE5">National Payment Switch Bangladesh (NPSB)</text>
+
+  <!-- Merchant Info Container -->
+  <rect x="25" y="125" width="400" height="60" rx="12" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1.5" />
+  <text x="45" y="148" font-family="'Inter', Arial, sans-serif" font-size="11" font-weight="700" fill="#64748B" text-transform="uppercase" letter-spacing="0.8">Merchant Name</text>
+  <text x="45" y="171" font-family="'Inter', Arial, sans-serif" font-size="16" font-weight="900" fill="#0F172A">PIRGACHA INTERNET</text>
+
+  <text x="405" y="148" font-family="'Inter', Arial, sans-serif" font-size="10" font-weight="600" fill="#64748B" text-anchor="end">Merchant ID / Wallet</text>
+  <text x="405" y="171" font-family="'Courier New', monospace" font-size="14" font-weight="900" fill="#EA580C" text-anchor="end">01711-223344</text>
+
+  <!-- Authentic QR Code Graphic Area -->
+  <g transform="translate(95, 205)">
+    <!-- QR Outer Frame -->
+    <rect x="-10" y="-10" width="280" height="280" rx="16" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="2" />
+
+    <!-- QR Corner 1: Top Left -->
+    <rect x="10" y="10" width="60" height="60" rx="8" fill="#0F172A" />
+    <rect x="22" y="22" width="36" height="36" rx="4" fill="#FFFFFF" />
+    <rect x="30" y="30" width="20" height="20" rx="2" fill="#0F172A" />
+
+    <!-- QR Corner 2: Top Right -->
+    <rect x="190" y="10" width="60" height="60" rx="8" fill="#0F172A" />
+    <rect x="202" y="22" width="36" height="36" rx="4" fill="#FFFFFF" />
+    <rect x="210" y="30" width="20" height="20" rx="2" fill="#0F172A" />
+
+    <!-- QR Corner 3: Bottom Left -->
+    <rect x="10" y="190" width="60" height="60" rx="8" fill="#0F172A" />
+    <rect x="22" y="202" width="36" height="36" rx="4" fill="#FFFFFF" />
+    <rect x="30" y="210" width="20" height="20" rx="2" fill="#0F172A" />
+
+    <!-- Alignment Pattern -->
+    <rect x="180" y="180" width="30" height="30" rx="4" fill="#0F172A" />
+    <rect x="188" y="188" width="14" height="14" rx="2" fill="#FFFFFF" />
+    <rect x="192" y="192" width="6" height="6" fill="#0F172A" />
+
+    <!-- High Density QR Code Matrix Data Blocks -->
+    <!-- Line row 1 -->
+    <rect x="85" y="15" width="12" height="12" fill="#0F172A" />
+    <rect x="115" y="15" width="12" height="12" fill="#0F172A" />
+    <rect x="145" y="15" width="12" height="12" fill="#0F172A" />
+    <rect x="165" y="15" width="12" height="12" fill="#0F172A" />
+
+    <!-- Line row 2 -->
+    <rect x="85" y="35" width="24" height="12" fill="#0F172A" />
+    <rect x="135" y="35" width="12" height="12" fill="#0F172A" />
+    <rect x="165" y="35" width="12" height="24" fill="#0F172A" />
+
+    <!-- Line row 3 -->
+    <rect x="85" y="55" width="12" height="24" fill="#0F172A" />
+    <rect x="115" y="55" width="32" height="12" fill="#0F172A" />
+
+    <!-- Middle Timing / Sync -->
+    <rect x="35" y="85" width="12" height="12" fill="#0F172A" />
+    <rect x="55" y="85" width="12" height="12" fill="#0F172A" />
+    <rect x="85" y="85" width="24" height="12" fill="#0F172A" />
+    <rect x="125" y="85" width="12" height="12" fill="#0F172A" />
+    <rect x="155" y="85" width="24" height="12" fill="#0F172A" />
+    <rect x="195" y="85" width="12" height="12" fill="#0F172A" />
+    <rect x="225" y="85" width="12" height="12" fill="#0F172A" />
+
+    <rect x="15" y="105" width="24" height="12" fill="#0F172A" />
+    <rect x="55" y="105" width="12" height="24" fill="#0F172A" />
+    <rect x="95" y="105" width="32" height="12" fill="#0F172A" />
+    <rect x="145" y="105" width="12" height="32" fill="#0F172A" />
+    <rect x="185" y="105" width="24" height="12" fill="#0F172A" />
+    <rect x="225" y="105" width="24" height="12" fill="#0F172A" />
+
+    <!-- Center Bangla QR Core Emblem inside QR code -->
+    <circle cx="130" cy="130" r="28" fill="#FFFFFF" stroke="#006A4E" stroke-width="3" />
+    <circle cx="130" cy="130" r="22" fill="#F42A41" />
+    <text x="130" y="136" font-family="'Noto Sans Bengali', Arial, sans-serif" font-size="12" font-weight="900" fill="#FFFFFF" text-anchor="middle">বাংলা</text>
+
+    <!-- Lower section matrix blocks -->
+    <rect x="15" y="145" width="12" height="24" fill="#0F172A" />
+    <rect x="45" y="145" width="24" height="12" fill="#0F172A" />
+    <rect x="85" y="145" width="12" height="32" fill="#0F172A" />
+    <rect x="165" y="145" width="24" height="12" fill="#0F172A" />
+    <rect x="205" y="145" width="32" height="12" fill="#0F172A" />
+
+    <rect x="35" y="165" width="32" height="12" fill="#0F172A" />
+    <rect x="115" y="165" width="24" height="12" fill="#0F172A" />
+    <rect x="155" y="165" width="12" height="32" fill="#0F172A" />
+    <rect x="225" y="165" width="12" height="12" fill="#0F172A" />
+
+    <rect x="85" y="195" width="32" height="12" fill="#0F172A" />
+    <rect x="125" y="195" width="12" height="24" fill="#0F172A" />
+    <rect x="225" y="195" width="24" height="12" fill="#0F172A" />
+
+    <rect x="85" y="225" width="12" height="24" fill="#0F172A" />
+    <rect x="115" y="225" width="24" height="12" fill="#0F172A" />
+    <rect x="155" y="225" width="42" height="12" fill="#0F172A" />
+    <rect x="215" y="225" width="24" height="12" fill="#0F172A" />
+  </g>
+
+  <!-- Supported Apps Ribbon / Footer -->
+  <rect y="495" width="450" height="65" rx="20" fill="#F1F5F9" />
+  <rect y="495" width="450" height="20" fill="#F1F5F9" />
+
+  <text x="225" y="515" font-family="'Noto Sans Bengali', Arial, sans-serif" font-size="12" font-weight="700" fill="#006A4E" text-anchor="middle">
+    যেকোনো ব্যাংক বা MFS অ্যাপ দিয়ে স্ক্যান করুন
+  </text>
+  <text x="225" y="535" font-family="'Inter', Arial, sans-serif" font-size="11" font-weight="800" fill="#475569" text-anchor="middle" letter-spacing="1">
+    bKash • Nagad • Rocket • Upay • Cellfin • Astha • CityTouch
+  </text>
+</svg>

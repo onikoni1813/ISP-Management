@@ -114,6 +114,25 @@ defineProps({
                     </div>
                     <span class="mt-3 block text-xs font-semibold text-rose-400 group-hover:underline">Manage Notices →</span>
                 </Link>
+
+                <Link
+                    :href="route('admin.cms.settings')"
+                    class="rounded-3xl border border-slate-800 bg-slate-900/60 p-6 backdrop-blur-sm hover:border-brand-orange/40 hover:bg-slate-900/90 transition group"
+                >
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-400">NOC & Hotline</span>
+                        <span class="rounded-xl bg-brand-orange/10 p-2 text-brand-orange group-hover:scale-110 transition">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                            </svg>
+                        </span>
+                    </div>
+                    <div class="mt-4 flex items-baseline gap-2">
+                        <span class="text-xl font-black text-white">Hotline & Mode</span>
+                        <span class="text-xs text-brand-orange font-mono">Maintenance</span>
+                    </div>
+                    <span class="mt-3 block text-xs font-semibold text-brand-orange group-hover:underline">Settings & Maintenance Mode →</span>
+                </Link>
             </div>
 
             <!-- CMS Information Box -->

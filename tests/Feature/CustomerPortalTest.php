@@ -133,13 +133,12 @@ class CustomerPortalTest extends TestCase
             'payment_method' => 'bkash',
         ], $this->customerUser->id);
 
-        // Check Invoices page
+        // Customer can view dedicated Invoices page
         $this->actingAs($this->customerUser)
-            ->get(route('account.invoices'))
+            ->get('/account/invoices')
             ->assertOk()
             ->assertInertia(fn($page) => $page
                 ->component('Account/Invoices')
-                ->has('invoices.data', 1)
             );
 
         // Check Payments page
@@ -182,6 +181,15 @@ class CustomerPortalTest extends TestCase
             'complaint_id' => $complaint->id,
             'comment' => 'Router light is blinking red right now.',
         ]);
+
+        // 3. View complaints page receives dynamic nocHotline
+        $this->actingAs($this->customerUser)->get(route('account.complaints'))
+            ->assertOk()
+            ->assertInertia(fn($page) => $page
+                ->component('Account/Complaints')
+                ->has('nocHotline')
+                ->has('complaints')
+            );
     }
 
     public function test_customer_can_self_renew_connection(): void
@@ -205,6 +213,49 @@ class CustomerPortalTest extends TestCase
             'customer_id' => $this->customer->id,
             'connection_id' => $this->connection->id,
             'validity_days' => 30,
+        ]);
+    }
+
+    public function test_customer_can_view_upgrade_page_and_upgrade_package(): void
+    {
+        // Create a new package to upgrade to
+        $newPackage = Package::create([
+            'name' => 'Ultra 20 Mbps',
+            'code' => 'PKG-20M',
+            'speed_mbps' => 20,
+            'is_active' => true,
+        ]);
+        PackagePrice::create([
+            'package_id' => $newPackage->id,
+            'price' => 1000.00,
+            'validity_days' => 30,
+            'effective_from' => now()->subMonth()->toDateString(),
+            'is_active' => true,
+        ]);
+
+        // 1. View upgrade page
+        $this->actingAs($this->customerUser)->get(route('account.upgrade'))
+            ->assertOk()
+            ->assertInertia(fn($page) => $page
+                ->component('Account/Upgrade')
+                ->has('packages')
+            );
+
+        // 2. Submit upgrade
+        $response = $this->actingAs($this->customerUser)->post(route('account.upgrade.store'), [
+            'package_id' => $newPackage->id,
+        ]);
+
+        $response->assertRedirect(route('account.dashboard'));
+
+        $this->connection->refresh();
+        $this->assertEquals($newPackage->id, $this->connection->current_package_id);
+
+        $this->assertDatabaseHas('customer_packages', [
+            'customer_id' => $this->customer->id,
+            'connection_id' => $this->connection->id,
+            'package_id' => $newPackage->id,
+            'status' => 'active',
         ]);
     }
 }

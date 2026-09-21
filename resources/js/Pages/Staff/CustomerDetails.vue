@@ -1,7 +1,8 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import StaffLayout from '@/Layouts/StaffLayout.vue';
+import { formatDate, formatDateTime } from '@/Utils/date';
 
 const props = defineProps({
     customer: Object,
@@ -33,17 +34,45 @@ import { syncService } from '@/Services/syncService';
 // Quick Pay Modal/Form
 const showPayModal = ref(false);
 const paySuccessNotice = ref('');
+
+const packagePrice = computed(() => {
+    return Number(primaryConnection?.current_package?.current_price?.price) || 0;
+});
+
 const payForm = useForm({
-    amount: primaryConnection?.current_package?.current_price?.price || 500,
+    amount: packagePrice.value || 500,
+    discount: 0,
     payment_method: 'cash',
     notes: 'Field collection',
 });
 
+const openPayModal = () => {
+    const base = packagePrice.value || 500;
+    payForm.discount = 0;
+    payForm.amount = base;
+    showPayModal.value = true;
+};
+
+const handleDiscountChange = () => {
+    const base = packagePrice.value || 0;
+    const disc = Number(payForm.discount) || 0;
+    if (disc > base) {
+        payForm.discount = base;
+    }
+    payForm.amount = Math.max(0, base - Number(payForm.discount || 0));
+};
+
 const submitPayment = async () => {
+    if (!payForm.amount || payForm.amount <= 0) {
+        alert('সঠিক টাকার অঙ্ক লিখুন (Amount must be greater than 0)');
+        return;
+    }
+
     if (!navigator.onLine) {
         // Enqueue offline payment mutation
         await syncService.collectPaymentOffline(props.customer, {
             amount: payForm.amount,
+            discount: payForm.discount,
             payment_method: payForm.payment_method,
             notes: payForm.notes,
         });
@@ -54,50 +83,40 @@ const submitPayment = async () => {
     }
 
     payForm.post(route('customers.pay', props.customer.id), {
-        onSuccess: () => {
-            showPayModal.value = false;
+        preserveScroll: true,
+        onError: (errors) => {
+            const errList = Object.values(errors).flat().join('\n');
+            alert('বিল আদায়ে ত্রুটি:\n' + (errList || 'অনুগ্রহ করে পুনরায় চেষ্টা করুন'));
         }
     });
 };
 
-// Quick Renew Modal/Form
-const showRenewModal = ref(false);
-const renewSuccessNotice = ref('');
-const renewForm = useForm({
-    validity_days: 30,
-    is_zero_charge: false,
-    mode: 'standard',
-    collect_payment: true,
-    payment_method: 'cash',
+// Customer Note & Promise-to-Pay Form
+const showNoteModal = ref(false);
+const noteForm = useForm({
+    note_type: 'promise_to_pay',
+    promise_date: '',
+    promise_amount: primaryConnection?.current_package?.current_price?.price || '',
+    note: '',
 });
 
-const submitRenewal = async () => {
-    if (!primaryConnection) return;
-
-    if (!navigator.onLine) {
-        // Enqueue offline renewal mutation
-        await syncService.renewConnectionOffline(props.customer, primaryConnection.id, {
-            validity_days: renewForm.validity_days,
-            is_zero_charge: renewForm.is_zero_charge,
-            mode: renewForm.mode,
-            collect_payment: renewForm.collect_payment,
-            payment_method: renewForm.payment_method,
-        });
-        showRenewModal.value = false;
-        renewSuccessNotice.value = `Renewal for ${renewForm.validity_days} days queued offline. Will sync when online.`;
-        setTimeout(() => { renewSuccessNotice.value = ''; }, 4000);
-        return;
-    }
-
-    renewForm.post(route('customers.renew', {
-        customer: props.customer.id,
-        connection: primaryConnection.id,
-    }), {
+const submitNote = () => {
+    noteForm.post(route('customers.notes.store', props.customer.id), {
         onSuccess: () => {
-            showRenewModal.value = false;
+            showNoteModal.value = false;
+            noteForm.reset();
         }
     });
 };
+
+const resolveNote = (noteId) => {
+    axios.post(route('customers.notes.status', noteId), { status: 'resolved' })
+        .then(() => {
+            window.location.reload();
+        });
+};
+
+
 </script>
 
 <template>
@@ -111,9 +130,9 @@ const submitRenewal = async () => {
         </div>
 
         <!-- Offline Queue Notification Banners -->
-        <div v-if="paySuccessNotice || renewSuccessNotice" class="mb-4 rounded-2xl border border-brand-orange/40 bg-brand-orange/10 p-3.5 text-xs font-bold text-brand-amber flex items-center gap-2">
+        <div v-if="paySuccessNotice" class="mb-4 rounded-2xl border border-brand-orange/40 bg-brand-orange/10 p-3.5 text-xs font-bold text-brand-amber flex items-center gap-2">
             <span class="h-2 w-2 rounded-full bg-brand-orange animate-pulse"></span>
-            <span>{{ paySuccessNotice || renewSuccessNotice }}</span>
+            <span>{{ paySuccessNotice }}</span>
         </div>
 
         <!-- Customer Identity Card -->
@@ -140,19 +159,74 @@ const submitRenewal = async () => {
             </div>
 
             <!-- Quick Action Buttons on Field -->
-            <div class="grid grid-cols-2 gap-3 mt-5 pt-4 border-t border-brand-navy">
+            <div class="mt-5 pt-4 border-t border-brand-navy grid grid-cols-2 gap-2.5">
                 <button
-                    @click="showPayModal = true"
+                    @click="openPayModal"
                     class="rounded-2xl bg-gradient-to-r from-brand-orange to-brand-amber hover:opacity-95 p-3 text-center text-xs font-bold text-white shadow-lg shadow-brand-orange/25 transition"
                 >
-                    💰 Collect Payment
+                    💰 বিল আদায়
                 </button>
                 <button
-                    @click="showRenewModal = true"
-                    class="rounded-2xl bg-gradient-to-r from-brand-sky to-brand-blue hover:opacity-95 p-3 text-center text-xs font-bold text-white shadow-lg shadow-brand-navy/50 transition"
+                    @click="showNoteModal = true"
+                    class="rounded-2xl bg-[#0B1E36] hover:bg-[#0B1E36]/80 border border-brand-sky/40 p-3 text-center text-xs font-bold text-brand-sky shadow-lg transition"
                 >
-                    ⚡ Renew Connection
+                    📝 নোট / তারিখ যুক্ত করুন
                 </button>
+            </div>
+        </div>
+
+        <!-- Customer Staff Notes & Promise-To-Pay Ledger -->
+        <div class="rounded-3xl border border-brand-navy bg-[#071527]/90 p-5 backdrop-blur-sm space-y-3 mb-4 shadow-lg">
+            <div class="flex items-center justify-between">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400">স্টাফ নোট ও বিল প্রতিশ্রুতির রেকর্ড</h2>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand-sky/10 text-brand-sky border border-brand-sky/20">
+                    {{ customer.customer_notes?.length || 0 }} Notes
+                </span>
+            </div>
+
+            <div v-if="customer.customer_notes?.length > 0" class="space-y-2.5">
+                <div
+                    v-for="nt in customer.customer_notes"
+                    :key="nt.id"
+                    :class="[
+                        'p-3.5 rounded-2xl border text-xs transition-all space-y-1.5',
+                        nt.status === 'resolved' ? 'bg-slate-900/50 border-slate-800 opacity-60' : 'bg-[#0B1E36]/70 border-white/10'
+                    ]"
+                >
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span :class="[
+                                'px-2 py-0.5 rounded-md text-[10px] font-bold uppercase',
+                                nt.note_type === 'promise_to_pay' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-brand-sky/20 text-brand-sky border border-brand-sky/30'
+                            ]">
+                                {{ nt.note_type === 'promise_to_pay' ? 'পরে বিল দেবে' : 'সাধারণ নোট' }}
+                            </span>
+                            <span class="font-bold text-slate-200">{{ nt.author?.name }}</span>
+                        </div>
+                        <span class="text-[10px] font-mono text-slate-500">{{ formatDateTime(nt.created_at) }}</span>
+                    </div>
+
+                    <p class="text-slate-300 leading-relaxed">{{ nt.note }}</p>
+
+                    <div v-if="nt.promise_date" class="flex items-center justify-between pt-1 border-t border-white/5 text-[11px]">
+                        <span class="text-amber-400 font-medium">
+                            📅 প্রতিশ্রুত তারিখ: <strong class="font-mono">{{ formatDate(nt.promise_date) }}</strong>
+                            <span v-if="nt.promise_amount" class="ml-1 font-mono text-white">(৳{{ nt.promise_amount }})</span>
+                        </span>
+
+                        <button
+                            v-if="nt.status !== 'resolved'"
+                            @click="resolveNote(nt.id)"
+                            class="px-2 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-[10px] font-bold border border-emerald-500/30 transition"
+                        >
+                            ✓ সম্পন্ন হয়েছে
+                        </button>
+                        <span v-else class="text-[10px] text-emerald-400 font-bold">✓ সম্পন্ন</span>
+                    </div>
+                </div>
+            </div>
+            <div v-else class="text-xs text-slate-500 text-center py-4 bg-[#0B1E36]/30 rounded-2xl">
+                কোনো নোট যোগ করা হয়নি।
             </div>
         </div>
 
@@ -175,7 +249,7 @@ const submitRenewal = async () => {
                 </div>
                 <div>
                     <span class="text-slate-400">Expiry Date:</span>
-                    <div class="text-sm font-mono font-bold text-brand-orange mt-0.5">{{ primaryConnection?.expiry_date || 'N/A' }}</div>
+                    <div class="text-sm font-mono font-bold text-brand-orange mt-0.5">{{ formatDate(primaryConnection?.expiry_date) }}</div>
                 </div>
             </div>
 
@@ -217,43 +291,161 @@ const submitRenewal = async () => {
         <!-- Pay Modal -->
         <div v-if="showPayModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
             <div class="w-full max-w-sm rounded-3xl border border-brand-navy bg-[#071527] p-6 shadow-2xl space-y-4">
-                <h3 class="text-base font-bold text-white">Record Payment Collection</h3>
-                <div>
-                    <label class="block text-xs text-slate-400 mb-1">Amount (BDT)</label>
-                    <input v-model="payForm.amount" type="number" class="w-full rounded-xl bg-[#0B1E36] border-brand-navy p-3 text-white font-mono focus:border-brand-orange focus:ring-brand-orange" />
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-base font-bold text-white">বিল আদায় (Record Payment)</h3>
+                        <p class="text-[11px] text-slate-400">প্যাকেজ রেট স্বয়ংক্রিয়ভাবে ধার্য হয়েছে</p>
+                    </div>
+                    <button @click="showPayModal = false" class="text-slate-400 hover:text-white text-sm">✕</button>
                 </div>
+
+                <!-- Package Info Badge -->
+                <div class="p-3 rounded-2xl bg-[#0B1E36]/80 border border-brand-sky/20 flex items-center justify-between text-xs">
+                    <div>
+                        <span class="text-slate-400">বর্তমান প্যাকেজ:</span>
+                        <div class="font-bold text-white mt-0.5">{{ primaryConnection?.current_package?.name || 'Standard' }}</div>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-slate-400">নির্ধারিত ফি:</span>
+                        <div class="font-mono font-bold text-brand-cyan text-sm mt-0.5">৳{{ packagePrice }}</div>
+                    </div>
+                </div>
+
+                <!-- Discount Input Field -->
                 <div>
-                    <label class="block text-xs text-slate-400 mb-1">Payment Method</label>
-                    <select v-model="payForm.payment_method" class="w-full rounded-xl bg-[#0B1E36] border-brand-navy p-3 text-white focus:border-brand-sky focus:ring-brand-sky">
-                        <option value="cash">Cash in Hand</option>
-                        <option value="bkash">bKash</option>
-                        <option value="nagad">Nagad</option>
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="text-xs text-slate-400">ছাড় / ডিস্কাউন্ট (BDT)</label>
+                        <span class="text-[10px] text-brand-amber">ঐচ্ছিক (Optional)</span>
+                    </div>
+                    <input
+                        v-model.number="payForm.discount"
+                        @input="handleDiscountChange"
+                        type="number"
+                        min="0"
+                        placeholder="0"
+                        class="w-full rounded-xl bg-[#0B1E36] border-brand-navy p-3 text-white font-mono focus:border-brand-amber focus:ring-brand-amber text-sm"
+                    />
+                </div>
+
+                <!-- Final Payable Amount Display (Read-Only / Lock) -->
+                <div>
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="text-xs text-slate-400 font-bold">পরিশোধিত অর্থ / মোট আদায় (BDT) *</label>
+                        <span class="text-[10px] text-slate-500 font-semibold flex items-center gap-1">
+                            🔒 অটো ক্যালকুলেট
+                        </span>
+                    </div>
+                    <div class="relative">
+                        <input
+                            :value="payForm.amount"
+                            type="number"
+                            readonly
+                            tabindex="-1"
+                            class="w-full rounded-xl bg-[#081729] border border-brand-navy/80 p-3.5 text-emerald-400 font-mono text-xl font-black focus:outline-none cursor-not-allowed select-none opacity-95 shadow-inner"
+                        />
+                        <span class="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-mono font-bold text-slate-500">
+                            BDT
+                        </span>
+                    </div>
+                    <div class="mt-1 flex items-center justify-between text-[11px]">
+                        <span class="text-slate-400">
+                            প্যাকেজ রেট: <strong class="text-white font-mono">৳{{ packagePrice }}</strong>
+                        </span>
+                        <span v-if="payForm.discount > 0" class="text-brand-amber font-mono font-bold">
+                            ছাড়: -৳{{ payForm.discount }}
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Payment Method -->
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">পেমেন্ট মেথড (Payment Method)</label>
+                    <select v-model="payForm.payment_method" class="w-full rounded-xl bg-[#0B1E36] border-brand-navy p-3 text-white focus:border-brand-sky focus:ring-brand-sky text-xs">
+                        <option value="cash">নগদ ক্যাশ (Cash in Hand)</option>
+                        <option value="bkash">বিকাশ (bKash)</option>
+                        <option value="nagad">নগদ (Nagad)</option>
                     </select>
                 </div>
+
+                <!-- Note / Reference -->
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">মন্তব্য (নোট)</label>
+                    <input
+                        v-model="payForm.notes"
+                        type="text"
+                        placeholder="মাঠ পর্যায়ের বিল আদায়"
+                        class="w-full rounded-xl bg-[#0B1E36] border-brand-navy p-2.5 text-xs text-white focus:border-brand-sky"
+                    />
+                </div>
+
                 <div class="flex gap-2 pt-2">
-                    <button @click="showPayModal = false" class="flex-1 rounded-xl bg-[#0B1E36] border border-brand-navy p-2.5 text-xs font-semibold text-slate-300 hover:text-white">Cancel</button>
-                    <button @click="submitPayment" :disabled="payForm.processing" class="flex-1 rounded-xl bg-gradient-to-r from-brand-orange to-brand-amber p-2.5 text-xs font-bold text-white shadow-lg shadow-brand-orange/20">Confirm</button>
+                    <button type="button" @click="showPayModal = false" class="flex-1 rounded-xl bg-[#0B1E36] border border-brand-navy p-2.5 text-xs font-semibold text-slate-300 hover:text-white">
+                        বাতিল
+                    </button>
+                    <button
+                        type="button"
+                        @click="submitPayment"
+                        :disabled="payForm.processing"
+                        class="flex-1 rounded-xl bg-gradient-to-r from-brand-orange to-brand-amber p-2.5 text-xs font-bold text-white shadow-lg shadow-brand-orange/20 transition disabled:opacity-50 flex items-center justify-center gap-1.5"
+                    >
+                        <span v-if="payForm.processing">সংরক্ষণ হচ্ছে...</span>
+                        <span v-else>আদায় কনফার্ম করুন</span>
+                    </button>
                 </div>
             </div>
         </div>
 
-        <!-- Renew Modal -->
-        <div v-if="showRenewModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+        <!-- Customer Note & Promise Modal -->
+        <div v-if="showNoteModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
             <div class="w-full max-w-sm rounded-3xl border border-brand-navy bg-[#071527] p-6 shadow-2xl space-y-4">
-                <h3 class="text-base font-bold text-white">Renew Connection</h3>
-                <div>
-                    <label class="block text-xs text-slate-400 mb-1">Renewal Days</label>
-                    <input v-model="renewForm.validity_days" type="number" class="w-full rounded-xl bg-[#0B1E36] border-brand-navy p-3 text-white font-mono focus:border-brand-sky focus:ring-brand-sky" />
+                <div class="flex items-center justify-between">
+                    <h3 class="text-base font-bold text-white">গ্রাহক নোট / বিলের প্রতিশ্রুতি</h3>
+                    <button @click="showNoteModal = false" class="text-slate-400 hover:text-white text-sm">✕</button>
                 </div>
-                <div class="flex items-center gap-2">
-                    <input v-model="renewForm.is_zero_charge" id="zeroChargeStaff" type="checkbox" class="rounded bg-[#0B1E36] border-brand-navy text-brand-sky" />
-                    <label for="zeroChargeStaff" class="text-xs text-slate-300">Zero Charge Validity Adjustment</label>
-                </div>
-                <div class="flex gap-2 pt-2">
-                    <button @click="showRenewModal = false" class="flex-1 rounded-xl bg-[#0B1E36] border border-brand-navy p-2.5 text-xs font-semibold text-slate-300 hover:text-white">Cancel</button>
-                    <button @click="submitRenewal" :disabled="renewForm.processing" class="flex-1 rounded-xl bg-gradient-to-r from-brand-sky to-brand-blue p-2.5 text-xs font-bold text-white shadow-lg shadow-brand-navy/40">Submit Renewal</button>
-                </div>
+
+                <form @submit.prevent="submitNote" class="space-y-3.5">
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">নোটের ধরন</label>
+                        <select v-model="noteForm.note_type" class="w-full rounded-xl bg-[#0B1E36] border-brand-navy p-2.5 text-xs text-white focus:border-brand-sky focus:ring-brand-sky">
+                            <option value="promise_to_pay">📅 পরে বিল পরিশোধ করবে (Promise to Pay)</option>
+                            <option value="issue_report">⚠️ সমস্যা / কমপ্লেইন সংক্রান্ত</option>
+                            <option value="general_remark">💬 সাধারণ মন্তব্য (General Remark)</option>
+                        </select>
+                    </div>
+
+                    <div v-if="noteForm.note_type === 'promise_to_pay'" class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">বিলের তারিখ *</label>
+                            <input v-model="noteForm.promise_date" type="date" required class="w-full rounded-xl bg-[#0B1E36] border-brand-navy p-2 text-xs text-white font-mono focus:border-brand-sky" />
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">টাকার অঙ্ক (৳)</label>
+                            <input v-model="noteForm.promise_amount" type="number" placeholder="500" class="w-full rounded-xl bg-[#0B1E36] border-brand-navy p-2 text-xs text-white font-mono focus:border-brand-sky" />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">নোটের বিবরণ / ইউজারের বক্তব্য *</label>
+                        <textarea
+                            v-model="noteForm.note"
+                            required
+                            rows="3"
+                            placeholder="যেমন: ইউজার জানিয়েছে আগামী ২০ তারিখে বিকাশ বা ক্যাশে বিল পরিশোধ করবেন..."
+                            class="w-full rounded-xl bg-[#0B1E36] border-brand-navy p-2.5 text-xs text-white placeholder-slate-500 focus:border-brand-sky"
+                        ></textarea>
+                    </div>
+
+                    <div class="flex gap-2 pt-1">
+                        <button type="button" @click="showNoteModal = false" class="flex-1 rounded-xl bg-[#0B1E36] border border-brand-navy p-2.5 text-xs font-semibold text-slate-300 hover:text-white">
+                            বাতিল
+                        </button>
+                        <button type="submit" :disabled="noteForm.processing" class="flex-1 rounded-xl bg-brand-sky hover:bg-brand-sky/90 p-2.5 text-xs font-bold text-white shadow-lg shadow-brand-sky/25">
+                            {{ noteForm.processing ? 'সংরক্ষণ...' : 'সংরক্ষণ করুন' }}
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
+
     </StaffLayout>
 </template>

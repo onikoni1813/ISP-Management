@@ -1,7 +1,9 @@
 <script setup>
-import { ref } from 'vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { ref, computed } from 'vue';
+import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import ConfirmModal from '@/Components/ConfirmModal.vue';
+import { formatDate } from '@/Utils/date';
 
 const props = defineProps({
     pages: Array,
@@ -9,6 +11,22 @@ const props = defineProps({
 
 const isCreating = ref(false);
 const editingPage = ref(null);
+const searchQuery = ref('');
+
+const showDeleteConfirm = ref(false);
+const pageToDelete = ref(null);
+const deletingPage = ref(false);
+
+const filteredPages = computed(() => {
+    if (!searchQuery.value.trim()) return props.pages;
+    const q = searchQuery.value.toLowerCase();
+    return props.pages.filter(p => 
+        p.title.toLowerCase().includes(q) ||
+        p.slug.toLowerCase().includes(q) ||
+        (p.seo_title && p.seo_title.toLowerCase().includes(q)) ||
+        (p.content && p.content.toLowerCase().includes(q))
+    );
+});
 
 const form = useForm({
     title: '',
@@ -16,7 +34,6 @@ const form = useForm({
     content: '',
     seo_title: '',
     seo_description: '',
-    order: 0,
     is_published: true,
 });
 
@@ -25,7 +42,6 @@ const openCreateModal = () => {
     form.reset();
     form.clearErrors();
     form.is_published = true;
-    form.order = props.pages.length;
     isCreating.value = true;
 };
 
@@ -34,10 +50,9 @@ const openEditModal = (page) => {
     form.clearErrors();
     form.title = page.title;
     form.slug = page.slug;
-    form.content = page.content || '';
+    form.content = page.content;
     form.seo_title = page.seo_title || '';
     form.seo_description = page.seo_description || '';
-    form.order = page.order;
     form.is_published = Boolean(page.is_published);
     isCreating.value = true;
 };
@@ -58,7 +73,7 @@ const autoSlug = () => {
     }
 };
 
-const savePage = () => {
+const submit = () => {
     if (editingPage.value) {
         form.patch(route('admin.cms.pages.update', editingPage.value.id), {
             onSuccess: () => closeModal(),
@@ -75,9 +90,20 @@ const togglePublish = (page) => {
 };
 
 const deletePage = (page) => {
-    if (confirm(`Are you sure you want to delete the page "${page.title}"?`)) {
-        useForm({}).delete(route('admin.cms.pages.destroy', page.id));
-    }
+    pageToDelete.value = page;
+    showDeleteConfirm.value = true;
+};
+
+const confirmDeletePage = () => {
+    if (!pageToDelete.value) return;
+    deletingPage.value = true;
+    router.delete(route('admin.cms.pages.destroy', pageToDelete.value.id), {
+        onFinish: () => {
+            deletingPage.value = false;
+            showDeleteConfirm.value = false;
+            pageToDelete.value = null;
+        }
+    });
 };
 </script>
 
@@ -109,8 +135,87 @@ const deletePage = (page) => {
                 </button>
             </div>
 
-            <!-- Pages Table -->
-            <div class="rounded-3xl border border-slate-800 bg-slate-900/60 backdrop-blur-sm overflow-hidden">
+            <!-- Search Bar -->
+            <div class="flex items-center justify-between gap-4">
+                <div class="relative flex-1 max-w-md">
+                    <input
+                        v-model="searchQuery"
+                        type="text"
+                        placeholder="Search pages by title, slug or content..."
+                        class="w-full pl-9 pr-4 py-2 text-xs rounded-xl bg-slate-900/80 border border-slate-800 text-white placeholder-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                    />
+                    <svg class="w-4 h-4 text-slate-500 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                </div>
+                <div class="text-xs text-slate-400 font-mono">
+                    Showing {{ filteredPages.length }} of {{ pages.length }} pages
+                </div>
+            </div>
+
+            <!-- Mobile View: Cards (block md:hidden) -->
+            <div class="block md:hidden space-y-3">
+                <div v-if="filteredPages.length === 0" class="rounded-3xl border border-slate-800 bg-slate-900/60 p-8 text-center text-slate-500 text-xs">
+                    No custom pages found matching your search.
+                </div>
+                <div
+                    v-for="page in filteredPages"
+                    :key="'mobile-' + page.id"
+                    class="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 space-y-3 shadow-lg"
+                >
+                    <div class="flex items-center justify-between">
+                        <span class="font-mono text-xs text-slate-500">Order: #{{ page.order }}</span>
+                        <button
+                            @click="togglePublish(page)"
+                            :class="[
+                                page.is_published ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-slate-800 text-slate-400 border-slate-700',
+                                'rounded-full border px-2.5 py-0.5 text-[10px] font-bold transition hover:opacity-80'
+                            ]"
+                        >
+                            {{ page.is_published ? 'Published' : 'Draft' }}
+                        </button>
+                    </div>
+
+                    <div>
+                        <div class="font-bold text-white text-sm">{{ page.title }}</div>
+                        <div class="font-mono text-xs text-cyan-400 mt-0.5">/p/{{ page.slug }}</div>
+                    </div>
+
+                    <div v-if="page.seo_title" class="text-xs text-slate-400 italic">
+                        SEO: {{ page.seo_title }}
+                    </div>
+
+                    <div class="flex items-center justify-between pt-2 border-t border-slate-800/80 text-xs">
+                        <span class="text-slate-500">{{ formatDate(page.updated_at) }}</span>
+                        <div class="flex items-center gap-2">
+                            <a
+                                v-if="page.is_published"
+                                :href="route('page.custom', page.slug)"
+                                target="_blank"
+                                class="rounded-lg p-1.5 text-cyan-400 bg-cyan-500/10 hover:bg-cyan-500/20 transition"
+                                title="View Live"
+                            >
+                                Live ↗
+                            </a>
+                            <button
+                                @click="openEditModal(page)"
+                                class="rounded-lg p-1.5 text-slate-300 bg-slate-800 hover:text-white transition"
+                            >
+                                Edit
+                            </button>
+                            <button
+                                @click="deletePage(page)"
+                                class="rounded-lg p-1.5 text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 transition"
+                            >
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Desktop View: Table (hidden md:block) -->
+            <div class="hidden md:block rounded-3xl border border-slate-800 bg-slate-900/60 backdrop-blur-sm overflow-hidden">
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-xs text-slate-300">
                         <thead class="border-b border-slate-800 bg-slate-950/60 text-[11px] uppercase tracking-wider text-slate-400 font-semibold">
@@ -124,12 +229,12 @@ const deletePage = (page) => {
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-800/60">
-                            <tr v-if="pages.length === 0">
+                            <tr v-if="filteredPages.length === 0">
                                 <td colspan="6" class="py-8 text-center text-slate-500">
-                                    No custom pages found. Click "New Page" to create your first CMS page.
+                                    No custom pages found matching your search.
                                 </td>
                             </tr>
-                            <tr v-for="page in pages" :key="page.id" class="hover:bg-slate-800/30 transition">
+                            <tr v-for="page in filteredPages" :key="page.id" class="hover:bg-slate-800/30 transition">
                                 <td class="py-3 px-4 font-mono text-slate-400">#{{ page.order }}</td>
                                 <td class="py-3 px-4">
                                     <div class="font-bold text-white">{{ page.title }}</div>
@@ -151,7 +256,7 @@ const deletePage = (page) => {
                                     </button>
                                 </td>
                                 <td class="py-3 px-4 text-slate-400">
-                                    {{ new Date(page.updated_at).toLocaleDateString() }}
+                                    {{ formatDate(page.updated_at) }}
                                 </td>
                                 <td class="py-3 px-4 text-right space-x-2">
                                     <a
@@ -300,6 +405,19 @@ const deletePage = (page) => {
                     </form>
                 </div>
             </div>
+
+            <!-- Professional Delete Page Modal -->
+            <ConfirmModal
+                :show="showDeleteConfirm"
+                :title="`Delete Page: ${pageToDelete?.title || ''}`"
+                :message="`Are you sure you want to permanently delete the page '${pageToDelete?.title}' (/p/${pageToDelete?.slug})? Any published website links pointing to this page will become unavailable.`"
+                confirm-text="Delete Page"
+                cancel-text="Keep Page"
+                type="danger"
+                :processing="deletingPage"
+                @confirm="confirmDeletePage"
+                @cancel="showDeleteConfirm = false; pageToDelete = null;"
+            />
         </div>
     </AdminLayout>
 </template>
