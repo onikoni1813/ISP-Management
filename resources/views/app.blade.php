@@ -20,7 +20,24 @@
         <!-- PWA Manifest -->
         <link rel="manifest" href="/manifest.json?v=3">
 
+        <!-- Primary Meta Tags & Open Graph (Social Sharing) -->
         <title inertia>{{ config('app.name', 'Pirgacha Internet') }}</title>
+        <meta name="title" content="Pirgacha Internet - Fast & Reliable ISP">
+        <meta name="description" content="Pirgacha Internet - Reliable High-Speed Broadband Internet Service Provider. Contact: 01711-000000">
+
+        <!-- Open Graph / Facebook / Messenger / WhatsApp -->
+        <meta property="og:type" content="website">
+        <meta property="og:url" content="{{ url('/') }}">
+        <meta property="og:title" content="Pirgacha Internet">
+        <meta property="og:description" content="Fast, reliable & dedicated high-speed broadband internet in Pirgacha.">
+        <meta property="og:image" content="{{ asset('logo.png') }}">
+
+        <!-- Twitter -->
+        <meta property="twitter:card" content="summary_large_image">
+        <meta property="twitter:url" content="{{ url('/') }}">
+        <meta property="twitter:title" content="Pirgacha Internet">
+        <meta property="twitter:description" content="Fast, reliable & dedicated high-speed broadband internet in Pirgacha.">
+        <meta property="twitter:image" content="{{ asset('logo.png') }}">
 
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">
