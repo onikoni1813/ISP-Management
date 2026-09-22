@@ -30,6 +30,9 @@ class Connection extends Model
     protected function casts(): array
     {
         return [
+            'customer_id' => 'integer',
+            'area_id' => 'integer',
+            'current_package_id' => 'integer',
             'installation_date' => 'date:Y-m-d',
             'expiry_date' => 'date:Y-m-d',
         ];
