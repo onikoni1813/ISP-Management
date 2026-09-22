@@ -187,11 +187,13 @@ onUnmounted(() => {
         <!-- Staff Top App Bar -->
         <header class="sticky top-0 z-30 flex items-center justify-between border-b border-brand-navy bg-[#071322]/95 px-4 py-3 backdrop-blur-md">
             <Link :href="route('staff.dashboard')" class="flex items-center gap-3">
-                <ApplicationLogo size="sm" :animated="true" />
-                <div>
-                    <h1 class="text-sm font-bold text-white leading-tight">Field Assistant</h1>
-                    <p class="text-[11px] text-brand-orange font-semibold">{{ staffDisplayName }}</p>
-                </div>
+                <ApplicationLogo 
+                    size="sm" 
+                    :animated="true" 
+                    :with-text="true" 
+                    badge="Staff" 
+                    :sub-text="staffDisplayName" 
+                />
             </Link>
 
             <!-- Connection Status Badge & Sync Control -->

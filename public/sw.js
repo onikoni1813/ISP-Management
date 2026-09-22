@@ -1,5 +1,5 @@
-// Pirgacha Internet PWA Service Worker v5.0
-const CACHE_NAME = 'pirgacha-isp-cache-v5';
+// Pirgacha Internet PWA Service Worker v6.0
+const CACHE_NAME = 'pirgacha-isp-cache-v6';
 const STATIC_ASSETS = [
     '/',
     '/staff/login',
@@ -43,6 +43,11 @@ self.addEventListener('fetch', (event) => {
 
     // Skip non-GET requests (mutations are handled by IndexedDB sync queue)
     if (request.method !== 'GET') {
+        return;
+    }
+
+    // Never cache admin routes or admin API calls in Service Worker
+    if (url.pathname.startsWith('/admin')) {
         return;
     }
 

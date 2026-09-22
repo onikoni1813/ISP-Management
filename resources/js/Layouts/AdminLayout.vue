@@ -55,12 +55,8 @@ const navItems = [
                     </svg>
                 </button>
                 <div class="flex items-center gap-2 sm:gap-3">
-                    <Link :href="route('admin.dashboard')" class="flex items-center gap-2">
-                        <ApplicationLogo size="sm" :animated="true" />
-                        <div class="flex items-center gap-1.5 sm:gap-2">
-                            <span class="text-sm sm:text-base font-bold tracking-tight text-white truncate max-w-[130px] sm:max-w-none">Pirgacha Internet</span>
-                            <span class="rounded-md bg-brand-orange/10 px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-semibold text-brand-orange border border-brand-orange/30">Admin</span>
-                        </div>
+                    <Link :href="route('admin.dashboard')">
+                        <ApplicationLogo size="sm" :animated="true" :with-text="true" badge="Admin" />
                     </Link>
                 </div>
             </div>

@@ -187,4 +187,42 @@ class CustomerCrmTest extends TestCase
 
         \Carbon\Carbon::setTestNow(); // Clear frozen time
     }
+
+    public function test_admin_can_delete_customer(): void
+    {
+        $area = Area::create(['name' => 'Station Road', 'code' => 'AREA-02']);
+        $package = Package::create(['name' => '15M', 'code' => 'P15', 'speed_mbps' => 15]);
+        PackagePrice::create([
+            'package_id' => $package->id,
+            'price' => 700.00,
+            'validity_days' => 30,
+            'effective_from' => now()->subMonth(),
+            'status' => 'active',
+        ]);
+
+        $this->actingAs($this->admin)->post('/admin/customers', [
+            'name' => 'Customer To Delete',
+            'phone' => '01999888777',
+            'area_id' => $area->id,
+            'address' => 'Station Road',
+            'package_id' => $package->id,
+            'billing_day' => 5,
+            'pppoe_username' => 'delete_me_pppoe',
+            'pppoe_password' => 'secret123',
+        ]);
+
+        $customer = Customer::where('name', 'Customer To Delete')->first();
+        $this->assertNotNull($customer);
+        $customerId = $customer->id;
+
+        $deleteResponse = $this->actingAs($this->admin)->delete("/admin/customers/{$customerId}");
+        $deleteResponse->assertRedirect('/admin/customers');
+
+        $this->assertDatabaseMissing('customers', ['id' => $customerId]);
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'customer_deleted',
+            'module' => 'customer',
+        ]);
+    }
 }
+

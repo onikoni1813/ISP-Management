@@ -100,14 +100,17 @@ const submit = () => {
                     </div>
 
                     <div class="sm:col-span-2">
-                        <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Installation Address *</label>
+                        <div class="flex items-center justify-between mb-1">
+                            <label class="block text-xs font-semibold text-slate-300 uppercase">Installation Address</label>
+                            <span class="text-[10px] text-slate-500 font-semibold uppercase">Optional</span>
+                        </div>
                         <textarea
                             v-model="form.address"
-                            required
                             rows="2"
                             placeholder="House / Holding, Village / Road, Pirgacha..."
                             class="w-full rounded-xl border-slate-800 bg-slate-950/80 p-3 text-sm text-white focus:border-indigo-500 focus:ring-indigo-500"
                         ></textarea>
+                        <div v-if="form.errors.address" class="text-xs text-rose-400 mt-1">{{ form.errors.address }}</div>
                     </div>
                 </div>
             </div>
@@ -144,23 +147,27 @@ const submit = () => {
                     </div>
 
                     <div>
-                        <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">PPPoE Username</label>
+                        <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">PPPoE Username *</label>
                         <input
                             v-model="form.pppoe_username"
                             type="text"
+                            required
                             placeholder="username_net"
                             class="w-full rounded-xl border-slate-800 bg-slate-950/80 p-3 text-sm text-white focus:border-emerald-500 focus:ring-emerald-500 font-mono"
                         />
+                        <div v-if="form.errors.pppoe_username" class="text-xs text-rose-400 mt-1">{{ form.errors.pppoe_username }}</div>
                     </div>
 
                     <div>
-                        <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">PPPoE Password (Encrypted)</label>
+                        <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">PPPoE Password (Encrypted) *</label>
                         <input
                             v-model="form.pppoe_password"
                             type="password"
+                            required
                             placeholder="••••••••"
                             class="w-full rounded-xl border-slate-800 bg-slate-950/80 p-3 text-sm text-white focus:border-emerald-500 focus:ring-emerald-500 font-mono"
                         />
+                        <div v-if="form.errors.pppoe_password" class="text-xs text-rose-400 mt-1">{{ form.errors.pppoe_password }}</div>
                     </div>
 
                     <div>

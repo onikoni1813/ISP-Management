@@ -1,6 +1,6 @@
 <script setup>
-import { ref } from 'vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { ref, computed } from 'vue';
+import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { formatDate, formatDateTime } from '@/Utils/date';
 
@@ -10,18 +10,18 @@ const props = defineProps({
     canViewPppoePassword: Boolean,
 });
 
-const primaryConnection = props.customer.connections?.[0] || null;
-const pppoe = primaryConnection?.pppoe_credential || null;
+const primaryConnection = computed(() => props.customer.connections?.[0] || null);
+const pppoe = computed(() => primaryConnection.value?.pppoe_credential || null);
 
 // Reveal PPPoE Password Modal/State
 const revealedPassword = ref(null);
 const isRevealing = ref(false);
 
 const revealPassword = async () => {
-    if (!pppoe?.id) return;
+    if (!pppoe.value?.id) return;
     isRevealing.value = true;
     try {
-        const res = await axios.post(route('admin.pppoe.reveal-password', pppoe.id));
+        const res = await axios.post(route('admin.pppoe.reveal-password', pppoe.value.id));
         revealedPassword.value = res.data.password;
     } catch (err) {
         alert('Unauthorized or error revealing password.');
@@ -48,16 +48,16 @@ const sendCredentialsSms = () => {
 
 // Package Change Form
 const packageForm = useForm({
-    package_id: primaryConnection?.current_package_id || '',
+    package_id: primaryConnection.value?.current_package_id || '',
 });
 
 const isChangingPackage = ref(false);
 
 const submitPackageChange = () => {
-    if (!primaryConnection) return;
+    if (!primaryConnection.value) return;
     packageForm.post(route('admin.customers.change-package', {
         customer: props.customer.id,
-        connection: primaryConnection.id,
+        connection: primaryConnection.value.id,
     }), {
         onSuccess: () => {
             isChangingPackage.value = false;
@@ -65,18 +65,62 @@ const submitPackageChange = () => {
     });
 };
 
+// Direct Expiry Date Edit Form & Modal
+const showExpiryModal = ref(false);
+
+const formatForDateInput = (d) => {
+    if (!d) return '';
+    if (typeof d === 'string') return d.substring(0, 10);
+    return '';
+};
+
+const expiryForm = useForm({
+    name: props.customer.name,
+    phone: props.customer.contacts?.[0]?.phone || '',
+    area_id: props.customer.area_id,
+    status: props.customer.status,
+    billing_day: props.customer.billing_day,
+    expiry_date: formatForDateInput(primaryConnection.value?.expiry_date),
+    notes: props.customer.notes || '',
+});
+
+const openExpiryModal = () => {
+    expiryForm.name = props.customer.name;
+    expiryForm.phone = props.customer.contacts?.[0]?.phone || '';
+    expiryForm.area_id = props.customer.area_id;
+    expiryForm.status = props.customer.status;
+    expiryForm.billing_day = props.customer.billing_day;
+    expiryForm.expiry_date = formatForDateInput(primaryConnection.value?.expiry_date);
+    expiryForm.notes = props.customer.notes || '';
+    showExpiryModal.value = true;
+};
+
+const submitExpiryUpdate = () => {
+    expiryForm.put(route('admin.customers.update', props.customer.id), {
+        preserveScroll: true,
+        onSuccess: () => {
+            showExpiryModal.value = false;
+            router.reload({ only: ['customer'] });
+        },
+        onError: (errors) => {
+            const err = Object.values(errors).flat().join('\n');
+            alert(err || 'Failed to update expiry date.');
+        }
+    });
+};
+
 // Collect Payment Form & Modal
 const showPaymentModal = ref(false);
-const defaultPrice = primaryConnection?.current_package?.current_price?.price || 0;
+const defaultPrice = computed(() => primaryConnection.value?.current_package?.current_price?.price || 0);
 const payForm = useForm({
-    amount: defaultPrice,
+    amount: 0,
     discount: 0,
     payment_method: 'cash',
     notes: 'Central office collection',
 });
 
 const openPaymentModal = () => {
-    payForm.amount = defaultPrice;
+    payForm.amount = defaultPrice.value;
     payForm.discount = 0;
     payForm.payment_method = 'cash';
     payForm.notes = 'Central office collection';
@@ -84,7 +128,7 @@ const openPaymentModal = () => {
 };
 
 const handleDiscountChange = () => {
-    const base = Number(defaultPrice) || 0;
+    const base = Number(defaultPrice.value) || 0;
     const disc = Number(payForm.discount) || 0;
     payForm.amount = Math.max(0, base - disc);
 };
@@ -106,7 +150,20 @@ const submitPayment = () => {
         }
     });
 };
+
+// Delete Customer Logic
+const isDeleteModalOpen = ref(false);
+const deleteForm = useForm({});
+
+const executeDelete = () => {
+    deleteForm.delete(route('admin.customers.destroy', props.customer.id), {
+        onSuccess: () => {
+            isDeleteModalOpen.value = false;
+        },
+    });
+};
 </script>
+
 
 <template>
     <Head :title="`${customer.name} (${customer.customer_code}) - Central Profile`" />
@@ -153,6 +210,17 @@ const submitPayment = () => {
                     class="rounded-xl bg-emerald-600 hover:bg-emerald-500 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-emerald-600/25 transition cursor-pointer"
                 >
                     Collect Payment
+                </button>
+                <button
+                    type="button"
+                    @click="isDeleteModalOpen = true"
+                    class="rounded-xl border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 px-3 py-2 text-xs font-semibold text-rose-400 hover:text-rose-300 transition cursor-pointer flex items-center gap-1.5"
+                    title="গ্রাহক মুছে ফেলুন"
+                >
+                    <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    Delete
                 </button>
             </div>
         </div>
@@ -219,8 +287,19 @@ const submitPayment = () => {
                             <div class="text-sm font-bold text-white mt-1">৳{{ primaryConnection?.current_package?.current_price?.price || 0 }}</div>
                         </div>
                         <div>
-                            <div class="text-[11px] font-semibold text-slate-400 uppercase">Expiry Date</div>
-                            <div class="text-sm font-bold text-amber-400 mt-1 font-mono">{{ formatDate(primaryConnection?.expiry_date) }}</div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-[11px] font-semibold text-slate-400 uppercase">Expiry Date</span>
+                                <button
+                                    type="button"
+                                    @click="openExpiryModal"
+                                    class="text-[11px] font-bold text-amber-400 hover:text-amber-300 underline cursor-pointer flex items-center gap-1"
+                                >
+                                    ✏️ Edit
+                                </button>
+                            </div>
+                            <div class="text-sm font-bold text-amber-400 mt-1 font-mono flex items-center justify-between">
+                                <span>{{ formatDate(primaryConnection?.expiry_date) }}</span>
+                            </div>
                         </div>
                     </div>
 
@@ -566,5 +645,133 @@ const submitPayment = () => {
                 </form>
             </div>
         </div>
+        <!-- Edit Expiry Date Modal -->
+        <div v-if="showExpiryModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <div class="w-full max-w-sm rounded-3xl border border-slate-700 bg-[#071527] p-6 shadow-2xl space-y-4">
+                <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+                    <div>
+                        <h3 class="text-base font-bold text-white">মেয়াদ পরিবর্তন (Edit Expiry Date)</h3>
+                        <p class="text-xs text-slate-400 mt-0.5">{{ customer.name }} ({{ customer.customer_code }})</p>
+                    </div>
+                    <button @click="showExpiryModal = false" class="text-slate-400 hover:text-white text-base">✕</button>
+                </div>
+
+                <form @submit.prevent="submitExpiryUpdate" class="space-y-4">
+                    <div class="p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-xs">
+                        <div class="flex justify-between text-slate-400">
+                            <span>প্যাকেজ:</span>
+                            <span class="font-bold text-white">{{ primaryConnection?.current_package?.name || 'N/A' }}</span>
+                        </div>
+                        <div class="flex justify-between text-slate-400 mt-1">
+                            <span>বর্তমান মেয়াদ:</span>
+                            <span class="font-bold text-amber-400 font-mono">{{ formatDate(primaryConnection?.expiry_date) }}</span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">নতুন মেয়াদের তারিখ (New Expiry Date) *</label>
+                        <input
+                            v-model="expiryForm.expiry_date"
+                            type="date"
+                            required
+                            class="w-full rounded-xl border border-slate-700 bg-slate-900 p-2.5 text-sm text-white font-mono focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none"
+                        />
+                        <div v-if="expiryForm.errors.expiry_date" class="text-xs text-rose-400 mt-1">{{ expiryForm.errors.expiry_date }}</div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Billing Cycle Day (১-৩১)</label>
+                        <input
+                            v-model.number="expiryForm.billing_day"
+                            type="number"
+                            min="1"
+                            max="31"
+                            required
+                            class="w-full rounded-xl border border-slate-700 bg-slate-900 p-2.5 text-sm text-white font-mono focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none"
+                        />
+                    </div>
+
+                    <div class="flex gap-2 pt-2">
+                        <button
+                            type="button"
+                            @click="showExpiryModal = false"
+                            class="flex-1 rounded-xl bg-slate-800 border border-slate-700 py-2.5 text-xs font-semibold text-slate-300 hover:text-white transition"
+                        >
+                            বাতিল
+                        </button>
+                        <button
+                            type="submit"
+                            :disabled="expiryForm.processing"
+                            class="flex-1 rounded-xl bg-amber-600 hover:bg-amber-500 py-2.5 text-xs font-bold text-white shadow-lg shadow-amber-600/30 transition disabled:opacity-50 flex items-center justify-center gap-1.5"
+                        >
+                            <span v-if="expiryForm.processing">আপডেট হচ্ছে...</span>
+                            <span v-else>মেয়াদ সংরক্ষণ করুন</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- CUSTOMER DELETE CONFIRMATION MODAL -->
+        <div v-if="isDeleteModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div @click="isDeleteModalOpen = false" class="fixed inset-0 bg-black/80 backdrop-blur-sm"></div>
+
+            <div class="relative w-full max-w-md rounded-3xl border border-rose-500/30 bg-[#091A2E] p-6 shadow-2xl space-y-4">
+                <div class="flex items-center gap-3">
+                    <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-500/20 text-rose-400 border border-rose-500/30">
+                        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-white">গ্রাহক মুছে ফেলার নিশ্চিতকরণ</h3>
+                        <p class="text-xs text-slate-400">এই কাজটি অপরিবর্তনীয় (Irreversible action)</p>
+                    </div>
+                </div>
+
+                <div class="rounded-2xl border border-slate-800 bg-slate-950/80 p-4 text-xs text-slate-300 space-y-2">
+                    <div class="flex justify-between">
+                        <span class="text-slate-400">নাম:</span>
+                        <span class="font-bold text-white">{{ customer.name }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-400">কাস্টমার আইডি:</span>
+                        <span class="font-mono text-brand-sky">{{ customer.customer_code }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-400">ব্যালেন্স / বকেয়া:</span>
+                        <span class="font-mono text-amber-400">৳{{ customer.balance }}</span>
+                    </div>
+                </div>
+
+                <p class="text-xs text-rose-300/90 leading-relaxed bg-rose-500/10 p-3 rounded-xl border border-rose-500/20">
+                    ⚠️ সতর্কবার্তা: গ্রাহক ডিলিট করলে এর সাথে যুক্ত সংযোগ (Connection), PPPoE ক্রেডেনশিয়াল এবং সংশ্লিষ্ট তথ্য ডাটাবেজ থেকে স্থায়ীভাবে মুছে যাবে।
+                </p>
+
+                <div class="flex items-center justify-end gap-3 pt-2">
+                    <button
+                        type="button"
+                        @click="isDeleteModalOpen = false"
+                        :disabled="deleteForm.processing"
+                        class="rounded-xl border border-slate-700 bg-slate-800 px-4 py-2 text-xs font-semibold text-slate-300 hover:text-white transition cursor-pointer"
+                    >
+                        বাতিল করুন
+                    </button>
+                    <button
+                        type="button"
+                        @click="executeDelete"
+                        :disabled="deleteForm.processing"
+                        class="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 px-5 py-2 text-xs font-bold text-white shadow-lg shadow-rose-600/30 transition disabled:opacity-50 cursor-pointer"
+                    >
+                        <svg v-if="deleteForm.processing" class="h-4 w-4 animate-spin text-white" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>{{ deleteForm.processing ? 'ডিলিট হচ্ছে...' : 'হ্যাঁ, ডিলিট করুন' }}</span>
+                    </button>
+                </div>
+            </div>
+        </div>
     </AdminLayout>
 </template>
+

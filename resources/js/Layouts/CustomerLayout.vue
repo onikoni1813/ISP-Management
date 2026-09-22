@@ -50,14 +50,14 @@ const navLinks = [
         <header class="sticky top-0 z-30 border-b border-brand-navy bg-[#071322]/95 px-4 py-3.5 backdrop-blur-md lg:px-8">
             <div class="max-w-6xl mx-auto flex items-center justify-between">
                 <div class="flex items-center gap-3">
-                    <Link :href="route('account.dashboard')" class="flex items-center gap-3">
-                        <ApplicationLogo size="sm" :animated="true" />
-                        <div>
-                            <div class="text-sm font-black text-white tracking-tight leading-tight flex items-center gap-2">
-                                <span>Pirgacha Internet</span>
-                            </div>
-                            <div class="text-xs text-slate-400 mt-0.5">Welcome, {{ user?.name }}</div>
-                        </div>
+                    <Link :href="route('account.dashboard')">
+                        <ApplicationLogo 
+                            size="sm" 
+                            :animated="true" 
+                            :with-text="true" 
+                            badge="Portal" 
+                            :sub-text="`Welcome, ${user?.name || 'Subscriber'}`" 
+                        />
                     </Link>
                 </div>
 

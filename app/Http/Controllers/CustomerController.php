@@ -78,10 +78,10 @@ class CustomerController extends Controller
             'phone' => 'required|string|max:20',
             'email' => 'nullable|email|max:255',
             'area_id' => 'required|exists:areas,id',
-            'address' => 'required|string|max:500',
+            'address' => 'nullable|string|max:500',
             'package_id' => 'nullable|exists:packages,id',
-            'pppoe_username' => 'nullable|string|unique:pppoe_credentials,username|max:100',
-            'pppoe_password' => 'nullable|string|min:4|max:100',
+            'pppoe_username' => 'required|string|unique:pppoe_credentials,username|max:100',
+            'pppoe_password' => 'required|string|min:4|max:100',
             'ip_address' => 'nullable|ip',
             'mac_address' => 'nullable|string|max:50',
             'router_model' => 'nullable|string|max:100',
@@ -234,4 +234,21 @@ class CustomerController extends Controller
 
         return back()->with('error', "SMS পাঠাতে ত্রুটি হয়েছে: {$log->error_message}");
     }
+
+    /**
+     * Remove the specified customer from database.
+     */
+    public function destroy(Customer $customer)
+    {
+        Gate::authorize('customers.delete');
+
+        $customerName = $customer->name;
+        $customerCode = $customer->customer_code;
+
+        $this->customerService->deleteCustomer($customer);
+
+        return redirect()->route('admin.customers.index')
+            ->with('success', "গ্রাহক {$customerName} ({$customerCode}) সফলভাবে মুছে ফেলা হয়েছে।");
+    }
 }
+

@@ -202,7 +202,29 @@ const copyPassword = (credentialId) => {
         }
     }, 2000);
 };
+
+// Customer Delete Modal State
+const customerToDelete = ref(null);
+const isDeleteModalOpen = ref(false);
+const deleteForm = useForm({});
+
+const confirmDeleteCustomer = (customer) => {
+    customerToDelete.value = customer;
+    isDeleteModalOpen.value = true;
+};
+
+const executeCustomerDelete = () => {
+    if (!customerToDelete.value) return;
+    deleteForm.delete(route('admin.customers.destroy', customerToDelete.value.id), {
+        preserveScroll: true,
+        onSuccess: () => {
+            isDeleteModalOpen.value = false;
+            customerToDelete.value = null;
+        },
+    });
+};
 </script>
+
 
 <template>
     <Head title="Customer Directory - Pirgacha Internet" />
@@ -531,12 +553,25 @@ const copyPassword = (credentialId) => {
                                 </span>
                             </td>
                             <td class="px-5 py-3.5 text-right">
-                                <Link
-                                    :href="route('admin.customers.show', customer.id)"
-                                    class="inline-flex items-center gap-1 rounded-lg border border-brand-navy bg-[#071322] hover:bg-brand-navy px-3 py-1.5 text-xs font-semibold text-slate-200 hover:text-white transition"
-                                >
-                                    View Profile
-                                </Link>
+                                <div class="inline-flex items-center gap-1.5">
+                                    <Link
+                                        :href="route('admin.customers.show', customer.id)"
+                                        class="inline-flex items-center gap-1 rounded-lg border border-brand-navy bg-[#071322] hover:bg-brand-navy px-2.5 py-1.5 text-xs font-semibold text-slate-200 hover:text-white transition"
+                                        title="প্রোফাইল দেখুন"
+                                    >
+                                        View Profile
+                                    </Link>
+                                    <button
+                                        type="button"
+                                        @click="confirmDeleteCustomer(customer)"
+                                        class="inline-flex items-center justify-center p-1.5 rounded-lg border border-rose-500/20 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 transition"
+                                        title="গ্রাহক মুছে ফেলুন (Delete)"
+                                    >
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                         <tr v-if="customers.data.length === 0">
@@ -713,6 +748,71 @@ const copyPassword = (credentialId) => {
                         </button>
                     </div>
                 </form>
+            </div>
+        </div>
+
+        <!-- CUSTOMER DELETE CONFIRMATION MODAL -->
+        <div v-if="isDeleteModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div @click="isDeleteModalOpen = false" class="fixed inset-0 bg-black/80 backdrop-blur-sm"></div>
+
+            <div class="relative w-full max-w-md rounded-3xl border border-rose-500/30 bg-[#091A2E] p-6 shadow-2xl space-y-4">
+                <div class="flex items-center gap-3">
+                    <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-500/20 text-rose-400 border border-rose-500/30">
+                        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-white">গ্রাহক মুছে ফেলার নিশ্চিতকরণ</h3>
+                        <p class="text-xs text-slate-400">এই কাজটি অপরিবর্তনীয় (Irreversible action)</p>
+                    </div>
+                </div>
+
+                <div class="rounded-2xl border border-brand-navy bg-[#071322] p-4 text-xs text-slate-300 space-y-2">
+                    <div class="flex justify-between">
+                        <span class="text-slate-400">নাম:</span>
+                        <span class="font-bold text-white">{{ customerToDelete?.name }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-400">কাস্টমার আইডি:</span>
+                        <span class="font-mono text-brand-sky">{{ customerToDelete?.customer_code }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-400">ফোন:</span>
+                        <span class="font-mono text-slate-200">{{ customerToDelete?.primary_contact?.phone || 'N/A' }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-400">এলাকা:</span>
+                        <span class="text-slate-200">{{ customerToDelete?.area?.name || 'Unassigned' }}</span>
+                    </div>
+                </div>
+
+                <p class="text-xs text-rose-300/90 leading-relaxed bg-rose-500/10 p-3 rounded-xl border border-rose-500/20">
+                    ⚠️ সতর্কবার্তা: গ্রাহক ডিলিট করলে এর সাথে যুক্ত সংযোগ (Connection), PPPoE ক্রেডেনশিয়াল এবং সংশ্লিষ্ট তথ্য ডাটাবেজ থেকে মুছে যাবে।
+                </p>
+
+                <div class="flex items-center justify-end gap-3 pt-2">
+                    <button
+                        type="button"
+                        @click="isDeleteModalOpen = false"
+                        :disabled="deleteForm.processing"
+                        class="rounded-xl border border-brand-navy bg-slate-800/80 px-4 py-2 text-xs font-semibold text-slate-300 hover:text-white transition cursor-pointer"
+                    >
+                        বাতিল করুন
+                    </button>
+                    <button
+                        type="button"
+                        @click="executeCustomerDelete"
+                        :disabled="deleteForm.processing"
+                        class="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 px-5 py-2 text-xs font-bold text-white shadow-lg shadow-rose-600/30 transition disabled:opacity-50 cursor-pointer"
+                    >
+                        <svg v-if="deleteForm.processing" class="h-4 w-4 animate-spin text-white" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>{{ deleteForm.processing ? 'ডিলিট হচ্ছে...' : 'হ্যাঁ, ডিলিট করুন' }}</span>
+                    </button>
+                </div>
             </div>
         </div>
     </AdminLayout>

@@ -152,13 +152,15 @@ class CustomerService
                 'is_primary' => true,
             ]);
 
-            // Create Installation Address
-            CustomerAddress::create([
-                'customer_id' => $customer->id,
-                'address_type' => 'installation',
-                'full_address' => $data['address'],
-                'is_default' => true,
-            ]);
+            // Create Installation Address if provided
+            if (!empty($data['address'])) {
+                CustomerAddress::create([
+                    'customer_id' => $customer->id,
+                    'address_type' => 'installation',
+                    'full_address' => $data['address'],
+                    'is_default' => true,
+                ]);
+            }
 
             // Create initial Connection if package provided
             if (!empty($data['package_id'])) {
@@ -303,4 +305,26 @@ class CustomerService
             return $history;
         });
     }
+
+    /**
+     * Delete/Archive a customer with associated portal account cleanup and audit logging.
+     */
+    public function deleteCustomer(Customer $customer): void
+    {
+        DB::transaction(function () use ($customer) {
+            $customerData = $customer->toArray();
+            $portalUser = $customer->user;
+
+            AuditLog::log('customer_deleted', 'customer', $customer, $customerData, null);
+
+            // Delete customer (cascades contacts, addresses, connections, pppoe_credentials, packages, etc.)
+            $customer->delete();
+
+            // If a portal user account was created specifically for this customer, remove it as well
+            if ($portalUser && $portalUser->hasRole('customer')) {
+                $portalUser->delete();
+            }
+        });
+    }
 }
+

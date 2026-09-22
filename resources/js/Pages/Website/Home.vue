@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link } from '@inertiajs/vue3';
 import WebsiteLayout from '@/Layouts/WebsiteLayout.vue';
 
 const props = defineProps({
@@ -58,30 +58,6 @@ const recommendedDevices = computed(() => {
     if (speed <= 25) return '5 - 8 Devices (Heavy/Gaming)';
     return '8+ Devices (Ultra 4K)';
 });
-
-const selectRecommendedPackage = () => {
-    if (activePackage.value?.id) {
-        applyForm.package_id = activePackage.value.id;
-    }
-};
-
-const applyForm = useForm({
-    name: '',
-    phone: '',
-    email: '',
-    area_id: props.coverageAreas?.[0]?.children?.[0]?.id || props.coverageAreas?.[0]?.id || '',
-    address: '',
-    package_id: props.packages?.[0]?.id || '',
-    notes: '',
-});
-
-const submitApplication = () => {
-    applyForm.post(route('apply'), {
-        onSuccess: () => {
-            applyForm.reset('name', 'phone', 'email', 'address', 'notes');
-        }
-    });
-};
 </script>
 
 <template>
@@ -120,15 +96,15 @@ const submitApplication = () => {
                                 <span>{{ activeBanner?.button_text || 'Explore Packages' }}</span>
                                 <span>→</span>
                             </a>
-                            <a
-                                href="#apply"
+                            <Link
+                                :href="route('contact')"
                                 class="rounded-2xl border border-brand-navy bg-[#0B1E36] hover:bg-[#102B4D] hover:border-brand-sky/50 px-6 py-3.5 text-xs font-bold text-slate-200 transition flex items-center gap-2"
                             >
                                 <svg class="h-4 w-4 text-brand-sky" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
                                 </svg>
                                 <span>Get New Connection</span>
-                            </a>
+                            </Link>
                         </div>
 
                         <!-- Live Trust Metrics -->
@@ -273,13 +249,12 @@ const submitApplication = () => {
 
                             <!-- CTA Buttons -->
                             <div class="mt-5 flex items-center gap-3">
-                                <a
-                                    href="#apply"
-                                    @click="selectRecommendedPackage"
+                                <Link
+                                    :href="route('contact')"
                                     class="flex-1 rounded-xl bg-gradient-to-r from-brand-orange to-brand-amber hover:opacity-95 text-center py-3 text-xs font-black text-white shadow-lg shadow-brand-orange/25 transition active:scale-95"
                                 >
                                     Get This Connection →
-                                </a>
+                                </Link>
                                 <a
                                     href="#packages"
                                     class="rounded-xl border border-brand-navy bg-[#0B1E36] hover:bg-[#102B4D] px-4 py-3 text-xs font-bold text-slate-300 transition text-center"
@@ -398,86 +373,13 @@ const submitApplication = () => {
                             </div>
                         </div>
 
-                        <a
-                            href="#apply"
-                            @click="applyForm.package_id = pkg.id"
+                        <Link
+                            :href="route('contact')"
                             class="rounded-xl bg-gradient-to-r from-brand-sky to-brand-blue hover:from-brand-cyan hover:to-brand-sky px-4 py-2 text-xs font-bold text-white shadow-lg shadow-brand-sky/20 transition active:scale-95"
                         >
                             Select Plan
-                        </a>
+                        </Link>
                     </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Online Connection Application Form Section -->
-        <section id="apply" class="py-20 bg-[#071527] border-t border-brand-navy/60">
-            <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="rounded-3xl border border-brand-navy bg-[#091A2E]/90 p-8 shadow-2xl backdrop-blur-md">
-                    <div class="mb-8">
-                        <span class="text-xs font-bold text-brand-orange uppercase tracking-widest">Instant Setup</span>
-                        <h2 class="text-2xl font-black text-white mt-1">Apply for a New Optical Connection</h2>
-                        <p class="text-xs text-slate-400 mt-1">Fill out the quick form below and our team will survey your location and install fiber within 24 hours.</p>
-                    </div>
-
-                    <form @submit.prevent="submitApplication" class="space-y-4">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-xs font-bold text-slate-300 mb-1">Your Full Name *</label>
-                                <input v-model="applyForm.name" type="text" placeholder="e.g. Rafiqul Islam" required class="w-full rounded-2xl border-brand-navy bg-[#061220] p-3.5 text-xs text-white placeholder-slate-600 focus:border-brand-sky focus:ring-brand-sky" />
-                            </div>
-
-                            <div>
-                                <label class="block text-xs font-bold text-slate-300 mb-1">Mobile Phone Number *</label>
-                                <input v-model="applyForm.phone" type="tel" placeholder="017XXXXXXXX" required class="w-full rounded-2xl border-brand-navy bg-[#061220] p-3.5 text-xs text-white placeholder-slate-600 focus:border-brand-sky focus:ring-brand-sky font-mono" />
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-xs font-bold text-slate-300 mb-1">Email Address</label>
-                                <input v-model="applyForm.email" type="email" placeholder="Optional" class="w-full rounded-2xl border-brand-navy bg-[#061220] p-3.5 text-xs text-white placeholder-slate-600 focus:border-brand-sky focus:ring-brand-sky" />
-                            </div>
-
-                            <div>
-                                <label class="block text-xs font-bold text-slate-300 mb-1">Select Area / Zone *</label>
-                                <select v-model="applyForm.area_id" required class="w-full rounded-2xl border-brand-navy bg-[#061220] p-3.5 text-xs text-white focus:border-brand-sky focus:ring-brand-sky">
-                                    <optgroup v-for="area in coverageAreas" :key="area.id" :label="area.name">
-                                        <option v-for="sub in area.children" :key="sub.id" :value="sub.id">
-                                            {{ sub.name }} ({{ sub.code }})
-                                        </option>
-                                        <option v-if="!area.children?.length" :value="area.id">
-                                            {{ area.name }}
-                                        </option>
-                                    </optgroup>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div>
-                            <label class="block text-xs font-bold text-slate-300 mb-1">Target Package Plan *</label>
-                            <select v-model="applyForm.package_id" required class="w-full rounded-2xl border-brand-navy bg-[#061220] p-3.5 text-xs text-white focus:border-brand-sky focus:ring-brand-sky">
-                                <option v-for="pkg in packages" :key="pkg.id" :value="pkg.id">
-                                    {{ pkg.name }} ({{ pkg.speed_mbps }} Mbps) — ৳{{ pkg.current_price?.price || 500 }}/month
-                                </option>
-                            </select>
-                        </div>
-
-                        <div>
-                            <label class="block text-xs font-bold text-slate-300 mb-1">Complete Installation Address *</label>
-                            <textarea v-model="applyForm.address" rows="2" placeholder="House no, road, village or landmark..." required class="w-full rounded-2xl border-brand-navy bg-[#061220] p-3.5 text-xs text-white placeholder-slate-600 focus:border-brand-sky focus:ring-brand-sky"></textarea>
-                        </div>
-
-                        <div class="pt-2 flex justify-end">
-                            <button
-                                type="submit"
-                                :disabled="applyForm.processing"
-                                class="rounded-2xl bg-gradient-to-r from-brand-orange via-brand-amber to-brand-gold hover:opacity-95 px-8 py-4 text-xs font-black text-white shadow-xl shadow-brand-orange/30 transition active:scale-95 disabled:opacity-50"
-                            >
-                                {{ applyForm.processing ? 'Submitting Application...' : 'Submit Connection Request →' }}
-                            </button>
-                        </div>
-                    </form>
                 </div>
             </div>
         </section>

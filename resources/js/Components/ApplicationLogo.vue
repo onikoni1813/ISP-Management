@@ -20,6 +20,10 @@ defineProps({
         type: String,
         default: 'Connect to the world',
     },
+    badge: {
+        type: String,
+        default: '',
+    },
 });
 </script>
 
@@ -66,12 +70,20 @@ defineProps({
 
         <!-- Typography with Logo brand colors (Option 3: Brand Sky Blue & Vibrant Orange Dual-Tone) -->
         <div v-if="withText" class="flex flex-col justify-center text-left">
-            <div class="flex items-baseline tracking-tight font-black leading-none">
-                <span class="text-base sm:text-xl font-black bg-gradient-to-r from-sky-400 to-cyan-300 bg-clip-text text-transparent drop-shadow-[0_2px_8px_rgba(56,189,248,0.25)] transition-all duration-300 group-hover:from-white group-hover:to-sky-300">
-                    Pirgacha
-                </span>
-                <span class="text-base sm:text-xl font-black bg-gradient-to-r from-orange-400 via-brand-orange to-amber-400 bg-clip-text text-transparent ml-1.5 drop-shadow-[0_2px_8px_rgba(249,115,22,0.3)] transition-all duration-300 group-hover:from-orange-300 group-hover:to-amber-300">
-                    Internet
+            <div class="flex items-center gap-2">
+                <div class="flex items-baseline tracking-tight font-black leading-none">
+                    <span class="text-base sm:text-xl font-black bg-gradient-to-r from-sky-400 to-cyan-300 bg-clip-text text-transparent drop-shadow-[0_2px_8px_rgba(56,189,248,0.25)] transition-all duration-300 group-hover:from-white group-hover:to-sky-300">
+                        Pirgacha
+                    </span>
+                    <span class="text-base sm:text-xl font-black bg-gradient-to-r from-orange-400 via-brand-orange to-amber-400 bg-clip-text text-transparent ml-1.5 drop-shadow-[0_2px_8px_rgba(249,115,22,0.3)] transition-all duration-300 group-hover:from-orange-300 group-hover:to-amber-300">
+                        Internet
+                    </span>
+                </div>
+                <span 
+                    v-if="badge" 
+                    class="rounded-md bg-brand-orange/15 px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-bold text-brand-orange border border-brand-orange/30 tracking-normal shadow-sm"
+                >
+                    {{ badge }}
                 </span>
             </div>
             <div v-if="subText" class="flex items-center gap-1.5 mt-1.5">
