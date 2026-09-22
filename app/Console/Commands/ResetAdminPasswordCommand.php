@@ -13,7 +13,7 @@ class ResetAdminPasswordCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'admin:reset-password {password?}';
+    protected $signature = 'admin:reset-password {password?} {email?}';
 
     /**
      * The console command description.
@@ -28,17 +28,27 @@ class ResetAdminPasswordCommand extends Command
     public function handle(): int
     {
         $password = $this->argument('password') ?? 'Shizu!@#$7656#$';
+        $email = $this->argument('email') ?? 'pirgachainternet@gmail.com';
 
-        $admin = User::where('email', 'admin@pirgachainternet.com')->first();
+        $admin = User::where('email', $email)
+            ->orWhere('email', 'admin@pirgachainternet.com')
+            ->first();
 
         if (!$admin) {
-            $this->error('Admin user (admin@pirgachainternet.com) not found!');
-            return 1;
+            $admin = User::create([
+                'name' => 'Pirgacha Admin',
+                'email' => $email,
+                'phone' => '01711000000',
+                'password' => Hash::make($password),
+                'status' => 'active',
+                'email_verified_at' => now(),
+            ]);
+        } else {
+            $admin->email = $email;
+            $admin->password = Hash::make($password);
+            $admin->status = 'active';
+            $admin->save();
         }
-
-        $admin->password = Hash::make($password);
-        $admin->status = 'active';
-        $admin->save();
 
         if (method_exists($admin, 'assignRole')) {
             $admin->assignRole('admin');
