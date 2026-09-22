@@ -21,7 +21,7 @@
         <link rel="manifest" href="/manifest.json?v=3">
 
         <!-- Primary Meta Tags & Open Graph (Social Sharing) -->
-        <title inertia>{{ config('app.name', 'Pirgacha Internet') }}</title>
+        <title inertia>Pirgacha Internet</title>
         <meta name="title" content="Pirgacha Internet - Fast & Reliable ISP">
         <meta name="description" content="Pirgacha Internet - Reliable High-Speed Broadband Internet Service Provider. Contact: 01711-000000">
 
