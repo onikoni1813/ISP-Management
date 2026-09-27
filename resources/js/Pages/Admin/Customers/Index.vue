@@ -17,12 +17,21 @@ const status = ref(props.filters.status || '');
 const areaId = ref(props.filters.area_id || '');
 const advancedFilter = ref(props.filters.advanced_filter || '');
 
+watch(() => props.filters, (newFilters) => {
+    if (newFilters) {
+        search.value = newFilters.search || '';
+        status.value = newFilters.status || '';
+        areaId.value = newFilters.area_id || '';
+        advancedFilter.value = newFilters.advanced_filter || '';
+    }
+}, { deep: true });
+
 const applyFilters = () => {
     router.get(route('admin.customers.index'), {
-        search: search.value,
-        status: status.value,
-        area_id: areaId.value,
-        advanced_filter: advancedFilter.value,
+        search: search.value || undefined,
+        status: status.value || undefined,
+        area_id: areaId.value || undefined,
+        advanced_filter: advancedFilter.value || undefined,
     }, {
         preserveState: true,
         replace: true,
@@ -247,7 +256,7 @@ const executeCustomerDelete = () => {
         </div>
 
         <!-- Advanced Operation Category Filter Tabs -->
-        <div class="grid grid-cols-2 sm:grid-cols-5 gap-2.5 mb-5">
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 mb-5">
             <button
                 type="button"
                 @click="setAdvancedFilter('')"
@@ -261,6 +270,24 @@ const executeCustomerDelete = () => {
                 <div class="text-[10px] font-bold uppercase tracking-wider">সকল গ্রাহক</div>
                 <div class="text-xl font-black font-mono text-white mt-0.5">{{ filterCounts?.all || customers.total }}</div>
                 <div class="text-[10px] text-slate-400 mt-0.5">টোটাল ডিরেক্টরি</div>
+            </button>
+
+            <button
+                type="button"
+                @click="setAdvancedFilter('paid_this_month')"
+                :class="[
+                    'p-3 rounded-2xl border text-left transition-all relative overflow-hidden',
+                    advancedFilter === 'paid_this_month'
+                        ? 'bg-emerald-500/20 border-emerald-400 text-white shadow-lg shadow-emerald-500/25'
+                        : 'bg-[#091A2E]/80 border-brand-navy/60 text-slate-400 hover:text-slate-200 hover:bg-[#0B1E36]'
+                ]"
+            >
+                <div class="text-[10px] font-bold uppercase tracking-wider text-emerald-400 flex items-center justify-between">
+                    <span>চলতি বিল পরিশোধিত</span>
+                    <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                </div>
+                <div class="text-xl font-black font-mono text-emerald-400 mt-0.5">{{ filterCounts?.paid_this_month || 0 }}</div>
+                <div class="text-[10px] text-emerald-300/80 mt-0.5">বকেয়ামুক্ত বিল পে</div>
             </button>
 
             <button
@@ -404,26 +431,26 @@ const executeCustomerDelete = () => {
                 </div>
 
                 <div class="flex items-center gap-2.5">
-                    <!-- Specific customers selected -->
+                    <!-- Specific customers selected or all filtered -->
                     <button
-                        v-if="selectedCustomerIds.length > 0 && selectedCustomerIds.length !== customers.total"
+                        v-if="targetAllFiltered || (selectedCustomerIds.length > 0 && selectedCustomerIds.length !== customers.total)"
                         type="button"
-                        @click="openBulkSmsModal(false)"
+                        @click="openBulkSmsModal(targetAllFiltered)"
                         class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-brand-sky via-cyan-500 to-brand-blue text-white shadow-md shadow-brand-sky/25 hover:shadow-brand-sky/40 hover:opacity-95 cursor-pointer transition transform active:scale-95"
                     >
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
-                        নির্বাচিত ({{ selectedCustomerIds.length }}) জনকে এসএমএস পাঠান
+                        {{ targetAllFiltered ? `ফিল্টারকৃত সকল (${customers.total}) জনকে এসএমএস পাঠান` : `নির্বাচিত (${selectedCustomerIds.length}) জনকে এসএমএস পাঠান` }}
                     </button>
 
                     <!-- Send to all filtered / all total customers -->
                     <button
-                        v-if="customers.total > 0 && (selectedCustomerIds.length === 0 || selectedCustomerIds.length === customers.total)"
+                        v-if="customers.total > 0 && selectedCustomerIds.length === 0 && !targetAllFiltered"
                         type="button"
                         @click="openBulkSmsModal(true)"
                         class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-brand-orange via-amber-500 to-brand-gold text-white shadow-md shadow-brand-orange/25 hover:shadow-brand-orange/40 hover:opacity-95 cursor-pointer transition transform active:scale-95"
                     >
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                        {{ selectedCustomerIds.length === customers.total ? `নির্বাচিত সকলকে (${customers.total}) এসএমএস পাঠান` : `ফিল্টারকৃত সকলকে (${customers.total}) এমারজেন্সি নোটিশ` }}
+                        ফিল্টারকৃত সকলকে ({{ customers.total }}) এমারজেন্সি নোটিশ
                     </button>
                 </div>
             </div>
@@ -431,6 +458,34 @@ const executeCustomerDelete = () => {
 
         <!-- Customer Data Table -->
         <div class="overflow-hidden rounded-2xl border border-brand-navy/60 bg-[#091A2E]/80 shadow-xl shadow-black/20 backdrop-blur-sm">
+            <!-- Multi-page Select All Notification Banner (Gmail Style) -->
+            <div
+                v-if="selectAllCurrentPage && customers.total > customers.data.length"
+                class="bg-brand-sky/10 border-b border-brand-sky/20 px-4 py-2.5 text-center text-xs text-slate-300 flex items-center justify-center gap-2 flex-wrap"
+            >
+                <span v-if="!targetAllFiltered">
+                    বর্তমান পেজের <strong>{{ customers.data.length }}</strong> জন গ্রাহক সিলেক্ট করা হয়েছে।
+                </span>
+                <span v-else class="text-brand-sky font-semibold">
+                    🎉 সকল পেজের সর্বমোট <strong>{{ customers.total }}</strong> জন ফিল্টারকৃত গ্রাহক সিলেক্ট করা হয়েছে!
+                </span>
+
+                <button
+                    v-if="!targetAllFiltered"
+                    @click="targetAllFiltered = true"
+                    class="text-brand-sky hover:text-sky-300 font-bold underline hover:no-underline ml-1"
+                >
+                    সবগুলো পেজের মোট {{ customers.total }} জন গ্রাহককেই সিলেক্ট করুন
+                </button>
+                <button
+                    v-else
+                    @click="targetAllFiltered = false"
+                    class="text-amber-400 hover:text-amber-300 font-bold underline hover:no-underline ml-1"
+                >
+                    শুধুমাত্র বর্তমান পেজ ({{ customers.data.length }}) সিলেক্টে ফিরে যান
+                </button>
+            </div>
+
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-xs text-slate-300">
                     <thead class="border-b border-brand-navy bg-[#071322]/80 uppercase font-semibold text-slate-400 whitespace-nowrap">

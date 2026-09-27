@@ -421,4 +421,76 @@ class SmsController extends Controller
 
         return back()->with('error', "Retry attempt failed: {$log->fresh()->error_message}");
     }
+
+    /**
+     * Delete a single SMS dispatch log.
+     */
+    public function destroyLog(SmsLog $log)
+    {
+        Gate::authorize('sms.view');
+
+        $log->delete();
+
+        return back()->with('success', 'SMS লগ সফলভাবে ডিলিট করা হয়েছে।');
+    }
+
+    /**
+     * Bulk delete selected or all filtered SMS logs.
+     */
+    public function bulkDestroyLogs(Request $request)
+    {
+        Gate::authorize('sms.view');
+
+        $validated = $request->validate([
+            'log_ids' => ['nullable', 'array'],
+            'log_ids.*' => ['integer', 'exists:sms_logs,id'],
+            'target_all_filtered' => ['nullable', 'boolean'],
+            'status' => ['nullable', 'string'],
+            'search' => ['nullable', 'string'],
+            'gateway_id' => ['nullable'],
+        ]);
+
+        if (!empty($validated['target_all_filtered'])) {
+            $query = SmsLog::query();
+
+            if (!empty($validated['status'])) {
+                if ($validated['status'] === 'sent') {
+                    $query->whereIn('status', ['sent', 'delivered']);
+                } else {
+                    $query->where('status', $validated['status']);
+                }
+            }
+
+            if (!empty($validated['gateway_id'])) {
+                $query->where('gateway_id', $validated['gateway_id']);
+            }
+
+            if (!empty($validated['search'])) {
+                $search = $validated['search'];
+                $query->where(function ($sub) use ($search) {
+                    $sub->where('recipient', 'like', "%{$search}%")
+                        ->orWhere('message', 'like', "%{$search}%")
+                        ->orWhereHas('customer', function ($c) use ($search) {
+                            $c->where('name', 'like', "%{$search}%")
+                              ->orWhere('customer_code', 'like', "%{$search}%");
+                        });
+                });
+            }
+
+            $count = $query->count();
+            $query->delete();
+
+            return back()->with('success', "ফিল্টারকৃত সর্বমোট {$count} টি SMS লগ সফলভাবে ডিলিট করা হয়েছে।");
+        }
+
+        $ids = $validated['log_ids'] ?? [];
+        if (empty($ids)) {
+            return back()->with('error', 'ডিলিট করার জন্য কোনো SMS সিলেক্ট করা হয়নি।');
+        }
+
+        $count = SmsLog::whereIn('id', $ids)->delete();
+
+        return back()->with('success', "সিলেক্ট করা {$count} টি SMS লগ সফলভাবে ডিলিট করা হয়েছে।");
+    }
 }
+

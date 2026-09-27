@@ -10,7 +10,7 @@ defineProps({
 <template>
     <Head title="Coverage Areas - Pirgacha Internet" />
 
-    <WebsiteLayout>
+    <WebsiteLayout :hide-footer="true">
         <div class="py-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center max-w-2xl mx-auto mb-16">
                 <span class="text-xs font-bold text-brand-orange uppercase tracking-widest">Network Map</span>

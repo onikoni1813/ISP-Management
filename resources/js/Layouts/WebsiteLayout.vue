@@ -3,6 +3,13 @@ import { ref } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
 import ApplicationLogo from '@/Components/ApplicationLogo.vue';
 
+const props = defineProps({
+    hideFooter: {
+        type: Boolean,
+        default: false,
+    },
+});
+
 const page = usePage();
 const user = page.props.auth?.user;
 const isMobileMenuOpen = ref(false);
@@ -129,7 +136,7 @@ const navLinks = [
         </main>
 
         <!-- Modern Footer -->
-        <footer class="border-t border-brand-navy/80 bg-[#071527] text-slate-400 text-xs">
+        <footer v-if="!hideFooter" class="border-t border-brand-navy/80 bg-[#071527] text-slate-400 text-xs">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 grid grid-cols-1 md:grid-cols-4 gap-8">
                 <div class="space-y-3">
                     <ApplicationLogo size="sm" :animated="true" :with-text="true" />
@@ -142,9 +149,9 @@ const navLinks = [
                     <h3 class="text-xs font-extrabold uppercase tracking-wider text-brand-sky mb-3">Fast Navigation</h3>
                     <ul class="space-y-2">
                         <li><Link :href="route('packages')" class="hover:text-brand-cyan transition">Broadband Packages</Link></li>
-                        <li><Link :href="route('coverage')" class="hover:text-brand-cyan transition">Coverage Zones</Link></li>
                         <li><Link :href="route('faq')" class="hover:text-brand-cyan transition">FAQ & Setup Help</Link></li>
                         <li><Link :href="route('notices')" class="hover:text-brand-cyan transition">Network Notices</Link></li>
+                        <li><Link :href="route('contact')" class="hover:text-brand-cyan transition">Contact Us</Link></li>
                     </ul>
                 </div>
 

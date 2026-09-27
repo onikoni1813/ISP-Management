@@ -51,6 +51,17 @@ class CustomerService
                         $r->where('is_zero_charge', true)
                           ->whereRaw('renewals.renewed_at >= COALESCE((SELECT MAX(p.paid_at) FROM payments p WHERE p.customer_id = renewals.customer_id), "1970-01-01")');
                     });
+                } elseif ($advancedFilter === 'paid_this_month') {
+                    // Customers who completed payment this month and have no pending due
+                    $startOfMonth = now()->startOfMonth()->toDateString();
+                    $endOfMonth = now()->endOfMonth()->toDateString();
+                    $q->whereHas('payments', function ($p) use ($startOfMonth, $endOfMonth) {
+                        $p->whereBetween('paid_at', [$startOfMonth, $endOfMonth])
+                          ->where('status', 'completed');
+                    })->where(function ($sub) {
+                        $sub->where('balance', '>=', 0)
+                            ->whereDoesntHave('invoices', fn($inv) => $inv->where('due_amount', '>', 0));
+                    });
                 }
             })
             ->when($query, function (Builder $q) use ($query) {
@@ -63,7 +74,8 @@ class CustomerService
                 });
             })
             ->latest('id')
-            ->paginate($perPage);
+            ->paginate($perPage)
+            ->withQueryString();
     }
 
     /**
@@ -73,6 +85,8 @@ class CustomerService
     {
         $today = now()->toDateString();
         $in3Days = now()->addDays(3)->toDateString();
+        $startOfMonth = now()->startOfMonth()->toDateString();
+        $endOfMonth = now()->endOfMonth()->toDateString();
 
         $base = Customer::query()->when($areaId, fn($q) => $q->where('area_id', $areaId));
 
@@ -87,6 +101,13 @@ class CustomerService
             'zero_charge_renewed' => (clone $base)->whereHas('renewals', function ($r) {
                 $r->where('is_zero_charge', true)
                   ->whereRaw('renewals.renewed_at >= COALESCE((SELECT MAX(p.paid_at) FROM payments p WHERE p.customer_id = renewals.customer_id), "1970-01-01")');
+            })->count(),
+            'paid_this_month' => (clone $base)->whereHas('payments', function ($p) use ($startOfMonth, $endOfMonth) {
+                $p->whereBetween('paid_at', [$startOfMonth, $endOfMonth])
+                  ->where('status', 'completed');
+            })->where(function ($sub) {
+                $sub->where('balance', '>=', 0)
+                    ->whereDoesntHave('invoices', fn($inv) => $inv->where('due_amount', '>', 0));
             })->count(),
         ];
     }

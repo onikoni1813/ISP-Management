@@ -83,6 +83,77 @@ const smsSegments = computed(() => {
         return len <= 160 ? 1 : Math.ceil(len / 153);
     }
 });
+
+// Selection & Bulk Deletion State
+const selectedLogIds = ref([]);
+const selectAllCurrentPage = ref(false);
+const targetAllFiltered = ref(false);
+const isDeleteModalOpen = ref(false);
+const logToDelete = ref(null); // null if bulk
+const deleteForm = useForm({});
+
+const toggleSelectAll = () => {
+    if (selectAllCurrentPage.value) {
+        selectedLogIds.value = props.logs.data ? props.logs.data.map(l => l.id) : [];
+    } else {
+        selectedLogIds.value = [];
+        targetAllFiltered.value = false;
+    }
+};
+
+watch(() => props.logs.data, () => {
+    selectedLogIds.value = [];
+    selectAllCurrentPage.value = false;
+    targetAllFiltered.value = false;
+});
+
+watch(selectedLogIds, (newVal) => {
+    if (props.logs.data && props.logs.data.length > 0) {
+        selectAllCurrentPage.value = newVal.length === props.logs.data.length;
+    } else {
+        selectAllCurrentPage.value = false;
+    }
+});
+
+const openBulkDeleteModal = (targetEntireFilter = false) => {
+    targetAllFiltered.value = targetEntireFilter;
+    logToDelete.value = null;
+    isDeleteModalOpen.value = true;
+};
+
+const confirmDeleteSingle = (log) => {
+    logToDelete.value = log;
+    targetAllFiltered.value = false;
+    isDeleteModalOpen.value = true;
+};
+
+const executeDelete = () => {
+    if (logToDelete.value) {
+        deleteForm.delete(route('admin.sms.logs.destroy', logToDelete.value.id), {
+            preserveScroll: true,
+            onSuccess: () => {
+                isDeleteModalOpen.value = false;
+                logToDelete.value = null;
+            }
+        });
+    } else {
+        deleteForm.transform(() => ({
+            log_ids: targetAllFiltered.value ? [] : selectedLogIds.value,
+            target_all_filtered: targetAllFiltered.value,
+            status: filterStatus.value || undefined,
+            search: filterSearch.value || undefined,
+            gateway_id: filterGateway.value || undefined,
+        })).delete(route('admin.sms.logs.bulk-destroy'), {
+            preserveScroll: true,
+            onSuccess: () => {
+                isDeleteModalOpen.value = false;
+                selectedLogIds.value = [];
+                selectAllCurrentPage.value = false;
+                targetAllFiltered.value = false;
+            }
+        });
+    }
+};
 </script>
 
 <template>
@@ -270,9 +341,64 @@ const smsSegments = computed(() => {
 
             <!-- SMS Logs Container -->
             <div class="bg-[#091A2E]/80 backdrop-blur-sm rounded-2xl border border-brand-navy shadow-xl overflow-hidden">
-                <div class="p-4 border-b border-brand-navy flex items-center justify-between">
-                    <h3 class="text-sm font-bold text-white tracking-wide">Dispatch History & Audit</h3>
-                    <span class="text-xs text-slate-400">{{ logs?.data?.length || 0 }} entries on this page</span>
+                <div class="p-4 border-b border-brand-navy flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div class="flex items-center gap-3">
+                        <label class="flex items-center gap-2 cursor-pointer select-none">
+                            <input
+                                type="checkbox"
+                                v-model="selectAllCurrentPage"
+                                @change="toggleSelectAll"
+                                class="rounded bg-[#071322] border-brand-navy text-brand-sky focus:ring-brand-sky focus:ring-offset-0 w-4 h-4 cursor-pointer"
+                            />
+                            <span class="text-xs font-semibold text-slate-300">সব সিলেক্ট করুন (বর্তমান পেজ)</span>
+                        </label>
+                        <span class="text-xs text-slate-400">| {{ logs?.data?.length || 0 }} entries on this page</span>
+                    </div>
+
+                    <!-- Bulk Actions Toolbar -->
+                    <div v-if="selectedLogIds.length > 0" class="flex flex-wrap items-center gap-2">
+                        <span class="text-xs text-brand-sky font-semibold">
+                            {{ targetAllFiltered ? logs.total : selectedLogIds.length }} টি মেসেজ সিলেক্টেড
+                        </span>
+
+                        <button
+                            @click="openBulkDeleteModal(targetAllFiltered)"
+                            class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-xl shadow-md shadow-rose-900/40 transition active:scale-95"
+                        >
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                            সিলেক্ট করা মেসেজ ডিলিট ({{ targetAllFiltered ? logs.total : selectedLogIds.length }})
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Multi-page Select All Notification Banner (Gmail Style) -->
+                <div
+                    v-if="selectAllCurrentPage && logs.total > logs.data.length"
+                    class="bg-brand-sky/10 border-b border-brand-sky/20 px-4 py-2.5 text-center text-xs text-slate-300 flex items-center justify-center gap-2 flex-wrap"
+                >
+                    <span v-if="!targetAllFiltered">
+                        বর্তমান পেজের <strong>{{ logs.data.length }}</strong> টি মেসেজ সিলেক্ট করা হয়েছে।
+                    </span>
+                    <span v-else class="text-brand-sky font-semibold">
+                        🎉 সকল পেজের সর্বমোট <strong>{{ logs.total }}</strong> টি মেসেজ সিলেক্ট করা হয়েছে!
+                    </span>
+
+                    <button
+                        v-if="!targetAllFiltered"
+                        @click="targetAllFiltered = true"
+                        class="text-brand-sky hover:text-sky-300 font-bold underline hover:no-underline ml-1"
+                    >
+                        সবগুলো পেজের মোট {{ logs.total }} টি মেসেজই সিলেক্ট করুন
+                    </button>
+                    <button
+                        v-else
+                        @click="targetAllFiltered = false"
+                        class="text-amber-400 hover:text-amber-300 font-bold underline hover:no-underline ml-1"
+                    >
+                        শুধুমাত্র বর্তমান পেজ ({{ logs.data.length }}) সিলেক্টে ফিরে যান
+                    </button>
                 </div>
 
                 <!-- Empty State -->
@@ -290,12 +416,23 @@ const smsSegments = computed(() => {
                     <div
                         v-for="log in logs.data"
                         :key="log.id"
-                        class="p-4 space-y-3 hover:bg-brand-navy/20 transition"
+                        :class="[
+                            'p-4 space-y-3 transition',
+                            selectedLogIds.includes(log.id) ? 'bg-brand-navy/40' : 'hover:bg-brand-navy/20'
+                        ]"
                     >
                         <div class="flex items-center justify-between">
-                            <span class="font-mono text-xs font-bold text-brand-sky">
-                                {{ log.recipient }}
-                            </span>
+                            <div class="flex items-center gap-2.5">
+                                <input
+                                    type="checkbox"
+                                    :value="log.id"
+                                    v-model="selectedLogIds"
+                                    class="rounded bg-[#071322] border-brand-navy text-brand-sky focus:ring-brand-sky focus:ring-offset-0 w-4 h-4 cursor-pointer"
+                                />
+                                <span class="font-mono text-xs font-bold text-brand-sky">
+                                    {{ log.recipient }}
+                                </span>
+                            </div>
                             <span
                                 :class="[
                                     'inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase',
@@ -330,12 +467,19 @@ const smsSegments = computed(() => {
                             </div>
                         </div>
 
-                        <div v-if="log.status === 'failed'" class="pt-2 border-t border-brand-navy/40 flex justify-end">
+                        <div class="pt-2 border-t border-brand-navy/40 flex items-center justify-end gap-2">
                             <button
+                                v-if="log.status === 'failed'"
                                 @click="retrySms(log.id)"
-                                class="inline-flex items-center gap-1.5 px-3 py-1 bg-brand-sky/20 hover:bg-brand-sky/30 border border-brand-sky/40 text-brand-sky font-bold text-xs rounded-lg transition"
+                                class="inline-flex items-center gap-1 px-2.5 py-1 bg-brand-sky/20 hover:bg-brand-sky/30 border border-brand-sky/40 text-brand-sky font-bold text-xs rounded-lg transition"
                             >
-                                🔁 Retry Send
+                                🔁 Retry
+                            </button>
+                            <button
+                                @click="confirmDeleteSingle(log)"
+                                class="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-400 hover:text-rose-300 font-semibold text-xs rounded-lg transition"
+                            >
+                                🗑️ Delete
                             </button>
                         </div>
                     </div>
@@ -346,6 +490,14 @@ const smsSegments = computed(() => {
                     <table class="min-w-full divide-y divide-brand-navy/60 text-left text-sm">
                         <thead class="bg-[#071322]/80 text-slate-400 text-xs uppercase font-semibold whitespace-nowrap">
                             <tr>
+                                <th class="w-10 px-4 py-3.5 text-center">
+                                    <input
+                                        type="checkbox"
+                                        v-model="selectAllCurrentPage"
+                                        @change="toggleSelectAll"
+                                        class="rounded bg-[#071322] border-brand-navy text-brand-sky focus:ring-brand-sky focus:ring-offset-0 w-4 h-4 cursor-pointer"
+                                    />
+                                </th>
                                 <th class="px-4 py-3.5">Recipient</th>
                                 <th class="px-4 py-3.5">Customer</th>
                                 <th class="px-4 py-3.5">Message Content</th>
@@ -356,7 +508,22 @@ const smsSegments = computed(() => {
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-brand-navy/40 whitespace-nowrap">
-                            <tr v-for="log in logs.data" :key="log.id" class="hover:bg-brand-navy/30 transition">
+                            <tr
+                                v-for="log in logs.data"
+                                :key="log.id"
+                                :class="[
+                                    'transition',
+                                    selectedLogIds.includes(log.id) ? 'bg-brand-navy/40' : 'hover:bg-brand-navy/30'
+                                ]"
+                            >
+                                <td class="px-4 py-3 text-center whitespace-nowrap">
+                                    <input
+                                        type="checkbox"
+                                        :value="log.id"
+                                        v-model="selectedLogIds"
+                                        class="rounded bg-[#071322] border-brand-navy text-brand-sky focus:ring-brand-sky focus:ring-offset-0 w-4 h-4 cursor-pointer"
+                                    />
+                                </td>
                                 <td class="px-4 py-3 whitespace-nowrap font-mono text-xs font-bold text-brand-sky">
                                     {{ log.recipient }}
                                 </td>
@@ -392,14 +559,22 @@ const smsSegments = computed(() => {
                                     {{ formatDateTime(log.sent_at || log.created_at) }}
                                 </td>
                                 <td class="px-4 py-3 whitespace-nowrap text-right text-xs">
-                                    <button
-                                        v-if="log.status === 'failed'"
-                                        @click="retrySms(log.id)"
-                                        class="text-brand-sky hover:text-sky-300 font-bold hover:underline"
-                                    >
-                                        🔁 Retry
-                                    </button>
-                                    <span v-else class="text-slate-600 text-[11px]">Completed</span>
+                                    <div class="flex items-center justify-end gap-2">
+                                        <button
+                                            v-if="log.status === 'failed'"
+                                            @click="retrySms(log.id)"
+                                            class="text-brand-sky hover:text-sky-300 font-bold hover:underline"
+                                        >
+                                            🔁 Retry
+                                        </button>
+                                        <button
+                                            @click="confirmDeleteSingle(log)"
+                                            class="text-rose-400 hover:text-rose-300 font-bold hover:underline"
+                                            title="Delete SMS Log"
+                                        >
+                                            🗑️ Delete
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         </tbody>
@@ -504,6 +679,58 @@ const smsSegments = computed(() => {
                             </button>
                         </div>
                     </form>
+                </div>
+            </div>
+
+            <!-- Delete Confirmation Modal -->
+            <div
+                v-if="isDeleteModalOpen"
+                class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200"
+            >
+                <div class="bg-[#091A2E] rounded-2xl max-w-md w-full p-6 shadow-2xl border border-rose-500/30 text-white space-y-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-rose-500/20 border border-rose-500/30 flex items-center justify-center text-rose-400">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-bold text-white">
+                                {{ logToDelete ? 'SMS লগ ডিলিট নিশ্চিতকরণ' : 'নির্বাচিত SMS লগগুলো ডিলিট নিশ্চিতকরণ' }}
+                            </h3>
+                            <p class="text-xs text-slate-400">এই প্রক্রিয়াটি অপরিবর্তনীয়।</p>
+                        </div>
+                    </div>
+
+                    <div class="p-3 bg-[#071322] rounded-xl border border-brand-navy/60 text-xs text-slate-300">
+                        <div v-if="logToDelete">
+                            আপনি কি নিশ্চিত যে প্রাপক <span class="font-mono font-bold text-brand-sky">{{ logToDelete.recipient }}</span> এর এই SMS লগটি ডিলিট করতে চান?
+                        </div>
+                        <div v-else-if="targetAllFiltered">
+                            আপনি ফিল্টারকৃত <span class="font-bold text-rose-400 font-mono">{{ logs.total }}</span> টি সব SMS লগ ডিলিট করতে যাচ্ছেন! আপনি কি নিশ্চিত?
+                        </div>
+                        <div v-else>
+                            আপনি নির্বাচিত <span class="font-bold text-rose-400 font-mono">{{ selectedLogIds.length }}</span> টি SMS লগ ডিলিট করতে যাচ্ছেন! আপনি কি নিশ্চিত?
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-end gap-3 pt-2">
+                        <button
+                            type="button"
+                            @click="isDeleteModalOpen = false"
+                            class="px-4 py-2 border border-brand-navy text-slate-300 text-xs font-semibold rounded-xl hover:bg-brand-navy/60 transition"
+                        >
+                            বাতিল করুন
+                        </button>
+                        <button
+                            type="button"
+                            @click="executeDelete"
+                            :disabled="deleteForm.processing"
+                            class="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-rose-900/40 disabled:opacity-50 transition active:scale-95"
+                        >
+                            {{ deleteForm.processing ? 'ডিলিট হচ্ছে...' : 'হ্যাঁ, নিশ্চিত ডিলিট করুন' }}
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
