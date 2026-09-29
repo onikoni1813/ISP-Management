@@ -38,6 +38,7 @@ class CustomerController extends Controller
         );
 
         $areas = Area::where('status', 'active')->get(['id', 'name', 'code']);
+        $packages = \App\Models\Package::with('currentPrice')->where('status', 'active')->get(['id', 'name', 'code', 'speed_mbps']);
         $filterCounts = $this->customerService->getCustomerFilterCounts($request->input('area_id'));
         $smsTemplates = \App\Models\SmsTemplate::all(['id', 'name', 'template']);
 
@@ -45,6 +46,7 @@ class CustomerController extends Controller
             'customers' => $customers,
             'filters' => $request->only(['search', 'status', 'area_id', 'advanced_filter']),
             'areas' => $areas,
+            'packages' => $packages,
             'filterCounts' => $filterCounts,
             'smsTemplates' => $smsTemplates,
         ]);
@@ -113,8 +115,18 @@ class CustomerController extends Controller
             'customerNotes.author',
             'invoices.items',
             'payments.generatedInvoice',
+            'renewals.package',
+            'renewals.renewer',
             'creator',
         ]);
+
+        $lastPaymentDate = $customer->payments->firstWhere('status', 'completed')?->paid_at ?? '1970-01-01';
+        $latestZeroRenewal = $customer->renewals->firstWhere('is_zero_charge', true);
+        $customer->has_active_zero_charge = $latestZeroRenewal && ($latestZeroRenewal->renewed_at >= $lastPaymentDate);
+        if ($customer->has_active_zero_charge) {
+            $customer->zero_charge_days = $latestZeroRenewal->validity_days;
+            $customer->zero_charge_date = $latestZeroRenewal->renewed_at;
+        }
 
         $packages = Package::with('currentPrice')->where('status', 'active')->get();
 

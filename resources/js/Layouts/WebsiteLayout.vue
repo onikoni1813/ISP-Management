@@ -17,7 +17,6 @@ const isMobileMenuOpen = ref(false);
 const navLinks = [
     { name: 'Home', href: route('home'), active: 'home' },
     { name: 'Packages', href: route('packages'), active: 'packages' },
-    { name: 'Coverage', href: route('coverage'), active: 'coverage' },
     { name: 'About', href: route('about'), active: 'about' },
     { name: 'FAQ', href: route('faq'), active: 'faq' },
     { name: 'Notices', href: route('notices'), active: 'notices' },

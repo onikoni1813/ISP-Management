@@ -102,7 +102,7 @@ class RenewalService
 
             $validityDays = (int) ($data['validity_days'] ?? ($package->currentPrice?->validity_days ?? 30));
             $isZeroCharge = (bool) ($data['is_zero_charge'] ?? false);
-            $mode = $data['mode'] ?? ($isZeroCharge ? 'deduct_shift' : 'standard');
+            $mode = $data['mode'] ?? 'standard';
 
             // 2. Authoritative Expiry Calculation
             $expiryData = $this->calculateNewExpiry($connection, $validityDays, $mode, $isZeroCharge);

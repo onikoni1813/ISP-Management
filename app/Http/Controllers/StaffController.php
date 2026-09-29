@@ -215,14 +215,14 @@ class StaffController extends Controller
         
         $dueCount = (clone $countsQuery)
             ->where(function ($q) {
-                $q->where('balance', '<', 0)
+                $q->where('balance', '>', 0)
                   ->orWhereHas('connections', fn($c) => $c->where('expiry_date', '<', Carbon::today()));
             })->count();
 
         $paidCount = (clone $countsQuery)
-            ->where('balance', '>=', 0)
+            ->where('balance', '<=', 0)
             ->whereHas('payments', function ($p) use ($startOfMonth) {
-                $p->where('paid_at', '>=', $startOfMonth);
+                $p->where('paid_at', '>=', $startOfMonth->toDateTimeString())->where('status', 'completed');
             })->count();
 
         $renewedCount = (clone $countsQuery)
@@ -246,15 +246,15 @@ class StaffController extends Controller
         switch ($statusFilter) {
             case 'due': // আদায় বাকি
                 $query->where(function ($q) {
-                    $q->where('balance', '<', 0)
+                    $q->where('balance', '>', 0)
                       ->orWhereHas('connections', fn($c) => $c->where('expiry_date', '<', Carbon::today()));
                 });
                 break;
 
             case 'paid': // বিল জমা
-                $query->where('balance', '>=', 0)
+                $query->where('balance', '<=', 0)
                       ->whereHas('payments', function ($p) use ($startOfMonth) {
-                          $p->where('paid_at', '>=', $startOfMonth);
+                          $p->where('paid_at', '>=', $startOfMonth->toDateTimeString())->where('status', 'completed');
                       });
                 break;
 

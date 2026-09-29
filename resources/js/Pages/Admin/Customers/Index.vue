@@ -2,15 +2,28 @@
 import { ref, watch, computed } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import CustomerRenewalModal from '@/Components/CustomerRenewalModal.vue';
 import axios from 'axios';
 
 const props = defineProps({
     customers: Object,
     filters: Object,
     areas: Array,
+    packages: {
+        type: Array,
+        default: () => [],
+    },
     filterCounts: Object,
     smsTemplates: Array,
 });
+
+const customerToRenew = ref(null);
+const isRenewModalOpen = ref(false);
+
+const openRenewModal = (customer) => {
+    customerToRenew.value = customer;
+    isRenewModalOpen.value = true;
+};
 
 const search = ref(props.filters.search || '');
 const status = ref(props.filters.status || '');
@@ -540,9 +553,14 @@ const executeCustomerDelete = () => {
                                 <span class="font-semibold text-emerald-400 block">
                                     {{ customer.connections[0]?.current_package?.name || 'None' }}
                                 </span>
-                                <span v-if="customer.connections[0]?.expiry_date" class="text-[10px] font-mono text-amber-300/90 flex items-center gap-1">
-                                    📅 {{ customer.connections[0].expiry_date }}
-                                </span>
+                                <div class="flex items-center gap-1.5 flex-wrap mt-0.5">
+                                    <span v-if="customer.connections[0]?.expiry_date" class="text-[10px] font-mono text-amber-300/90 flex items-center gap-1">
+                                        📅 {{ customer.connections[0].expiry_date }}
+                                    </span>
+                                    <span v-if="customer.has_active_zero_charge" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30 animate-pulse" title="টাকা ছাড়া গ্রেস রিনিউ সচল">
+                                        🎁 গ্রেস (+{{ customer.zero_charge_days || 0 }}d)
+                                    </span>
+                                </div>
                             </td>
                             <td class="px-5 py-3.5 font-mono font-semibold text-sky-400">
                                 {{ customer.connections[0]?.pppoe_credential?.username || '—' }}
@@ -609,6 +627,14 @@ const executeCustomerDelete = () => {
                             </td>
                             <td class="px-5 py-3.5 text-right">
                                 <div class="inline-flex items-center gap-1.5">
+                                    <button
+                                        type="button"
+                                        @click="openRenewModal(customer)"
+                                        class="inline-flex items-center gap-1 rounded-lg border border-purple-500/40 bg-purple-500/15 hover:bg-purple-500/30 px-2.5 py-1.5 text-xs font-bold text-purple-300 hover:text-white transition shadow-sm cursor-pointer"
+                                        title="সংযোগ রিনিউ বা টাকা ছাড়া গ্রেস প্রদান"
+                                    >
+                                        ⚡ রিনিউ
+                                    </button>
                                     <Link
                                         :href="route('admin.customers.show', customer.id)"
                                         class="inline-flex items-center gap-1 rounded-lg border border-brand-navy bg-[#071322] hover:bg-brand-navy px-2.5 py-1.5 text-xs font-semibold text-slate-200 hover:text-white transition"
@@ -870,5 +896,14 @@ const executeCustomerDelete = () => {
                 </div>
             </div>
         </div>
+
+        <!-- Reusable Connection Renewal Modal -->
+        <CustomerRenewalModal
+            :is-open="isRenewModalOpen"
+            :customer="customerToRenew"
+            :packages="packages"
+            @close="isRenewModalOpen = false; customerToRenew = null"
+            @success="router.reload({ only: ['customers', 'filterCounts'] })"
+        />
     </AdminLayout>
 </template>

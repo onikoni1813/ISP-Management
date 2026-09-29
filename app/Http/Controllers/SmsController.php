@@ -137,13 +137,23 @@ class SmsController extends Controller
                     $query->whereHas('connections', fn($c) => $c->whereNotNull('expiry_date')->where('expiry_date', '<', $today));
                 } elseif ($af === 'due') {
                     $query->where(function ($sub) {
-                        $sub->where('balance', '<', 0)
+                        $sub->where('balance', '>', 0)
                             ->orWhereHas('invoices', fn($inv) => $inv->where('due_amount', '>', 0));
                     });
                 } elseif ($af === 'zero_charge_renewed') {
                     $query->whereHas('renewals', function ($r) {
                         $r->where('is_zero_charge', true)
                           ->whereRaw('renewals.renewed_at >= COALESCE((SELECT MAX(p.paid_at) FROM payments p WHERE p.customer_id = renewals.customer_id), "1970-01-01")');
+                    });
+                } elseif ($af === 'paid_this_month') {
+                    $startOfMonth = now()->startOfMonth()->toDateTimeString();
+                    $endOfMonth = now()->endOfMonth()->toDateTimeString();
+                    $query->whereHas('payments', function ($p) use ($startOfMonth, $endOfMonth) {
+                        $p->whereBetween('paid_at', [$startOfMonth, $endOfMonth])
+                          ->where('status', 'completed');
+                    })->where(function ($sub) {
+                        $sub->where('balance', '<=', 0)
+                            ->whereDoesntHave('invoices', fn($inv) => $inv->where('due_amount', '>', 0));
                     });
                 }
             }

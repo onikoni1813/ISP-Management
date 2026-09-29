@@ -2,7 +2,10 @@
 import { ref, computed } from 'vue';
 import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import CustomerRenewalModal from '@/Components/CustomerRenewalModal.vue';
 import { formatDate, formatDateTime } from '@/Utils/date';
+
+const showRenewalModal = ref(false);
 
 const props = defineProps({
     customer: Object,
@@ -206,6 +209,14 @@ const executeDelete = () => {
                 </Link>
                 <button
                     type="button"
+                    @click="showRenewalModal = true"
+                    class="rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-purple-600/25 transition cursor-pointer flex items-center gap-1.5"
+                >
+                    <span>⚡</span>
+                    <span>রিনিউ / গ্রেস দিন</span>
+                </button>
+                <button
+                    type="button"
                     @click="openPaymentModal"
                     class="rounded-xl bg-emerald-600 hover:bg-emerald-500 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-emerald-600/25 transition cursor-pointer"
                 >
@@ -221,6 +232,35 @@ const executeDelete = () => {
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
                     Delete
+                </button>
+            </div>
+        </div>
+
+        <!-- Active Zero-Charge Grace Notice Banner -->
+        <div v-if="customer.has_active_zero_charge" class="mb-5 p-4 rounded-2xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-between gap-4 backdrop-blur-sm shadow-lg shadow-purple-900/20">
+            <div class="flex items-center gap-3">
+                <div class="h-10 w-10 rounded-xl bg-purple-600/20 border border-purple-400/30 flex items-center justify-center text-purple-300 text-lg">
+                    🎁
+                </div>
+                <div>
+                    <h3 class="text-xs font-black uppercase tracking-wider text-purple-300 flex items-center gap-1.5">
+                        <span>টাকা ছাড়া গ্রেস রিনিউ সচল রয়েছে (Zero-Charge Grace Active)</span>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] bg-purple-500/20 border border-purple-500/40 text-purple-200 font-mono">
+                            +{{ customer.zero_charge_days || 'গ্রেস' }} দিন
+                        </span>
+                    </h3>
+                    <p class="text-xs text-slate-300 mt-0.5">
+                        এই গ্রাহককে টাকা ছাড়া সাময়িক মেয়াদ বাড়ানো হয়েছিল। পরবর্তীতে পুরো মাসের বিল কালেকশন করার সময় এই দিনগুলো বিল সাইকেল থেকে স্বয়ংক্রিয়ভাবে সমন্বয় হয়ে যাবে।
+                    </p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button
+                    type="button"
+                    @click="openPaymentModal"
+                    class="rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 px-3.5 py-2 text-xs font-bold text-white shadow-md transition cursor-pointer whitespace-nowrap"
+                >
+                    বিল আদায় করুন
                 </button>
             </div>
         </div>
@@ -287,18 +327,37 @@ const executeDelete = () => {
                             <div class="text-sm font-bold text-white mt-1">৳{{ primaryConnection?.current_package?.current_price?.price || 0 }}</div>
                         </div>
                         <div>
-                            <div class="flex items-center justify-between">
-                                <span class="text-[11px] font-semibold text-slate-400 uppercase">Expiry Date</span>
+                            <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Expiry Date</span>
+                            <div class="text-sm font-black text-amber-400 mt-1 font-mono flex items-center gap-1.5">
+                                <svg class="h-3.5 w-3.5 text-amber-400/80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                <span>{{ formatDate(primaryConnection?.expiry_date) }}</span>
+                            </div>
+                            <!-- Modern Pill Button Group for Renew & Edit -->
+                            <div class="flex items-center gap-1.5 mt-2">
+                                <button
+                                    type="button"
+                                    @click="showRenewalModal = true"
+                                    class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-700 hover:from-purple-500 hover:to-indigo-500 text-white shadow-md shadow-purple-600/30 border border-purple-400/30 transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                                    title="প্যাকেজ রিনিউ বা টাকা ছাড়া গ্রেস প্রদান"
+                                >
+                                    <svg class="w-3 h-3 text-purple-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                    </svg>
+                                    <span>রিনিউ</span>
+                                </button>
                                 <button
                                     type="button"
                                     @click="openExpiryModal"
-                                    class="text-[11px] font-bold text-amber-400 hover:text-amber-300 underline cursor-pointer flex items-center gap-1"
+                                    class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 hover:border-slate-600 transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                                    title="মেয়াদ সরাসরি পরিবর্তন করুন"
                                 >
-                                    ✏️ Edit
+                                    <svg class="w-3 h-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                    </svg>
+                                    <span>Edit</span>
                                 </button>
-                            </div>
-                            <div class="text-sm font-bold text-amber-400 mt-1 font-mono flex items-center justify-between">
-                                <span>{{ formatDate(primaryConnection?.expiry_date) }}</span>
                             </div>
                         </div>
                     </div>
@@ -772,6 +831,15 @@ const executeDelete = () => {
                 </div>
             </div>
         </div>
+
+        <!-- Reusable Connection Renewal Modal -->
+        <CustomerRenewalModal
+            :is-open="showRenewalModal"
+            :customer="customer"
+            :packages="packages"
+            @close="showRenewalModal = false"
+            @success="router.reload({ only: ['customer'] })"
+        />
     </AdminLayout>
 </template>
 
