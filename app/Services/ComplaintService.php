@@ -150,4 +150,72 @@ class ComplaintService
             'is_internal' => $isInternal,
         ]);
     }
+
+    /**
+     * Delete an individual complaint and its child records with audit logging.
+     */
+    public function deleteComplaint(Complaint $complaint): void
+    {
+        DB::transaction(function () use ($complaint) {
+            $data = $complaint->toArray();
+            $complaint->comments()->delete();
+            $complaint->statusHistories()->delete();
+
+            AuditLog::log('complaint_deleted', 'complaint', $complaint, $data, null);
+
+            $complaint->delete();
+        });
+    }
+
+    /**
+     * Bulk delete complaints by IDs.
+     */
+    public function bulkDeleteComplaints(array $ids): int
+    {
+        return DB::transaction(function () use ($ids) {
+            $complaints = Complaint::whereIn('id', $ids)->get();
+            $count = $complaints->count();
+
+            foreach ($complaints as $complaint) {
+                $complaint->comments()->delete();
+                $complaint->statusHistories()->delete();
+                AuditLog::log('complaint_deleted', 'complaint', $complaint, $complaint->toArray(), null);
+                $complaint->delete();
+            }
+
+            return $count;
+        });
+    }
+
+    /**
+     * Clear complaint history based on type (resolved, older_than_30_days, older_than_90_days, all).
+     */
+    public function clearHistory(string $type = 'resolved'): int
+    {
+        return DB::transaction(function () use ($type) {
+            $query = Complaint::query();
+
+            if ($type === 'resolved') {
+                $query->whereIn('status', ['resolved', 'closed', 'cancelled']);
+            } elseif ($type === 'older_than_30_days') {
+                $query->where('created_at', '<', now()->subDays(30));
+            } elseif ($type === 'older_than_90_days') {
+                $query->where('created_at', '<', now()->subDays(90));
+            } elseif ($type === 'all') {
+                // all records
+            }
+
+            $complaints = $query->get();
+            $count = $complaints->count();
+
+            foreach ($complaints as $complaint) {
+                $complaint->comments()->delete();
+                $complaint->statusHistories()->delete();
+                AuditLog::log('complaint_deleted', 'complaint', $complaint, $complaint->toArray(), null);
+                $complaint->delete();
+            }
+
+            return $count;
+        });
+    }
 }

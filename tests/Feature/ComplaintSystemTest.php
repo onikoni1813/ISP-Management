@@ -112,4 +112,83 @@ class ComplaintSystemTest extends TestCase
             'comment' => 'Technician visited premises and reconfigured WiFi SSID.',
         ]);
     }
+
+    public function test_admin_can_delete_individual_complaint(): void
+    {
+        $complaint = $this->complaintService->createComplaint($this->customer, [
+            'subject' => 'Ticket to be deleted',
+            'description' => 'Test description',
+        ], $this->admin->id);
+
+        $this->complaintService->addComment($complaint, 'Test comment', $this->staff->id);
+
+        $response = $this->actingAs($this->admin)->delete(route('admin.complaints.destroy', $complaint->id));
+        $response->assertRedirect();
+
+        $this->assertDatabaseMissing('complaints', ['id' => $complaint->id]);
+        $this->assertDatabaseMissing('complaint_comments', ['complaint_id' => $complaint->id]);
+        $this->assertDatabaseMissing('complaint_status_histories', ['complaint_id' => $complaint->id]);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'complaint_deleted',
+            'entity_id' => $complaint->id,
+        ]);
+    }
+
+    public function test_admin_can_bulk_delete_complaints(): void
+    {
+        $c1 = $this->complaintService->createComplaint($this->customer, [
+            'subject' => 'Bulk ticket 1',
+            'description' => 'Desc 1',
+        ], $this->admin->id);
+
+        $c2 = $this->complaintService->createComplaint($this->customer, [
+            'subject' => 'Bulk ticket 2',
+            'description' => 'Desc 2',
+        ], $this->admin->id);
+
+        $response = $this->actingAs($this->admin)->delete(route('admin.complaints.bulk-destroy'), [
+            'complaint_ids' => [$c1->id, $c2->id],
+        ]);
+
+        $response->assertRedirect();
+        $this->assertDatabaseMissing('complaints', ['id' => $c1->id]);
+        $this->assertDatabaseMissing('complaints', ['id' => $c2->id]);
+    }
+
+    public function test_admin_can_clear_complaint_history(): void
+    {
+        $openTicket = $this->complaintService->createComplaint($this->customer, [
+            'subject' => 'Open issue',
+            'description' => 'Should not be cleared when filtering resolved',
+        ], $this->admin->id);
+
+        $resolvedTicket = $this->complaintService->createComplaint($this->customer, [
+            'subject' => 'Resolved issue',
+            'description' => 'Should be cleared',
+        ], $this->admin->id);
+
+        $this->complaintService->updateStatus($resolvedTicket, 'resolved', $this->admin->id, 'Fixed');
+
+        $response = $this->actingAs($this->admin)->delete(route('admin.complaints.clear-history'), [
+            'filter_type' => 'resolved',
+        ]);
+
+        $response->assertRedirect();
+        $this->assertDatabaseMissing('complaints', ['id' => $resolvedTicket->id]);
+        $this->assertDatabaseHas('complaints', ['id' => $openTicket->id]);
+    }
+
+    public function test_staff_cannot_delete_complaints(): void
+    {
+        $complaint = $this->complaintService->createComplaint($this->customer, [
+            'subject' => 'Staff delete attempt',
+            'description' => 'Staff should get 403',
+        ], $this->admin->id);
+
+        $response = $this->actingAs($this->staff)->delete(route('admin.complaints.destroy', $complaint->id));
+        $response->assertForbidden();
+
+        $this->assertDatabaseHas('complaints', ['id' => $complaint->id]);
+    }
 }

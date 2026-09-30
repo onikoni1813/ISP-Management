@@ -77,7 +77,7 @@ const dueAmount = Math.max(0, -balance);
                 <div class="flex justify-between items-start">
                     <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Subscribed Package</div>
                     <Link :href="route('account.upgrade')" class="text-[10px] font-bold uppercase tracking-wider bg-brand-navy hover:bg-brand-sky/20 border border-brand-navy hover:border-brand-sky/40 text-brand-sky px-2 py-1 rounded-lg transition shrink-0">
-                        Upgrade
+                        Change Plan
                     </Link>
                 </div>
                 <div class="text-xl font-black text-white mt-2">{{ currentPackage?.name || 'Standard Plan' }}</div>

@@ -8,6 +8,7 @@ use App\Models\Connection;
 use App\Models\Customer;
 use App\Models\CustomerAddress;
 use App\Models\CustomerContact;
+use App\Models\CustomerPackage;
 use App\Models\Package;
 use App\Models\PackagePrice;
 use App\Models\Role;
@@ -89,6 +90,16 @@ class CustomerPortalTest extends TestCase
             'current_package_id' => $this->package->id,
             'expiry_date' => now()->addDays(12)->toDateString(),
             'status' => 'active',
+        ]);
+
+        CustomerPackage::create([
+            'customer_id' => $this->customer->id,
+            'connection_id' => $this->connection->id,
+            'package_id' => $this->package->id,
+            'actual_price' => 750.00,
+            'start_date' => now()->subMonth()->toDateString(),
+            'status' => 'active',
+            'remarks' => 'Initial subscription',
         ]);
 
         // Seed default SMS templates for notifications
@@ -257,5 +268,57 @@ class CustomerPortalTest extends TestCase
             'package_id' => $newPackage->id,
             'status' => 'active',
         ]);
+    }
+
+    public function test_customer_can_downgrade_package(): void
+    {
+        // Create a lower tier package to downgrade to
+        $budgetPackage = Package::create([
+            'name' => 'Starter 5 Mbps',
+            'code' => 'PKG-5M',
+            'speed_mbps' => 5,
+            'is_active' => true,
+        ]);
+        PackagePrice::create([
+            'package_id' => $budgetPackage->id,
+            'price' => 400.00,
+            'validity_days' => 30,
+            'effective_from' => now()->subMonth()->toDateString(),
+            'is_active' => true,
+        ]);
+
+        // Submit downgrade (current plan is 750 Tk, budget plan is 400 Tk)
+        $response = $this->actingAs($this->customerUser)->post(route('account.upgrade.store'), [
+            'package_id' => $budgetPackage->id,
+        ]);
+
+        $response->assertRedirect(route('account.dashboard'));
+
+        $this->connection->refresh();
+        $this->assertEquals($budgetPackage->id, $this->connection->current_package_id);
+
+        $this->assertDatabaseHas('customer_packages', [
+            'customer_id' => $this->customer->id,
+            'connection_id' => $this->connection->id,
+            'package_id' => $budgetPackage->id,
+            'status' => 'active',
+        ]);
+
+        // Previous package history marked as downgraded
+        $this->assertDatabaseHas('customer_packages', [
+            'customer_id' => $this->customer->id,
+            'connection_id' => $this->connection->id,
+            'package_id' => $this->package->id,
+            'status' => 'downgraded',
+        ]);
+    }
+
+    public function test_customer_cannot_select_same_package(): void
+    {
+        $response = $this->actingAs($this->customerUser)->post(route('account.upgrade.store'), [
+            'package_id' => $this->package->id,
+        ]);
+
+        $response->assertSessionHasErrors(['error']);
     }
 }

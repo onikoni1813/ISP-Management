@@ -163,4 +163,60 @@ class ComplaintController extends Controller
 
         return back()->with('success', 'Comment added.');
     }
+
+    /**
+     * Delete an individual complaint ticket.
+     */
+    public function destroy(Request $request, Complaint $complaint)
+    {
+        if (!$request->user()->hasRole('admin')) {
+            abort(403, 'Only administrators can delete complaint records.');
+        }
+
+        $ticketNo = $complaint->complaint_number;
+        $this->complaintService->deleteComplaint($complaint);
+
+        if ($request->header('X-Inertia-Location') || $request->routeIs('admin.complaints.show')) {
+            return redirect()->route('admin.complaints.index')->with('success', "Ticket {$ticketNo} deleted successfully.");
+        }
+
+        return back()->with('success', "Ticket {$ticketNo} deleted successfully.");
+    }
+
+    /**
+     * Bulk delete selected complaints.
+     */
+    public function bulkDestroy(Request $request)
+    {
+        if (!$request->user()->hasRole('admin')) {
+            abort(403, 'Only administrators can delete complaint records.');
+        }
+
+        $validated = $request->validate([
+            'complaint_ids' => 'required|array|min:1',
+            'complaint_ids.*' => 'integer|exists:complaints,id',
+        ]);
+
+        $count = $this->complaintService->bulkDeleteComplaints($validated['complaint_ids']);
+
+        return back()->with('success', "Selected {$count} ticket(s) deleted successfully.");
+    }
+
+    /**
+     * Clear complaint history.
+     */
+    public function clearHistory(Request $request)
+    {
+        if (!$request->user()->hasRole('admin')) {
+            abort(403, 'Only administrators can clear complaint history.');
+        }
+
+        $validated = $request->validate([
+            'filter_type' => 'required|string|in:resolved,older_than_30_days,older_than_90_days,all',
+        ]);
+
+        $count = $this->complaintService->clearHistory($validated['filter_type']);
+
+        return back()->with('success', "Cleared {$count} complaint record(s) from history.");
+    }
 }

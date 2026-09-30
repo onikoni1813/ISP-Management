@@ -294,12 +294,26 @@ class CustomerService
             $newPackage = Package::with('currentPrice')->findOrFail($packageId);
             $appliedPrice = $newPackage->currentPrice ? $newPackage->currentPrice->price : 0.00;
 
-            // Mark previous active package history as upgraded/superseded
+            // Determine whether this change is an upgrade or downgrade
+            $currentPkg = $connection->currentPackage;
+            $currentPrice = $currentPkg && $currentPkg->currentPrice ? (float) $currentPkg->currentPrice->price : null;
+            $previousStatus = 'upgraded';
+            if ($currentPrice !== null) {
+                if ((float) $appliedPrice < $currentPrice) {
+                    $previousStatus = 'downgraded';
+                } elseif ((float) $appliedPrice > $currentPrice) {
+                    $previousStatus = 'upgraded';
+                } else {
+                    $previousStatus = 'changed';
+                }
+            }
+
+            // Mark previous active package history as upgraded/downgraded/superseded
             CustomerPackage::where('customer_id', $customer->id)
                 ->where('connection_id', $connection->id)
                 ->where('status', 'active')
                 ->update([
-                    'status' => 'upgraded',
+                    'status' => $previousStatus,
                     'end_date' => now()->toDateString(),
                 ]);
 
@@ -321,6 +335,7 @@ class CustomerService
             AuditLog::log('package_changed', 'customer', $customer, null, [
                 'package_id' => $newPackage->id,
                 'price' => $appliedPrice,
+                'action_type' => $previousStatus,
             ]);
 
             return $history;

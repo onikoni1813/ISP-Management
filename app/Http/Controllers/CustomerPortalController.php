@@ -336,7 +336,7 @@ class CustomerPortalController extends Controller
     }
 
     /**
-     * Submit a Package Upgrade request.
+     * Submit a Package Upgrade or Downgrade request.
      */
     public function storeUpgrade(Request $request)
     {
@@ -344,26 +344,29 @@ class CustomerPortalController extends Controller
         $primaryConnection = $customer->connections->first();
 
         if (!$primaryConnection) {
-            return back()->withErrors(['error' => 'No active connection found to upgrade.']);
+            return back()->withErrors(['error' => 'No active connection found to update.']);
         }
 
         $validated = $request->validate([
             'package_id' => 'required|exists:packages,id',
         ]);
 
-        $newPackage = Package::with('currentPrice')->find($validated['package_id']);
-        $newPrice = $newPackage->currentPrice ? $newPackage->currentPrice->price : 0;
+        $newPackage = Package::with('currentPrice')->findOrFail($validated['package_id']);
+        $newPrice = $newPackage->currentPrice ? (float) $newPackage->currentPrice->price : 0.00;
         
         $currentPackage = $primaryConnection->currentPackage;
-        $currentPrice = $currentPackage && $currentPackage->currentPrice ? $currentPackage->currentPrice->price : 0;
+        $currentPrice = $currentPackage && $currentPackage->currentPrice ? (float) $currentPackage->currentPrice->price : 0.00;
 
-        if ($newPrice <= $currentPrice) {
-            return back()->withErrors(['error' => 'You can only upgrade to a package with a higher tier/price.']);
+        // Disallow selecting current package
+        if ($primaryConnection->current_package_id && (int) $newPackage->id === (int) $primaryConnection->current_package_id) {
+            return back()->withErrors(['error' => 'You are already subscribed to this package.']);
         }
 
-        // Process instant package upgrade
+        // Process instant package update (supports both upgrade and downgrade)
         $this->customerService->assignPackage($customer, $primaryConnection, $validated['package_id'], $request->user()->id);
 
-        return redirect()->route('account.dashboard')->with('success', 'Your package has been upgraded successfully. The new billing rate will apply from your next cycle.');
+        $actionText = $newPrice > $currentPrice ? 'upgraded' : ($newPrice < $currentPrice ? 'downgraded' : 'changed');
+
+        return redirect()->route('account.dashboard')->with('success', "Your package has been {$actionText} to {$newPackage->name} successfully. The new billing rate will apply from your next cycle.");
     }
 }

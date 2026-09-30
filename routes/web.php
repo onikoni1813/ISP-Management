@@ -146,10 +146,13 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('audit/logs', [AuditLogController::class, 'index'])->name('audit.index');
     Route::get('audit/staff-report', [AuditLogController::class, 'staffReport'])->name('audit.staff-report');
 
-    // Complaint Management Routes (Admin view & assign)
+    // Complaint Management Routes (Admin view, assign, delete & history cleanup)
     Route::get('complaints', [ComplaintController::class, 'index'])->name('complaints.index');
+    Route::delete('complaints/bulk-destroy', [ComplaintController::class, 'bulkDestroy'])->name('complaints.bulk-destroy');
+    Route::delete('complaints/clear-history', [ComplaintController::class, 'clearHistory'])->name('complaints.clear-history');
     Route::get('complaints/{complaint}', [ComplaintController::class, 'show'])->name('complaints.show');
     Route::post('complaints/{complaint}/assign', [ComplaintController::class, 'assign'])->name('complaints.assign');
+    Route::delete('complaints/{complaint}', [ComplaintController::class, 'destroy'])->name('complaints.destroy');
 
     // Accounting & Payroll Routes
     Route::get('accounting/accounts', [AccountingController::class, 'accounts'])->name('accounting.accounts');
