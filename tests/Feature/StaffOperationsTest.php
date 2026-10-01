@@ -116,4 +116,54 @@ class StaffOperationsTest extends TestCase
             'collected_by' => $this->staff->id,
         ]);
     }
+
+    public function test_customer_moves_from_due_to_paid_filter_when_admin_approves_payment(): void
+    {
+        // Set customer connection to expired
+        $this->connection->update(['expiry_date' => now()->subDay()->toDateString()]);
+
+        // Verify customer initially appears in due filter
+        $dueResBefore = $this->actingAs($this->staff)->getJson('/staff/api/filtered-customers?filter=due');
+        $dueResBefore->assertStatus(200);
+        $dueResBefore->assertJsonPath('counts.due', 1);
+        $dueResBefore->assertJsonPath('counts.paid', 0);
+        $this->assertCount(1, $dueResBefore->json('customers'));
+
+        // Staff collects bill (status is pending)
+        $this->actingAs($this->staff)->post("/customers/{$this->customer->id}/pay", [
+            'amount' => 500.00,
+            'payment_method' => 'cash',
+        ]);
+
+        $payment = Payment::where('customer_id', $this->customer->id)->latest('id')->first();
+        $this->assertEquals('pending', $payment->status);
+
+        // Admin approves payment
+        $adminRole = Role::firstOrCreate(['slug' => 'admin'], ['name' => 'Admin']);
+        $admin = User::factory()->create();
+        $admin->roles()->attach($adminRole);
+        $approvePerm = Permission::firstOrCreate(['slug' => 'billing.collect'], ['name' => 'billing.collect']);
+        $adminRole->permissions()->syncWithoutDetaching([$approvePerm->id]);
+
+        $this->actingAs($admin)->post("/admin/billing/payments/{$payment->id}/approve");
+
+        $payment->refresh();
+        $this->assertEquals('completed', $payment->status);
+
+        // Verify connection expiry was extended
+        $this->connection->refresh();
+        $this->assertTrue(\Carbon\Carbon::parse($this->connection->expiry_date)->isFuture());
+
+        // Now staff checks filtered customers: customer MUST leave due and be in paid
+        $dueResAfter = $this->actingAs($this->staff)->getJson('/staff/api/filtered-customers?filter=due');
+        $dueResAfter->assertStatus(200);
+        $dueResAfter->assertJsonPath('counts.due', 0);
+        $dueResAfter->assertJsonPath('counts.paid', 1);
+        $this->assertCount(0, $dueResAfter->json('customers'));
+
+        $paidRes = $this->actingAs($this->staff)->getJson('/staff/api/filtered-customers?filter=paid');
+        $paidRes->assertStatus(200);
+        $this->assertCount(1, $paidRes->json('customers'));
+        $this->assertEquals($this->customer->id, $paidRes->json('customers.0.id'));
+    }
 }

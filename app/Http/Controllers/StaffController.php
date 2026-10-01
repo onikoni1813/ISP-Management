@@ -196,7 +196,10 @@ class StaffController extends Controller
         $statusFilter = $request->input('filter', 'all'); // 'all', 'due', 'paid', 'renewed', 'expiring_72h', 'expired'
         $areaId = $request->input('area_id');
         $now = Carbon::now();
+        $todayStr = Carbon::today()->toDateString();
         $startOfMonth = Carbon::now()->startOfMonth();
+        $startOfMonthStr = $startOfMonth->toDateTimeString();
+        $endOfMonthStr = Carbon::now()->endOfMonth()->toDateTimeString();
         $in72Hours = Carbon::now()->addHours(72);
 
         // Base query with relations
@@ -210,24 +213,48 @@ class StaffController extends Controller
             $baseQuery->where('area_id', $areaId);
         }
 
+        // Shared operational query definitions:
+        // 1. Due ("আদায় বাকি" / বকেয়া গ্রাহক):
+        // Customers who have outstanding balance/unpaid invoice OR have expired connection without completed payment this month.
+        // Once a customer completes payment this month with no pending due, they immediately leave "আদায় বাকি".
+        $dueQueryModifier = function ($q) use ($startOfMonthStr, $endOfMonthStr, $todayStr) {
+            $q->where(function ($sub) {
+                $sub->where('balance', '>', 0)
+                    ->orWhereHas('invoices', fn($inv) => $inv->where('due_amount', '>', 0));
+            })->orWhere(function ($sub) use ($startOfMonthStr, $endOfMonthStr, $todayStr) {
+                $sub->whereHas('connections', fn($c) => $c->whereDate('expiry_date', '<', $todayStr))
+                    ->whereDoesntHave('payments', function ($p) use ($startOfMonthStr, $endOfMonthStr) {
+                        $p->whereBetween('paid_at', [$startOfMonthStr, $endOfMonthStr])
+                          ->where('status', 'completed');
+                    });
+            });
+        };
+
+        // 2. Paid ("বিল জমা" / চলতি মাসে আদায়):
+        // Customers who have zero balance, no unpaid invoices, and completed a payment this month.
+        $paidQueryModifier = function ($q) use ($startOfMonthStr, $endOfMonthStr) {
+            $q->where('balance', '<=', 0)
+              ->whereDoesntHave('invoices', fn($inv) => $inv->where('due_amount', '>', 0))
+              ->whereHas('payments', function ($p) use ($startOfMonthStr, $endOfMonthStr) {
+                  $p->whereBetween('paid_at', [$startOfMonthStr, $endOfMonthStr])
+                    ->where('status', 'completed');
+              });
+        };
+
         // 1. Calculate live counts for all operational filter badges
         $countsQuery = clone $baseQuery;
         
-        $dueCount = (clone $countsQuery)
-            ->where(function ($q) {
-                $q->where('balance', '>', 0)
-                  ->orWhereHas('connections', fn($c) => $c->where('expiry_date', '<', Carbon::today()));
-            })->count();
+        $dueCount = (clone $countsQuery)->where($dueQueryModifier)->count();
 
-        $paidCount = (clone $countsQuery)
-            ->where('balance', '<=', 0)
-            ->whereHas('payments', function ($p) use ($startOfMonth) {
-                $p->where('paid_at', '>=', $startOfMonth->toDateTimeString())->where('status', 'completed');
-            })->count();
+        $paidCount = (clone $countsQuery)->where($paidQueryModifier)->count();
 
         $renewedCount = (clone $countsQuery)
-            ->whereHas('connections', function ($c) use ($startOfMonth) {
-                $c->whereHas('packageHistories', fn($h) => $h->where('start_date', '>=', $startOfMonth->toDateString()));
+            ->where(function ($q) use ($startOfMonth) {
+                $q->whereHas('connections', function ($c) use ($startOfMonth) {
+                    $c->whereHas('packageHistories', fn($h) => $h->where('start_date', '>=', $startOfMonth->toDateString()));
+                })->orWhereHas('renewals', function ($r) use ($startOfMonth) {
+                    $r->where('renewed_at', '>=', $startOfMonth->toDateTimeString());
+                });
             })->count();
 
         $expiring72hCount = (clone $countsQuery)
@@ -237,7 +264,7 @@ class StaffController extends Controller
 
         $expiredCount = (clone $countsQuery)
             ->whereHas('connections', function ($c) use ($now) {
-                $c->where('expiry_date', '<', $now->toDateString());
+                $c->whereDate('expiry_date', '<', $now->toDateString());
             })->count();
 
         // 2. Apply chosen operational filter
@@ -245,22 +272,20 @@ class StaffController extends Controller
 
         switch ($statusFilter) {
             case 'due': // আদায় বাকি
-                $query->where(function ($q) {
-                    $q->where('balance', '>', 0)
-                      ->orWhereHas('connections', fn($c) => $c->where('expiry_date', '<', Carbon::today()));
-                });
+                $query->where($dueQueryModifier);
                 break;
 
             case 'paid': // বিল জমা
-                $query->where('balance', '<=', 0)
-                      ->whereHas('payments', function ($p) use ($startOfMonth) {
-                          $p->where('paid_at', '>=', $startOfMonth->toDateTimeString())->where('status', 'completed');
-                      });
+                $query->where($paidQueryModifier);
                 break;
 
             case 'renewed': // রিনিউ হয়েছে
-                $query->whereHas('connections', function ($c) use ($startOfMonth) {
-                    $c->whereHas('packageHistories', fn($h) => $h->where('start_date', '>=', $startOfMonth->toDateString()));
+                $query->where(function ($q) use ($startOfMonth) {
+                    $q->whereHas('connections', function ($c) use ($startOfMonth) {
+                        $c->whereHas('packageHistories', fn($h) => $h->where('start_date', '>=', $startOfMonth->toDateString()));
+                    })->orWhereHas('renewals', function ($r) use ($startOfMonth) {
+                        $r->where('renewed_at', '>=', $startOfMonth->toDateTimeString());
+                    });
                 });
                 break;
 
@@ -272,7 +297,7 @@ class StaffController extends Controller
 
             case 'expired': // মেয়াদ উত্তীর্ণ
                 $query->whereHas('connections', function ($c) use ($now) {
-                    $c->where('expiry_date', '<', $now->toDateString());
+                    $c->whereDate('expiry_date', '<', $now->toDateString());
                 });
                 break;
 

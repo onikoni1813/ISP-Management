@@ -9,6 +9,8 @@ use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\Payment;
 use App\Models\PaymentAllocation;
+use App\Models\Renewal;
+use Carbon\Carbon;
 use Exception;
 use Illuminate\Support\Facades\DB;
 
@@ -274,6 +276,49 @@ class BillingService
                 'generated_invoice_id' => $invoice->id,
             ]);
 
+            // Deduct customer balance if customer has outstanding debt
+            if ((float) $customer->balance > 0) {
+                $customer->decrement('balance', min((float) $customer->balance, $amount));
+            }
+
+            // 4. Update Connection Expiry & Record Renewal
+            if ($connection) {
+                $validityDays = (int) ($package?->currentPrice?->validity_days ?? 30);
+                $prevExpiry = $connection->expiry_date ? Carbon::parse($connection->expiry_date) : null;
+                $today = Carbon::today();
+                $baseDate = ($prevExpiry && $prevExpiry->greaterThanOrEqualTo($today)) ? $prevExpiry : $today;
+                $newExpiry = $baseDate->copy()->addDays($validityDays)->toDateString();
+
+                $connection->update([
+                    'expiry_date' => $newExpiry,
+                    'status' => 'active',
+                ]);
+
+                // Create Renewal Record for metrics and history tracking
+                $lastRenewal = Renewal::lockForUpdate()->latest('id')->first();
+                $nextRenNumber = $lastRenewal ? ($lastRenewal->id + 1) : 1;
+                $renewalNumber = 'REN-' . date('Y') . '-' . str_pad((string) $nextRenNumber, 6, '0', STR_PAD_LEFT);
+
+                Renewal::create([
+                    'renewal_number' => $renewalNumber,
+                    'customer_id' => $customer->id,
+                    'connection_id' => $connection->id,
+                    'package_id' => $package?->id,
+                    'invoice_id' => $invoice->id,
+                    'renewed_by' => $payment->collected_by ?? $adminId,
+                    'previous_expiry' => $prevExpiry?->toDateString(),
+                    'new_expiry' => $newExpiry,
+                    'validity_days' => $validityDays,
+                    'amount' => $amount,
+                    'mode' => 'standard',
+                    'is_zero_charge' => false,
+                    'renewed_at' => now(),
+                ]);
+            }
+
+            // Ensure customer status is active
+            $customer->update(['status' => 'active']);
+
             AuditLog::log('payment_approved', 'billing', $payment, null, [
                 'admin_id' => $adminId,
                 'generated_invoice_id' => $invoice->id,
@@ -287,7 +332,7 @@ class BillingService
                 $customer->id,
                 [
                     'amount' => number_format($amount, 2),
-                    'due' => number_format((float) max(0, -$customer->fresh()->balance), 2),
+                    'due' => number_format((float) max(0, $customer->fresh()->balance), 2),
                 ],
                 $adminId,
                 \App\Models\Payment::class,

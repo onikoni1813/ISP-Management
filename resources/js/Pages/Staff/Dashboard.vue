@@ -153,10 +153,11 @@ const loadFilteredCustomers = async () => {
                 matched = matched.filter(c => c.area_name === selectedArea.value);
             }
             
+            const todayStr = new Date().toISOString().slice(0, 10);
             if (activeFilter.value === 'due') {
-                matched = matched.filter(c => Number(c.balance) < 0);
+                matched = matched.filter(c => Number(c.balance) > 0 || (c.expiry_date && c.expiry_date < todayStr));
             } else if (activeFilter.value === 'paid') {
-                matched = matched.filter(c => Number(c.balance) >= 0);
+                matched = matched.filter(c => Number(c.balance) <= 0 && (!c.expiry_date || c.expiry_date >= todayStr));
             }
             
             filteredCustomersList.value = matched.map(c => ({
@@ -177,8 +178,8 @@ const loadFilteredCustomers = async () => {
             
             filterCounts.value = {
                 all: localCustomers.length,
-                due: localCustomers.filter(c => Number(c.balance) < 0).length,
-                paid: localCustomers.filter(c => Number(c.balance) >= 0).length,
+                due: localCustomers.filter(c => Number(c.balance) > 0 || (c.expiry_date && c.expiry_date < todayStr)).length,
+                paid: localCustomers.filter(c => Number(c.balance) <= 0 && (!c.expiry_date || c.expiry_date >= todayStr)).length,
                 renewed: 0,
                 expiring_72h: 0,
                 expired: 0,
