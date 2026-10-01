@@ -208,6 +208,21 @@ class StaffOperationsTest extends TestCase
             'assigned_to' => $this->staff->id,
             'status' => 'assigned',
         ]);
+
+        // 3. Staff creates complaint with optional/empty description
+        $optionalDescRes = $this->actingAs($this->staff)->post('/complaints', [
+            'customer_id' => $this->customer->id,
+            'subject' => 'স্পিড কম (Slow Speed)',
+            'priority' => 'normal',
+        ]);
+
+        $optionalDescRes->assertStatus(302);
+        $this->assertDatabaseHas('complaints', [
+            'customer_id' => $this->customer->id,
+            'subject' => 'স্পিড কম (Slow Speed)',
+            'description' => null,
+            'status' => 'open',
+        ]);
     }
 
     public function test_staff_pppoe_password_reveal_requires_permission_and_allows_when_granted(): void

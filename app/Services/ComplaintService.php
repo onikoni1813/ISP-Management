@@ -31,7 +31,7 @@ class ComplaintService
                 'connection_id' => $data['connection_id'] ?? $primaryConnection?->id,
                 'assigned_to' => $data['assigned_to'] ?? null,
                 'subject' => $data['subject'],
-                'description' => $data['description'],
+                'description' => $data['description'] ?? null,
                 'priority' => $data['priority'] ?? 'normal',
                 'status' => $status,
                 'created_by' => $userId,

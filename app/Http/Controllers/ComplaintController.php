@@ -122,7 +122,7 @@ class ComplaintController extends Controller
         $validated = $request->validate([
             'customer_id' => $customer ? 'nullable|exists:customers,id' : 'required|exists:customers,id',
             'subject' => 'required|string|max:255',
-            'description' => 'required|string|max:2000',
+            'description' => 'nullable|string|max:2000',
             'priority' => 'required|string|in:low,normal,high,urgent',
             'assigned_to' => 'nullable|exists:users,id',
             'connection_id' => 'nullable|exists:connections,id',

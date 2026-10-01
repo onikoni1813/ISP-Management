@@ -311,14 +311,14 @@ const submit = () => {
 
                 <!-- 6. Detailed Problem Description -->
                 <div>
-                    <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
-                        বিস্তারিত বিবরণ (Description) *
+                    <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1 flex items-center justify-between">
+                        <span>বিস্তারিত বিবরণ (Description)</span>
+                        <span class="text-[10px] text-slate-400 font-normal lowercase">(ঐচ্ছিক / optional)</span>
                     </label>
                     <textarea
                         v-model="form.description"
-                        required
                         rows="3"
-                        placeholder="গ্রাহকের সমস্যার বিস্তারিত লিখুন (যেমন: সকাল ১০টা থেকে ইন্টারনেট বন্ধ, অনইউ-তে লাল বাতি ইত্যাদি)..."
+                        placeholder="গ্রাহকের সমস্যার অতিরিক্ত কোনো বিবরণ থাকলে লিখুন (ঐচ্ছিক)..."
                         class="w-full rounded-2xl bg-[#071527] border border-white/10 px-4 py-3 text-xs text-white placeholder-slate-500 focus:border-rose-500 focus:ring-1 focus:ring-rose-500 transition"
                     ></textarea>
                     <div v-if="form.errors.description" class="text-xs text-rose-400 mt-1 font-medium">{{ form.errors.description }}</div>
