@@ -41,6 +41,11 @@ class CustomerController extends Controller
         $packages = \App\Models\Package::with('currentPrice')->where('status', 'active')->get(['id', 'name', 'code', 'speed_mbps']);
         $filterCounts = $this->customerService->getCustomerFilterCounts($request->input('area_id'));
         $smsTemplates = \App\Models\SmsTemplate::all(['id', 'name', 'template']);
+        $activeSmsGateway = \App\Models\SmsGateway::where('is_active', true)->first(['id', 'name', 'driver', 'sender_id']);
+        $cachedBalance = null;
+        if ($activeSmsGateway && cache()->has('sms_active_balance_' . $activeSmsGateway->id)) {
+            $cachedBalance = cache()->get('sms_active_balance_' . $activeSmsGateway->id);
+        }
 
         return Inertia::render('Admin/Customers/Index', [
             'customers' => $customers,
@@ -49,6 +54,8 @@ class CustomerController extends Controller
             'packages' => $packages,
             'filterCounts' => $filterCounts,
             'smsTemplates' => $smsTemplates,
+            'activeSmsGateway' => $activeSmsGateway,
+            'initialSmsBalance' => $cachedBalance,
         ]);
     }
 

@@ -817,7 +817,12 @@ const executeDelete = () => {
                             ></textarea>
                             
                             <!-- Real-time Character and SMS Parts Calculator -->
-                            <SmsCharacterCounter :text="form.message" />
+                            <SmsCharacterCounter
+                                :text="form.message"
+                                :panel-balance="gatewayBalance?.balance"
+                                :is-checking-balance="isCheckingBalance"
+                                @refresh-balance="fetchLiveBalance(true)"
+                            />
                         </div>
 
                         <div class="flex justify-end gap-3 pt-4 border-t border-brand-navy">

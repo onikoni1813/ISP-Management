@@ -10,7 +10,25 @@ const props = defineProps({
         type: Boolean,
         default: true,
     },
+    recipientCount: {
+        type: Number,
+        default: 1,
+    },
+    panelBalance: {
+        type: [String, Number],
+        default: null,
+    },
+    panelGatewayName: {
+        type: String,
+        default: null,
+    },
+    isCheckingBalance: {
+        type: Boolean,
+        default: false,
+    },
 });
+
+defineEmits(['refresh-balance']);
 
 // Check if string contains any character outside standard GSM 7-bit charset
 // Any Bengali character ([\u0980-\u09FF]), Bengali digits, Bengali punctuation, emojis, curved quotes etc. forces UCS-2 Unicode.
@@ -71,6 +89,10 @@ const calculation = computed(() => {
     };
 });
 
+const totalSmsNeeded = computed(() => {
+    return calculation.value.smsCount * (props.recipientCount || 1);
+});
+
 const hasTemplateTags = computed(() => {
     return /\{[a-zA-Z0-9_]+\}/.test(props.text || '');
 });
@@ -78,6 +100,35 @@ const hasTemplateTags = computed(() => {
 
 <template>
     <div class="mt-2 space-y-2 rounded-xl bg-[#061220]/90 border border-brand-navy p-3 text-xs select-none">
+        <!-- Live Panel Balance Strip (If balance is passed) -->
+        <div
+            v-if="panelBalance !== null && panelBalance !== undefined"
+            class="flex flex-wrap items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#071322] border border-brand-navy shadow-inner"
+        >
+            <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span class="text-slate-400 font-medium">প্যানেলে ব্যালেন্স আছে:</span>
+                <strong class="text-emerald-400 font-mono font-bold text-sm tracking-tight">{{ panelBalance }}</strong>
+                <button
+                    type="button"
+                    @click="$emit('refresh-balance')"
+                    :disabled="isCheckingBalance"
+                    class="text-slate-400 hover:text-brand-sky p-0.5 rounded transition disabled:opacity-50"
+                    title="প্যানেল ব্যালেন্স রিফ্রেশ করুন"
+                >
+                    <svg :class="['w-3.5 h-3.5', isCheckingBalance ? 'animate-spin text-brand-sky' : '']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                </button>
+            </div>
+
+            <div v-if="recipientCount > 1" class="text-slate-300 font-medium text-[11px] flex items-center gap-1.5">
+                <span>প্রাপক: <strong class="text-white font-mono">{{ recipientCount }}</strong> জন</span>
+                <span class="text-slate-500">•</span>
+                <span>মোট প্রয়োজন: <strong class="text-brand-sky font-mono font-bold">{{ totalSmsNeeded }}</strong> টি SMS</span>
+            </div>
+        </div>
+
         <!-- Top Metrics Row -->
         <div class="flex flex-wrap items-center justify-between gap-2">
             <!-- Left: Character Count & Encoding Badge -->
@@ -116,7 +167,11 @@ const hasTemplateTags = computed(() => {
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
                     </svg>
-                    <span>
+                    <span v-if="recipientCount > 1">
+                        <span class="font-mono text-sm">{{ calculation.smsCount }}</span> টি/জন
+                        <span class="font-normal text-[11px] opacity-90">(মোট {{ totalSmsNeeded }} টি)</span>
+                    </span>
+                    <span v-else>
                         <span class="font-mono text-sm">{{ calculation.smsCount }}</span> টি SMS কাটবে
                     </span>
                 </span>

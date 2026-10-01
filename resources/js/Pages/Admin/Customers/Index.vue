@@ -17,6 +17,8 @@ const props = defineProps({
     },
     filterCounts: Object,
     smsTemplates: Array,
+    activeSmsGateway: Object,
+    initialSmsBalance: Object,
 });
 
 const customerToRenew = ref(null);
@@ -134,6 +136,44 @@ const bulkSmsForm = useForm({
     status: '',
     area_id: '',
     advanced_filter: '',
+});
+
+// Live SMS Gateway Panel Balance State
+const panelGateway = ref(props.activeSmsGateway || null);
+const panelBalance = ref(props.initialSmsBalance?.balance ?? null);
+const isCheckingPanelBalance = ref(false);
+const panelBalanceError = ref(null);
+
+const fetchPanelBalance = async (force = false) => {
+    isCheckingPanelBalance.value = true;
+    panelBalanceError.value = null;
+    try {
+        const url = route('admin.sms.active-balance') + (force ? '?force=1' : '');
+        const res = await axios.get(url);
+        if (res.data.success) {
+            panelGateway.value = res.data.gateway;
+            panelBalance.value = res.data.balance;
+        } else {
+            panelBalanceError.value = res.data.error || 'ব্যালেন্স তথ্য পাওয়া যায়নি।';
+            if (res.data.balance) {
+                panelBalance.value = res.data.balance;
+            }
+        }
+    } catch (err) {
+        panelBalanceError.value = 'গেটওয়ে সংযোগ ব্যর্থ হয়েছে।';
+    } finally {
+        isCheckingPanelBalance.value = false;
+    }
+};
+
+watch(isSmsModalOpen, (isOpen) => {
+    if (isOpen) {
+        fetchPanelBalance(false);
+    }
+});
+
+const smsRecipientCount = computed(() => {
+    return targetAllFiltered.value ? (props.customers?.total || 0) : (bulkSmsForm.customer_ids?.length || 0);
 });
 
 const openBulkSmsModal = (targetEntireFilter = false) => {
@@ -752,6 +792,68 @@ const executeCustomerDelete = () => {
                     <button @click="isSmsModalOpen = false" class="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition">✕</button>
                 </div>
 
+                <!-- Live SMS Gateway Panel Balance Banner -->
+                <div class="rounded-2xl border border-brand-navy bg-gradient-to-r from-[#071322] via-[#0A1F36] to-[#071322] p-3.5 shadow-inner flex items-center justify-between gap-3 flex-wrap">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shadow-sm shadow-emerald-400"></span>
+                        <div>
+                            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                সক্রিয় SMS প্যানেল (Gateway)
+                            </div>
+                            <div class="text-xs font-bold text-white flex items-center gap-1.5 mt-0.5">
+                                <span>{{ panelGateway?.name || 'SMS Gateway' }}</span>
+                                <span v-if="panelGateway?.sender_id" class="text-[10px] text-brand-sky font-mono bg-[#091A2E] px-1.5 py-0.5 rounded border border-brand-navy">
+                                    Sender ID: {{ panelGateway.sender_id }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-3">
+                        <div class="text-right">
+                            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-end gap-1">
+                                <span>প্যানেলে মেসেজ ব্যালেন্স আছে</span>
+                            </div>
+                            <div class="mt-0.5">
+                                <span v-if="isCheckingPanelBalance" class="text-xs text-brand-sky animate-pulse flex items-center gap-1">
+                                    <svg class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    ব্যালেন্স লোড হচ্ছে...
+                                </span>
+                                <span v-else-if="panelBalance !== null && panelBalance !== undefined" class="text-base font-extrabold text-emerald-400 font-mono tracking-tight">
+                                    {{ panelBalance }}
+                                </span>
+                                <span v-else-if="panelBalanceError" class="text-xs text-rose-400 font-medium">
+                                    {{ panelBalanceError }}
+                                </span>
+                                <span v-else class="text-xs text-slate-400">
+                                    ব্যালেন্স লোড হচ্ছে...
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Live Refresh Button -->
+                        <button
+                            type="button"
+                            @click="fetchPanelBalance(true)"
+                            :disabled="isCheckingPanelBalance"
+                            class="p-2 rounded-xl bg-brand-navy/60 hover:bg-brand-navy border border-brand-navy hover:border-brand-sky/40 text-slate-300 hover:text-white transition disabled:opacity-50"
+                            title="প্যানেল ব্যালেন্স রিফ্রেশ করুন"
+                        >
+                            <svg
+                                :class="['w-4 h-4', isCheckingPanelBalance ? 'animate-spin text-brand-sky' : '']"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
                 <form @submit.prevent="submitBulkSms" class="space-y-4">
                     <!-- Template Selector -->
                     <div>
@@ -851,7 +953,13 @@ const executeCustomerDelete = () => {
                             class="w-full rounded-2xl border border-brand-navy bg-[#071322] p-3.5 text-xs text-white placeholder-slate-500 focus:border-brand-sky focus:outline-none focus:ring-1 focus:ring-brand-sky leading-relaxed"
                         ></textarea>
                         <div v-if="bulkSmsForm.errors.message" class="text-rose-400 text-xs mt-1">{{ bulkSmsForm.errors.message }}</div>
-                        <SmsCharacterCounter :text="bulkSmsForm.message" />
+                        <SmsCharacterCounter
+                            :text="bulkSmsForm.message"
+                            :recipient-count="smsRecipientCount"
+                            :panel-balance="panelBalance"
+                            :is-checking-balance="isCheckingPanelBalance"
+                            @refresh-balance="fetchPanelBalance(true)"
+                        />
                     </div>
 
                     <!-- Action Buttons -->
