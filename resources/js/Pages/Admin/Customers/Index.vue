@@ -141,8 +141,24 @@ const bulkSmsForm = useForm({
 // Live SMS Gateway Panel Balance State
 const panelGateway = ref(props.activeSmsGateway || null);
 const panelBalance = ref(props.initialSmsBalance?.balance ?? null);
+const panelRemainingSms = ref(props.initialSmsBalance?.remaining_sms ?? null);
 const isCheckingPanelBalance = ref(false);
 const panelBalanceError = ref(null);
+
+const panelSmsRate = computed(() => {
+    return panelGateway.value?.sms_rate || 0.30;
+});
+
+const computedRemainingSms = computed(() => {
+    if (panelRemainingSms.value !== null && panelRemainingSms.value !== undefined && !isNaN(Number(panelRemainingSms.value))) {
+        return Math.floor(Number(panelRemainingSms.value));
+    }
+    if (panelBalance.value !== null && panelBalance.value !== undefined && !isNaN(parseFloat(panelBalance.value))) {
+        const rate = panelSmsRate.value > 0 ? panelSmsRate.value : 0.30;
+        return Math.floor(parseFloat(panelBalance.value) / rate);
+    }
+    return null;
+});
 
 const fetchPanelBalance = async (force = false) => {
     isCheckingPanelBalance.value = true;
@@ -153,10 +169,12 @@ const fetchPanelBalance = async (force = false) => {
         if (res.data.success) {
             panelGateway.value = res.data.gateway;
             panelBalance.value = res.data.balance;
+            panelRemainingSms.value = res.data.remaining_sms ?? null;
         } else {
             panelBalanceError.value = res.data.error || 'ব্যালেন্স তথ্য পাওয়া যায়নি।';
             if (res.data.balance) {
                 panelBalance.value = res.data.balance;
+                panelRemainingSms.value = res.data.remaining_sms ?? null;
             }
         }
     } catch (err) {
@@ -812,7 +830,7 @@ const executeCustomerDelete = () => {
                     <div class="flex items-center gap-3">
                         <div class="text-right">
                             <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-end gap-1">
-                                <span>প্যানেলে মেসেজ ব্যালেন্স আছে</span>
+                                <span>প্যানেলে অবশিষ্ট মেসেজ</span>
                             </div>
                             <div class="mt-0.5">
                                 <span v-if="isCheckingPanelBalance" class="text-xs text-brand-sky animate-pulse flex items-center gap-1">
@@ -820,8 +838,16 @@ const executeCustomerDelete = () => {
                                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                     </svg>
-                                    ব্যালেন্স লোড হচ্ছে...
+                                    মেসেজ সংখ্যা লোড হচ্ছে...
                                 </span>
+                                <div v-else-if="computedRemainingSms !== null" class="flex flex-col items-end">
+                                    <span class="text-base font-extrabold text-emerald-400 font-mono tracking-tight">
+                                        ~{{ computedRemainingSms }} টি SMS
+                                    </span>
+                                    <span v-if="panelBalance" class="text-[10px] font-mono text-slate-400">
+                                        ব্যালেন্স: ৳ {{ panelBalance }}
+                                    </span>
+                                </div>
                                 <span v-else-if="panelBalance !== null && panelBalance !== undefined" class="text-base font-extrabold text-emerald-400 font-mono tracking-tight">
                                     {{ panelBalance }}
                                 </span>
@@ -957,6 +983,8 @@ const executeCustomerDelete = () => {
                             :text="bulkSmsForm.message"
                             :recipient-count="smsRecipientCount"
                             :panel-balance="panelBalance"
+                            :remaining-sms="computedRemainingSms"
+                            :sms-rate="panelSmsRate"
                             :is-checking-balance="isCheckingPanelBalance"
                             @refresh-balance="fetchPanelBalance(true)"
                         />

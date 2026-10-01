@@ -269,6 +269,13 @@ class SmsController extends Controller
 
         $gateways = SmsGateway::all();
         $balanceInfo = $this->smsService->getBalance();
+        if ($balanceInfo && !empty($balanceInfo['success'])) {
+            $activeGateway = $gateways->firstWhere('is_active', true);
+            if ($activeGateway) {
+                $balanceInfo['remaining_sms'] = $activeGateway->calculateRemainingSms($balanceInfo['balance'] ?? null);
+                $balanceInfo['sms_rate'] = $activeGateway->sms_rate;
+            }
+        }
 
         return Inertia::render('Admin/Sms/Gateways', [
             'gateways' => $gateways,
@@ -289,12 +296,20 @@ class SmsController extends Controller
             'api_url' => 'nullable|string|url',
             'api_key' => 'nullable|string|max:255',
             'sender_id' => 'nullable|string|max:50',
+            'sms_rate' => 'nullable|numeric|min:0.01|max:100',
             'is_active' => 'required|boolean',
         ]);
 
         if ($validated['is_active']) {
             SmsGateway::query()->update(['is_active' => false]);
         }
+
+        $extra = [];
+        if ($request->filled('sms_rate')) {
+            $extra['sms_rate'] = (float)$request->input('sms_rate');
+        }
+        $validated['extra_params'] = $extra;
+        unset($validated['sms_rate']);
 
         SmsGateway::create($validated);
 
@@ -314,6 +329,7 @@ class SmsController extends Controller
             'api_url' => 'nullable|string|url',
             'api_key' => 'nullable|string|max:255',
             'sender_id' => 'nullable|string|max:50',
+            'sms_rate' => 'nullable|numeric|min:0.01|max:100',
             'is_active' => 'required|boolean',
         ]);
 
@@ -324,6 +340,13 @@ class SmsController extends Controller
         if (empty($validated['api_key'])) {
             unset($validated['api_key']);
         }
+
+        $extra = $gateway->extra_params ?? [];
+        if ($request->has('sms_rate')) {
+            $extra['sms_rate'] = $request->filled('sms_rate') ? (float)$request->input('sms_rate') : null;
+        }
+        $validated['extra_params'] = $extra;
+        unset($validated['sms_rate']);
 
         $gateway->update($validated);
 
@@ -422,6 +445,10 @@ class SmsController extends Controller
         }
 
         $balance = $this->smsService->getBalance($gateway);
+        $rawBalance = $balance['balance'] ?? null;
+        $remainingSms = $gateway->calculateRemainingSms($rawBalance);
+        $balance['remaining_sms'] = $remainingSms;
+        $balance['sms_rate'] = $gateway->sms_rate;
 
         if (!empty($balance['success'])) {
             cache()->put('sms_active_balance_' . $gateway->id, [
@@ -431,8 +458,11 @@ class SmsController extends Controller
                     'name' => $gateway->name,
                     'driver' => $gateway->driver,
                     'sender_id' => $gateway->sender_id,
+                    'sms_rate' => $gateway->sms_rate,
                 ],
-                'balance' => $balance['balance'] ?? null,
+                'balance' => $rawBalance,
+                'remaining_sms' => $remainingSms,
+                'sms_rate' => $gateway->sms_rate,
                 'error' => null,
                 'checked_at' => now()->format('h:i:s A'),
             ], now()->addMinutes(5));
@@ -458,6 +488,8 @@ class SmsController extends Controller
                 'success' => false,
                 'gateway' => null,
                 'balance' => null,
+                'remaining_sms' => null,
+                'sms_rate' => null,
                 'error' => 'কোন সক্রিয় SMS গেটওয়ে কনফিগার করা নেই।',
             ]);
         }
@@ -470,6 +502,9 @@ class SmsController extends Controller
         }
 
         $result = $this->smsService->getBalance($gateway);
+        $rawBalance = $result['balance'] ?? null;
+        $remainingSms = $gateway->calculateRemainingSms($rawBalance);
+
         $payload = [
             'success' => $result['success'] ?? false,
             'gateway' => [
@@ -477,8 +512,11 @@ class SmsController extends Controller
                 'name' => $gateway->name,
                 'driver' => $gateway->driver,
                 'sender_id' => $gateway->sender_id,
+                'sms_rate' => $gateway->sms_rate,
             ],
-            'balance' => $result['balance'] ?? null,
+            'balance' => $rawBalance,
+            'remaining_sms' => $remainingSms,
+            'sms_rate' => $gateway->sms_rate,
             'error' => $result['error'] ?? null,
             'checked_at' => now()->format('h:i:s A'),
         ];

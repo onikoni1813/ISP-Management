@@ -41,7 +41,7 @@ class CustomerController extends Controller
         $packages = \App\Models\Package::with('currentPrice')->where('status', 'active')->get(['id', 'name', 'code', 'speed_mbps']);
         $filterCounts = $this->customerService->getCustomerFilterCounts($request->input('area_id'));
         $smsTemplates = \App\Models\SmsTemplate::all(['id', 'name', 'template']);
-        $activeSmsGateway = \App\Models\SmsGateway::where('is_active', true)->first(['id', 'name', 'driver', 'sender_id']);
+        $activeSmsGateway = \App\Models\SmsGateway::where('is_active', true)->first(['id', 'name', 'driver', 'sender_id', 'extra_params']);
         $cachedBalance = null;
         if ($activeSmsGateway && cache()->has('sms_active_balance_' . $activeSmsGateway->id)) {
             $cachedBalance = cache()->get('sms_active_balance_' . $activeSmsGateway->id);

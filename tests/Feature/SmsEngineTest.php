@@ -267,6 +267,36 @@ class SmsEngineTest extends TestCase
             'success' => true,
         ]);
     }
+
+    public function test_bulksmsdhaka_calculates_remaining_sms_based_on_rate(): void
+    {
+        \Illuminate\Support\Facades\Http::fake([
+            'https://bulksmsdhaka.net/api/getBalance*' => \Illuminate\Support\Facades\Http::response([
+                'Balance' => '197.90',
+                'Status' => '100',
+                'Success' => 'true',
+            ], 200),
+        ]);
+
+        $gateway = SmsGateway::create([
+            'name' => 'Bulk SMS Dhaka Test',
+            'driver' => 'bulksmsdhaka',
+            'api_url' => 'https://bulksmsdhaka.net/api',
+            'api_key' => 'token_dhaka_123',
+            'extra_params' => ['sms_rate' => 0.30],
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($this->admin)->get(route('admin.sms.active-balance', ['force' => 1]));
+
+        $response->assertOk();
+        $response->assertJson([
+            'success' => true,
+            'balance' => '197.90',
+            'remaining_sms' => 659,
+            'sms_rate' => 0.30,
+        ]);
+    }
 }
 
 

@@ -30,6 +30,22 @@ const isCheckingBalance = ref(false);
 const balanceError = ref(null);
 const lastBalanceCheckTime = ref(props.initialBalance?.checked_at || null);
 
+const smsRate = computed(() => {
+    return activeGatewayState.value?.sms_rate || 0.30;
+});
+
+const remainingSmsCount = computed(() => {
+    if (gatewayBalance.value?.remaining_sms !== undefined && gatewayBalance.value?.remaining_sms !== null && !isNaN(Number(gatewayBalance.value.remaining_sms))) {
+        return Math.floor(Number(gatewayBalance.value.remaining_sms));
+    }
+    const bal = gatewayBalance.value?.balance;
+    if (bal !== null && bal !== undefined && !isNaN(parseFloat(bal))) {
+        const rate = smsRate.value > 0 ? smsRate.value : 0.30;
+        return Math.floor(parseFloat(bal) / rate);
+    }
+    return null;
+});
+
 const fetchLiveBalance = async (force = false) => {
     if (!activeGatewayState.value) return;
     isCheckingBalance.value = true;
@@ -353,10 +369,10 @@ const executeDelete = () => {
                     <div class="flex items-center gap-3 px-4 py-2 rounded-xl bg-[#071322] border border-brand-navy shadow-inner">
                         <div>
                             <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                                <span>অবশিষ্ট SMS ব্যালেন্স</span>
+                                <span>প্যানেলে অবশিষ্ট মেসেজ</span>
                                 <span class="w-1.5 h-1.5 rounded-full bg-brand-sky"></span>
                             </div>
-                            <div class="flex items-center gap-2 mt-0.5">
+                            <div class="mt-0.5">
                                 <span v-if="isCheckingBalance" class="text-xs text-brand-sky font-semibold flex items-center gap-1.5 py-0.5">
                                     <svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
                                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -364,6 +380,14 @@ const executeDelete = () => {
                                     </svg>
                                     চেক করা হচ্ছে...
                                 </span>
+                                <div v-else-if="remainingSmsCount !== null" class="flex flex-col">
+                                    <span class="text-lg font-extrabold text-emerald-400 font-mono tracking-tight">
+                                        ~{{ remainingSmsCount }} টি SMS
+                                    </span>
+                                    <span v-if="gatewayBalance?.balance" class="text-[10px] font-mono text-slate-400">
+                                        ব্যালেন্স: ৳ {{ gatewayBalance.balance }}
+                                    </span>
+                                </div>
                                 <span v-else-if="gatewayBalance?.balance !== null && gatewayBalance?.balance !== undefined" class="text-lg font-extrabold text-emerald-400 font-mono tracking-tight">
                                     {{ gatewayBalance.balance }}
                                 </span>
@@ -820,6 +844,8 @@ const executeDelete = () => {
                             <SmsCharacterCounter
                                 :text="form.message"
                                 :panel-balance="gatewayBalance?.balance"
+                                :remaining-sms="remainingSmsCount"
+                                :sms-rate="smsRate"
                                 :is-checking-balance="isCheckingBalance"
                                 @refresh-balance="fetchLiveBalance(true)"
                             />

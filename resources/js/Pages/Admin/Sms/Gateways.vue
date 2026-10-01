@@ -25,6 +25,7 @@ const form = useForm({
     api_url: 'https://api.sms.net.bd/sendsms',
     api_key: '',
     sender_id: 'PirgachaNet',
+    sms_rate: 0.30,
     is_active: true,
 });
 
@@ -40,20 +41,26 @@ watch(() => form.driver, (newDriver) => {
     if (newDriver === 'alphasms') {
         if (!form.name || form.name === 'Generic HTTP Gateway' || form.name.includes('BDBulkSMS') || form.name.includes('Bulk SMS Dhaka')) form.name = 'Alpha SMS (sms.net.bd)';
         form.api_url = 'https://api.sms.net.bd/sendsms';
+        form.sms_rate = 0.30;
     } else if (newDriver === 'bulksmsdhaka') {
         if (!form.name || form.name === 'Generic HTTP Gateway' || form.name.includes('Alpha SMS') || form.name.includes('BDBulkSMS')) form.name = 'Bulk SMS Dhaka';
         form.api_url = 'https://bulksmsdhaka.net/api';
+        form.sms_rate = 0.30;
     } else if (newDriver === 'bdbulksms') {
         if (!form.name || form.name === 'Generic HTTP Gateway' || form.name.includes('Alpha SMS') || form.name.includes('Bulk SMS Dhaka')) form.name = 'BDBulkSMS (bdbulksms.net)';
         form.api_url = 'https://api.bdbulksms.net/api.php';
+        form.sms_rate = 1.0;
     } else if (newDriver === 'greenweb') {
         if (!form.name) form.name = 'Greenweb SMS';
         form.api_url = 'https://api.greenweb.com.bd/api.php';
+        form.sms_rate = 1.0;
     } else if (newDriver === 'bulksmsbd') {
         if (!form.name) form.name = 'BulkSMSBD';
         form.api_url = 'http://bulksmsbd.net/api/smsapi';
+        form.sms_rate = 0.30;
     } else if (newDriver === 'log') {
         form.api_url = '';
+        form.sms_rate = 1.0;
     }
 });
 
@@ -65,6 +72,7 @@ const openAddModal = () => {
     form.api_url = 'https://api.sms.net.bd/sendsms';
     form.api_key = '';
     form.sender_id = '';
+    form.sms_rate = 0.30;
     form.is_active = true;
     showAddModal.value = true;
 };
@@ -76,6 +84,7 @@ const openEditModal = (gw) => {
     form.api_url = gw.api_url || '';
     form.api_key = gw.api_key || '';
     form.sender_id = gw.sender_id || '';
+    form.sms_rate = gw.sms_rate ?? gw.extra_params?.sms_rate ?? (['bdbulksms', 'greenweb', 'log'].includes(gw.driver) ? 1.0 : 0.30);
     form.is_active = Boolean(gw.is_active);
     showAddModal.value = true;
 };
@@ -194,15 +203,23 @@ const checkLiveBalance = async (gw) => {
             <div v-if="balanceInfo && balanceInfo.success" class="rounded-2xl border border-emerald-500/40 bg-gradient-to-r from-emerald-950/40 via-[#091A2E] to-brand-sky/10 p-5 shadow-xl backdrop-blur-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div class="flex items-center gap-3.5">
                     <div class="h-10 w-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 font-bold text-lg">
-                        ৳
+                        ✉️
                     </div>
                     <div>
                         <div class="text-xs font-semibold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
-                            <span>Active Provider Balance</span>
+                            <span>প্যানেলে অবশিষ্ট মেসেজ</span>
                             <span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
                         </div>
                         <div class="text-2xl font-black text-white font-mono mt-0.5">
-                            ৳{{ balanceInfo.balance }}
+                            <span v-if="balanceInfo.remaining_sms !== undefined && balanceInfo.remaining_sms !== null">
+                                ~{{ balanceInfo.remaining_sms }} টি SMS
+                            </span>
+                            <span v-else>
+                                ৳{{ balanceInfo.balance }}
+                            </span>
+                        </div>
+                        <div v-if="balanceInfo.balance" class="text-xs text-slate-400 font-mono mt-0.5">
+                            ব্যালেন্স: ৳ {{ balanceInfo.balance }} (রেট: ৳{{ balanceInfo.sms_rate || 0.30 }}/টি)
                         </div>
                     </div>
                 </div>
@@ -282,11 +299,24 @@ const checkLiveBalance = async (gw) => {
                                 <span class="font-mono text-slate-400">{{ gw.api_key ? '••••••••••••••••' : 'Using .env' }}</span>
                             </div>
 
+                            <div class="flex items-center justify-between">
+                                <span class="font-semibold text-slate-400">প্রতি SMS রেট:</span>
+                                <span class="font-mono text-brand-sky font-bold">৳ {{ gw.sms_rate || 0.30 }}</span>
+                            </div>
+
                             <!-- Live Balance Display if requested -->
                             <div v-if="liveBalanceMap[gw.id]" class="mt-3 p-2.5 rounded-xl border border-brand-sky/30 bg-brand-sky/10 text-xs">
-                                <div v-if="liveBalanceMap[gw.id].success" class="flex items-center justify-between">
-                                    <span class="text-brand-sky font-semibold">Account Balance:</span>
-                                    <span class="font-mono font-bold text-white">৳{{ liveBalanceMap[gw.id].balance }}</span>
+                                <div v-if="liveBalanceMap[gw.id].success" class="space-y-1">
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-brand-sky font-semibold">অবশিষ্ট মেসেজ:</span>
+                                        <strong class="font-mono font-bold text-emerald-400">
+                                            ~{{ liveBalanceMap[gw.id].remaining_sms ?? Math.floor(parseFloat(liveBalanceMap[gw.id].balance) / (gw.sms_rate || 0.30)) }} টি SMS
+                                        </strong>
+                                    </div>
+                                    <div class="flex items-center justify-between text-[11px] text-slate-400">
+                                        <span>ব্যালেন্স:</span>
+                                        <span class="font-mono font-semibold text-white">৳ {{ liveBalanceMap[gw.id].balance }}</span>
+                                    </div>
                                 </div>
                                 <div v-else class="text-rose-400 text-[11px]">
                                     {{ liveBalanceMap[gw.id].error }}
@@ -410,6 +440,25 @@ const checkLiveBalance = async (gw) => {
                             </div>
                             <div v-else-if="form.driver === 'bdbulksms' || form.driver === 'greenweb'" class="text-[11px] text-emerald-400 mt-1.5">
                                 Tip: Enter your API Token from sms.greenweb.com.bd / bdbulksms.net Developer Zone.
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-300 uppercase mb-1.5">প্রতি SMS রেট / খরচ (টাকা) *</label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 font-mono text-xs">৳</span>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    min="0.01"
+                                    max="10"
+                                    v-model="form.sms_rate"
+                                    placeholder="0.30"
+                                    class="w-full text-xs rounded-xl bg-[#071322] border-brand-navy text-white placeholder-slate-500 focus:border-brand-sky font-mono pl-8"
+                                />
+                            </div>
+                            <div class="text-[11px] text-slate-400 mt-1">
+                                ব্যালেন্স টাকায় থাকলে (যেমন Bulk SMS Dhaka, Alpha SMS) অবশিষ্ট মেসেজ সংখ্যা হিসাব করতে প্রতি SMS এর খরচ লিখুন (যেমন: ০.৩০ বা ০.৩৫ টাকা)। সরাসরি SMS ক্রেডিট হলে ১.০০ রাখুন।
                             </div>
                         </div>
 
