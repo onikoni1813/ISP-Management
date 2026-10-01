@@ -1,13 +1,16 @@
 <script setup>
-import { ref, watch, computed } from 'vue';
+import { ref, watch, computed, onMounted } from 'vue';
 import { Head, useForm, router, Link } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import SmsCharacterCounter from '@/Components/SmsCharacterCounter.vue';
 import { formatDateTime } from '@/Utils/date';
 
 const props = defineProps({
     logs: Object,
     templates: Array,
     gateways: Array,
+    activeGateway: Object,
+    initialBalance: Object,
     metrics: Object,
     filters: Object,
 });
@@ -16,6 +19,52 @@ const showSendModal = ref(false);
 const filterStatus = ref(props.filters?.status || '');
 const filterSearch = ref(props.filters?.search || '');
 const filterGateway = ref(props.filters?.gateway_id || '');
+
+// Live Gateway Balance State
+const activeGatewayState = computed(() => {
+    return props.activeGateway || props.gateways?.find(g => g.is_active) || null;
+});
+
+const gatewayBalance = ref(props.initialBalance || null);
+const isCheckingBalance = ref(false);
+const balanceError = ref(null);
+const lastBalanceCheckTime = ref(props.initialBalance?.checked_at || null);
+
+const fetchLiveBalance = async (force = false) => {
+    if (!activeGatewayState.value) return;
+    isCheckingBalance.value = true;
+    balanceError.value = null;
+    try {
+        const url = route('admin.sms.active-balance') + (force ? '?force=1' : '');
+        const res = await fetch(url, {
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            }
+        });
+        const data = await res.json();
+        if (data.success) {
+            gatewayBalance.value = data;
+            lastBalanceCheckTime.value = data.checked_at || new Date().toLocaleTimeString();
+            balanceError.value = null;
+        } else {
+            balanceError.value = data.error || 'ব্যালেন্স তথ্য পাওয়া যায়নি।';
+            if (data.balance) {
+                gatewayBalance.value = data;
+            }
+        }
+    } catch (err) {
+        balanceError.value = 'গেটওয়ে সংযোগ অথবা নেটওয়ার্ক ত্রুটি।';
+    } finally {
+        isCheckingBalance.value = false;
+    }
+};
+
+onMounted(() => {
+    if (!gatewayBalance.value && activeGatewayState.value) {
+        fetchLiveBalance(false);
+    }
+});
 
 const form = useForm({
     recipient: '',
@@ -258,25 +307,102 @@ const executeDelete = () => {
                 </div>
             </div>
 
-            <!-- Gateways Quick Status Ribbon -->
-            <div class="bg-[#091A2E]/80 backdrop-blur-sm p-4 rounded-2xl border border-brand-navy shadow-xl flex flex-wrap items-center justify-between gap-4">
-                <div class="flex items-center gap-3 flex-wrap">
-                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Active Gateway:</span>
-                    <div v-for="gw in gateways" :key="gw.id">
-                        <span
-                            v-if="gw.is_active"
-                            class="inline-flex items-center gap-2 px-3 py-1 rounded-xl text-xs font-bold bg-emerald-950/60 text-emerald-400 border border-emerald-800/50 shadow-sm"
-                        >
-                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-sm shadow-emerald-400"></span>
-                            {{ gw.name }} <span class="font-mono text-[10px] text-slate-400">({{ gw.driver }})</span>
-                        </span>
+            <!-- Active SMS Gateway & Live Balance Card -->
+            <div class="rounded-2xl border border-brand-navy bg-gradient-to-r from-[#091A2E]/95 via-[#0A2038]/90 to-[#091A2E]/95 backdrop-blur-sm p-4 sm:p-5 shadow-xl flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <!-- Left: Gateway Details -->
+                <div class="flex items-center gap-3.5">
+                    <div class="h-12 w-12 rounded-2xl bg-brand-navy/80 border border-brand-sky/30 flex items-center justify-center text-brand-sky shadow-inner flex-shrink-0">
+                        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
                     </div>
-                    <span v-if="!gateways.some(g => g.is_active)" class="text-xs text-amber-400 bg-amber-950/40 border border-amber-800/40 px-3 py-1 rounded-xl">
-                        ⚠️ No external gateway active (Logging locally)
-                    </span>
+                    <div>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">সক্রিয় SMS গেটওয়ে:</span>
+                            <span
+                                v-if="activeGatewayState"
+                                class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-950/60 text-emerald-400 border border-emerald-800/50 shadow-sm"
+                            >
+                                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-sm shadow-emerald-400"></span>
+                                {{ activeGatewayState.name }}
+                            </span>
+                            <span v-else class="text-xs text-amber-400 bg-amber-950/40 border border-amber-800/40 px-2.5 py-0.5 rounded-full">
+                                ⚠️ কোনো সক্রিয় গেটওয়ে নেই (Logging locally)
+                            </span>
+                            <span v-if="activeGatewayState?.sender_id" class="text-[11px] text-brand-sky font-mono bg-[#071322] px-2 py-0.5 rounded-md border border-brand-navy">
+                                Sender ID: {{ activeGatewayState.sender_id }}
+                            </span>
+                        </div>
+                        <div class="text-xs text-slate-400 mt-1 flex items-center gap-2 flex-wrap">
+                            <span>ড্রাইভার: <strong class="text-slate-300 font-mono">{{ activeGatewayState?.driver || 'local_log' }}</strong></span>
+                            <span>•</span>
+                            <span v-if="lastBalanceCheckTime" class="text-[11px] text-slate-400">
+                                সর্বশেষ চেক: <strong class="text-slate-300">{{ lastBalanceCheckTime }}</strong>
+                            </span>
+                            <span>•</span>
+                            <span class="text-xs text-slate-400">
+                                মোট লগ: <strong class="text-brand-sky font-mono">{{ logs.total }}</strong> টি
+                            </span>
+                        </div>
+                    </div>
                 </div>
-                <div class="text-xs text-slate-400">
-                    Showing <span class="font-bold text-brand-sky font-mono">{{ logs.total }}</span> total dispatched message logs
+
+                <!-- Right: Balance Display & Live Balance Check Actions -->
+                <div class="flex items-center gap-3 self-start md:self-auto flex-wrap">
+                    <!-- Balance Metric Box -->
+                    <div class="flex items-center gap-3 px-4 py-2 rounded-xl bg-[#071322] border border-brand-navy shadow-inner">
+                        <div>
+                            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                                <span>অবশিষ্ট SMS ব্যালেন্স</span>
+                                <span class="w-1.5 h-1.5 rounded-full bg-brand-sky"></span>
+                            </div>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <span v-if="isCheckingBalance" class="text-xs text-brand-sky font-semibold flex items-center gap-1.5 py-0.5">
+                                    <svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    চেক করা হচ্ছে...
+                                </span>
+                                <span v-else-if="gatewayBalance?.balance !== null && gatewayBalance?.balance !== undefined" class="text-lg font-extrabold text-emerald-400 font-mono tracking-tight">
+                                    {{ gatewayBalance.balance }}
+                                </span>
+                                <span v-else-if="balanceError" class="text-xs text-rose-400 font-medium">
+                                    {{ balanceError }}
+                                </span>
+                                <span v-else class="text-xs text-slate-400">
+                                    ব্যালেন্স জানা যায়নি
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Live Refresh Balance Button -->
+                        <button
+                            type="button"
+                            @click="fetchLiveBalance(true)"
+                            :disabled="isCheckingBalance || !activeGatewayState"
+                            class="p-2 rounded-lg bg-brand-navy/60 hover:bg-brand-navy border border-brand-navy hover:border-brand-sky/40 text-slate-300 hover:text-white transition disabled:opacity-50"
+                            title="লাইভ ব্যালেন্স রিফ্রেশ করুন"
+                        >
+                            <svg
+                                :class="['w-4 h-4', isCheckingBalance ? 'animate-spin text-brand-sky' : '']"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Direct Link to Gateways Configuration -->
+                    <Link
+                        :href="route('admin.sms.gateways')"
+                        class="px-3.5 py-2.5 rounded-xl bg-[#0B1E36] hover:bg-[#102B4D] border border-brand-navy hover:border-brand-sky/40 text-slate-200 hover:text-white text-xs font-semibold transition shadow-sm flex items-center gap-1.5"
+                    >
+                        <span>সেটিংস</span>
+                        <span>⚙️</span>
+                    </Link>
                 </div>
             </div>
 
@@ -617,6 +743,44 @@ const executeDelete = () => {
                     </div>
 
                     <form @submit.prevent="submitManualSms" class="mt-4 space-y-4">
+                        <!-- Active Gateway & Balance Banner -->
+                        <div class="flex items-center justify-between p-3 rounded-xl bg-[#071322] border border-brand-navy shadow-inner">
+                            <div class="flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                                <span class="text-xs text-slate-400">সক্রিয় গেটওয়ে:</span>
+                                <strong class="text-xs text-slate-200">{{ activeGatewayState?.name || 'লোকাল লগ ড্রাইভার' }}</strong>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs text-slate-400">ব্যালেন্স:</span>
+                                <strong v-if="gatewayBalance?.balance !== null && gatewayBalance?.balance !== undefined" class="text-xs text-emerald-400 font-mono font-bold">
+                                    {{ gatewayBalance.balance }}
+                                </strong>
+                                <span v-else-if="isCheckingBalance" class="text-xs text-brand-sky animate-pulse flex items-center gap-1">
+                                    <svg class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    লোড হচ্ছে...
+                                </span>
+                                <span v-else-if="balanceError" class="text-[11px] text-rose-400">
+                                    ত্রুটি
+                                </span>
+                                <span v-else class="text-xs text-slate-400">N/A</span>
+
+                                <button
+                                    type="button"
+                                    @click="fetchLiveBalance(true)"
+                                    :disabled="isCheckingBalance"
+                                    class="text-slate-400 hover:text-brand-sky p-1 rounded-lg hover:bg-brand-navy/60 transition disabled:opacity-50"
+                                    title="ব্যালেন্স রিফ্রেশ"
+                                >
+                                    <svg :class="['w-3.5 h-3.5', isCheckingBalance ? 'animate-spin text-brand-sky' : '']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+
                         <div>
                             <label class="block text-xs font-semibold text-slate-300 uppercase mb-1.5">Load Template (Optional)</label>
                             <select
@@ -643,23 +807,17 @@ const executeDelete = () => {
                         </div>
 
                         <div>
-                            <div class="flex justify-between items-center mb-1.5">
-                                <label class="text-xs font-semibold text-slate-300 uppercase">Message Body *</label>
-                                <div class="text-[11px] text-slate-400 font-mono space-x-2">
-                                    <span>{{ form.message.length }} chars</span>
-                                    <span class="text-brand-sky">({{ smsSegments }} SMS)</span>
-                                </div>
-                            </div>
+                            <label class="text-xs font-semibold text-slate-300 uppercase block mb-1.5">মেসেজের বিবরণ (Message Body) *</label>
                             <textarea
                                 v-model="form.message"
                                 required
                                 rows="4"
-                                placeholder="Type custom SMS notification here..."
-                                class="w-full text-sm rounded-xl bg-[#071322] border-brand-navy text-white placeholder-slate-500 focus:border-brand-sky focus:ring-1 focus:ring-brand-sky"
+                                placeholder="গ্রাহকের জন্য মেসেজ টাইপ করুন..."
+                                class="w-full text-sm rounded-xl bg-[#071322] border-brand-navy text-white placeholder-slate-500 focus:border-brand-sky focus:ring-1 focus:ring-brand-sky leading-relaxed p-3"
                             ></textarea>
-                            <p class="text-[11px] text-slate-400 mt-1">
-                                Standard: 160 chars / SMS (English), 70 chars / SMS (Bengali/Unicode).
-                            </p>
+                            
+                            <!-- Real-time Character and SMS Parts Calculator -->
+                            <SmsCharacterCounter :text="form.message" />
                         </div>
 
                         <div class="flex justify-end gap-3 pt-4 border-t border-brand-navy">

@@ -59,11 +59,18 @@ class SmsController extends Controller
 
         $templates = SmsTemplate::all();
         $gateways = SmsGateway::all();
+        $activeGateway = $gateways->firstWhere('is_active', true);
+        $initialBalance = null;
+        if ($activeGateway && cache()->has('sms_active_balance_' . $activeGateway->id)) {
+            $initialBalance = cache()->get('sms_active_balance_' . $activeGateway->id);
+        }
 
         return Inertia::render('Admin/Sms/Index', [
             'logs' => $logs,
             'templates' => $templates,
             'gateways' => $gateways,
+            'activeGateway' => $activeGateway,
+            'initialBalance' => $initialBalance,
             'metrics' => $metrics,
             'filters' => $request->only(['status', 'search', 'gateway_id']),
         ]);
@@ -410,10 +417,77 @@ class SmsController extends Controller
      */
     public function checkBalance(SmsGateway $gateway)
     {
-        Gate::authorize('sms.settings');
+        if (!Gate::allows('sms.view') && !Gate::allows('sms.send') && !Gate::allows('sms.settings')) {
+            abort(403);
+        }
 
         $balance = $this->smsService->getBalance($gateway);
+
+        if (!empty($balance['success'])) {
+            cache()->put('sms_active_balance_' . $gateway->id, [
+                'success' => true,
+                'gateway' => [
+                    'id' => $gateway->id,
+                    'name' => $gateway->name,
+                    'driver' => $gateway->driver,
+                    'sender_id' => $gateway->sender_id,
+                ],
+                'balance' => $balance['balance'] ?? null,
+                'error' => null,
+                'checked_at' => now()->format('h:i:s A'),
+            ], now()->addMinutes(5));
+        }
+
         return response()->json($balance);
+    }
+
+    /**
+     * Check live balance for the active or requested Gateway.
+     */
+    public function getActiveBalance(Request $request)
+    {
+        if (!Gate::allows('sms.view') && !Gate::allows('sms.send') && !Gate::allows('sms.settings')) {
+            abort(403);
+        }
+
+        $gatewayId = $request->query('gateway_id');
+        $gateway = $gatewayId ? SmsGateway::find($gatewayId) : SmsGateway::where('is_active', true)->first();
+
+        if (!$gateway) {
+            return response()->json([
+                'success' => false,
+                'gateway' => null,
+                'balance' => null,
+                'error' => 'কোন সক্রিয় SMS গেটওয়ে কনফিগার করা নেই।',
+            ]);
+        }
+
+        $force = $request->boolean('force', false);
+        $cacheKey = 'sms_active_balance_' . $gateway->id;
+
+        if (!$force && cache()->has($cacheKey)) {
+            return response()->json(cache()->get($cacheKey));
+        }
+
+        $result = $this->smsService->getBalance($gateway);
+        $payload = [
+            'success' => $result['success'] ?? false,
+            'gateway' => [
+                'id' => $gateway->id,
+                'name' => $gateway->name,
+                'driver' => $gateway->driver,
+                'sender_id' => $gateway->sender_id,
+            ],
+            'balance' => $result['balance'] ?? null,
+            'error' => $result['error'] ?? null,
+            'checked_at' => now()->format('h:i:s A'),
+        ];
+
+        if (!empty($result['success'])) {
+            cache()->put($cacheKey, $payload, now()->addMinutes(5));
+        }
+
+        return response()->json($payload);
     }
 
     /**

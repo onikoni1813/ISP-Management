@@ -191,6 +191,8 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::delete('sms/gateways/{gateway}', [SmsController::class, 'destroyGateway'])->name('sms.gateways.destroy');
     Route::post('sms/gateways/{gateway}/activate', [SmsController::class, 'activateGateway'])->name('sms.gateways.activate');
     Route::post('sms/gateways/{gateway}/test', [SmsController::class, 'testGateway'])->name('sms.gateways.test');
+    Route::get('sms/active-balance', [SmsController::class, 'getActiveBalance'])->name('sms.active-balance');
+    Route::get('sms/gateways/{gateway}/balance', [SmsController::class, 'checkBalance'])->name('sms.gateways.balance');
     Route::delete('sms/logs/bulk-destroy', [SmsController::class, 'bulkDestroyLogs'])->name('sms.logs.bulk-destroy');
     Route::delete('sms/logs/{log}', [SmsController::class, 'destroyLog'])->name('sms.logs.destroy');
     Route::post('sms/{log}/retry', [SmsController::class, 'retry'])->name('sms.retry');

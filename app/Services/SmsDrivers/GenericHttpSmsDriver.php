@@ -63,4 +63,40 @@ class GenericHttpSmsDriver implements SmsGatewayInterface
             ];
         }
     }
+
+    /**
+     * Check balance for generic HTTP / BulkSMSBD.
+     */
+    public function getBalance(SmsGateway $gateway): array
+    {
+        if (str_contains($gateway->api_url ?? '', 'bulksmsbd.net')) {
+            try {
+                $response = Http::timeout(10)->get('http://bulksmsbd.net/api/getBalanceApi', [
+                    'api_key' => $gateway->api_key,
+                ]);
+                if ($response->successful()) {
+                    $data = $response->json();
+                    if (isset($data['balance'])) {
+                        return [
+                            'success' => true,
+                            'balance' => (string)$data['balance'],
+                            'error' => null,
+                        ];
+                    }
+                }
+            } catch (\Exception $e) {
+                return [
+                    'success' => false,
+                    'balance' => null,
+                    'error' => $e->getMessage(),
+                ];
+            }
+        }
+
+        return [
+            'success' => false,
+            'balance' => null,
+            'error' => "গেটওয়ে ড্রাইভার '{$gateway->driver}' সরাসরি ব্যালেন্স কোয়েরি সমর্থন করে না।",
+        ];
+    }
 }

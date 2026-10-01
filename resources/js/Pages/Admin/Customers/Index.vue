@@ -4,6 +4,7 @@ import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import CustomerRenewalModal from '@/Components/CustomerRenewalModal.vue';
 import CustomerMoveModal from '@/Components/CustomerMoveModal.vue';
+import SmsCharacterCounter from '@/Components/SmsCharacterCounter.vue';
 import axios from 'axios';
 
 const props = defineProps({
@@ -841,10 +842,7 @@ const executeCustomerDelete = () => {
 
                     <!-- Message Body -->
                     <div>
-                        <div class="flex justify-between items-center mb-1.5">
-                            <label class="text-xs font-semibold text-slate-300 uppercase tracking-wider">মেসেজের বিবরণ *</label>
-                            <span class="text-[11px] text-slate-400 font-mono">{{ bulkSmsForm.message.length }} অক্ষর</span>
-                        </div>
+                        <label class="text-xs font-semibold text-slate-300 uppercase tracking-wider block mb-1.5">মেসেজের বিবরণ *</label>
                         <textarea
                             v-model="bulkSmsForm.message"
                             required
@@ -853,6 +851,7 @@ const executeCustomerDelete = () => {
                             class="w-full rounded-2xl border border-brand-navy bg-[#071322] p-3.5 text-xs text-white placeholder-slate-500 focus:border-brand-sky focus:outline-none focus:ring-1 focus:ring-brand-sky leading-relaxed"
                         ></textarea>
                         <div v-if="bulkSmsForm.errors.message" class="text-rose-400 text-xs mt-1">{{ bulkSmsForm.errors.message }}</div>
+                        <SmsCharacterCounter :text="bulkSmsForm.message" />
                     </div>
 
                     <!-- Action Buttons -->

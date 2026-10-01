@@ -21,4 +21,16 @@ class LogSmsDriver implements SmsGatewayInterface
             'error' => null,
         ];
     }
+
+    /**
+     * Check balance for local log driver.
+     */
+    public function getBalance(SmsGateway $gateway): array
+    {
+        return [
+            'success' => true,
+            'balance' => 'টেস্টিং মোড (সীমাহীন/Log)',
+            'error' => null,
+        ];
+    }
 }

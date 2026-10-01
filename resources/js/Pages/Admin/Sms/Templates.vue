@@ -2,6 +2,7 @@
 import { ref } from 'vue';
 import { Head, useForm, Link } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import SmsCharacterCounter from '@/Components/SmsCharacterCounter.vue';
 
 const props = defineProps({
     templates: Array,
@@ -122,16 +123,14 @@ const submitUpdate = () => {
 
                     <form @submit.prevent="submitUpdate" class="mt-4 space-y-4">
                         <div>
-                            <div class="flex justify-between items-center mb-1.5">
-                                <label class="text-xs font-semibold text-slate-300 uppercase">Template Message Body *</label>
-                                <span class="text-[11px] text-slate-400 font-mono">{{ editForm.template.length }} characters</span>
-                            </div>
+                            <label class="text-xs font-semibold text-slate-300 uppercase block mb-1.5">Template Message Body *</label>
                             <textarea
                                 v-model="editForm.template"
                                 required
                                 rows="5"
-                                class="w-full text-sm rounded-xl bg-[#071322] border-brand-navy text-white placeholder-slate-500 focus:border-brand-sky focus:ring-1 focus:ring-brand-sky"
+                                class="w-full text-sm rounded-xl bg-[#071322] border-brand-navy text-white placeholder-slate-500 focus:border-brand-sky focus:ring-1 focus:ring-brand-sky leading-relaxed p-3"
                             ></textarea>
+                            <SmsCharacterCounter :text="editForm.template" />
                         </div>
 
                         <div class="flex items-center gap-2.5">

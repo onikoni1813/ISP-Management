@@ -221,6 +221,52 @@ class SmsEngineTest extends TestCase
         $this->assertDatabaseMissing('sms_gateways', ['id' => $gateway1->id]);
         $this->assertTrue((bool)$gateway2->fresh()->is_active);
     }
+
+    public function test_admin_can_fetch_active_sms_balance(): void
+    {
+        \Illuminate\Support\Facades\Http::fake([
+            'https://api.bdbulksms.net/g_api.php*' => \Illuminate\Support\Facades\Http::response([
+                'balance' => '500.00',
+            ], 200),
+        ]);
+
+        $gateway = SmsGateway::create([
+            'name' => 'BDBulkSMS Active',
+            'driver' => 'bdbulksms',
+            'api_url' => 'https://api.bdbulksms.net/api.php',
+            'api_key' => 'token_xyz_123',
+            'sender_id' => 'PirgachaNet',
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($this->admin)->get(route('admin.sms.active-balance', ['force' => 1]));
+
+        $response->assertOk();
+        $response->assertJson([
+            'success' => true,
+            'gateway' => [
+                'id' => $gateway->id,
+                'name' => 'BDBulkSMS Active',
+            ],
+            'balance' => '500.00',
+        ]);
+    }
+
+    public function test_admin_can_check_specific_gateway_balance_endpoint(): void
+    {
+        $logGateway = SmsGateway::create([
+            'name' => 'Local Log Gateway',
+            'driver' => 'log',
+            'is_active' => false,
+        ]);
+
+        $response = $this->actingAs($this->admin)->get(route('admin.sms.gateways.balance', $logGateway->id));
+
+        $response->assertOk();
+        $response->assertJson([
+            'success' => true,
+        ]);
+    }
 }
 
 
