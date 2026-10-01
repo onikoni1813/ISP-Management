@@ -47,6 +47,21 @@ const copyPassword = async () => {
     }
 };
 
+const usernameCopied = ref(false);
+const copyUsername = async () => {
+    const u = pppoe.value?.username;
+    if (!u) return;
+    try {
+        await navigator.clipboard.writeText(u);
+        usernameCopied.value = true;
+        setTimeout(() => {
+            usernameCopied.value = false;
+        }, 2000);
+    } catch (e) {
+        // fallback
+    }
+};
+
 import { syncService } from '@/Services/syncService';
 
 // Quick Pay Modal/Form
@@ -170,32 +185,41 @@ const resolveNote = (noteId) => {
                 </div>
 
                 <div class="text-right">
-                    <a :href="`tel:${customer.primary_contact?.phone}`" class="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-brand-sky to-brand-blue px-3.5 py-2 text-xs font-bold text-white shadow-lg shadow-brand-navy/50">
-                        📞 Call Customer
+                    <a
+                        :href="`tel:${customer.primary_contact?.phone}`"
+                        class="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-sky-500/25 hover:shadow-sky-500/40 hover:-translate-y-0.5 active:translate-y-0 active:scale-95 transition-all duration-200 cursor-pointer"
+                    >
+                        <span>📞</span>
+                        <span>Call Customer</span>
                     </a>
                 </div>
             </div>
 
             <!-- Quick Action Buttons on Field -->
-            <div class="mt-5 pt-4 border-t border-brand-navy grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            <div class="mt-5 pt-4 border-t border-brand-navy/80 grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <button
+                    type="button"
                     @click="openPayModal"
-                    class="rounded-2xl bg-gradient-to-r from-brand-orange to-brand-amber hover:opacity-95 p-3 text-center text-xs font-bold text-white shadow-lg shadow-brand-orange/25 transition cursor-pointer"
+                    class="rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 p-3.5 text-center text-xs font-black text-slate-950 shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 hover:-translate-y-0.5 active:translate-y-0 active:scale-95 transition-all duration-200 cursor-pointer flex items-center justify-center gap-2"
                 >
-                    💰 বিল আদায়
+                    <span class="text-base">💰</span>
+                    <span>বিল আদায়</span>
                 </button>
                 <button
+                    type="button"
                     @click="showComplaintModal = true"
-                    class="rounded-2xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 p-3 text-center text-xs font-bold text-rose-300 hover:text-white shadow-lg transition cursor-pointer flex items-center justify-center gap-1.5"
+                    class="rounded-2xl bg-gradient-to-r from-rose-600/30 to-red-600/30 hover:from-rose-600/45 hover:to-red-600/45 border border-rose-500/40 hover:border-rose-400/60 p-3.5 text-center text-xs font-black text-rose-200 hover:text-white shadow-lg shadow-rose-950/40 hover:-translate-y-0.5 active:translate-y-0 active:scale-95 transition-all duration-200 cursor-pointer flex items-center justify-center gap-2"
                 >
-                    <span>🚨</span>
+                    <span class="text-base">🚨</span>
                     <span>কমপ্লেইন করুন</span>
                 </button>
                 <button
+                    type="button"
                     @click="showNoteModal = true"
-                    class="rounded-2xl bg-[#0B1E36] hover:bg-[#0B1E36]/80 border border-brand-sky/40 p-3 text-center text-xs font-bold text-brand-sky shadow-lg transition cursor-pointer"
+                    class="rounded-2xl bg-gradient-to-r from-indigo-600/30 to-cyan-600/30 hover:from-indigo-600/45 hover:to-cyan-600/45 border border-indigo-500/40 hover:border-indigo-400/60 p-3.5 text-center text-xs font-black text-indigo-200 hover:text-white shadow-lg shadow-indigo-950/40 hover:-translate-y-0.5 active:translate-y-0 active:scale-95 transition-all duration-200 cursor-pointer flex items-center justify-center gap-2"
                 >
-                    📝 নোট / তারিখ
+                    <span class="text-base">📝</span>
+                    <span>নোট / তারিখ</span>
                 </button>
             </div>
         </div>
@@ -279,38 +303,114 @@ const resolveNote = (noteId) => {
             </div>
 
             <!-- PPPoE Credential for Technician -->
-            <div class="mt-4 pt-4 border-t border-brand-navy">
-                <div class="flex items-center justify-between">
-                    <span class="text-xs text-slate-400">PPPoE Username:</span>
-                    <span class="text-xs font-mono font-bold text-white">{{ pppoe?.username || 'None' }}</span>
-                </div>
-                <div class="flex items-center justify-between mt-2">
-                    <span class="text-xs text-slate-400">PPPoE Password:</span>
+            <div class="mt-5 p-4 rounded-2xl bg-gradient-to-br from-[#0c223c]/90 to-[#071527]/90 border border-slate-700/60 shadow-inner space-y-3">
+                <div class="flex items-center justify-between pb-2.5 border-b border-slate-800/80">
                     <div class="flex items-center gap-2">
-                        <span
-                            class="text-xs font-mono font-bold transition"
-                            :class="revealedPassword ? 'text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20' : 'text-brand-sky'"
-                        >
-                            {{ revealedPassword || '••••••••' }}
+                        <div class="h-6 w-6 rounded-lg bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+                            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            </svg>
+                        </div>
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-300">PPPoE কানেকশন ক্রেডেনশিয়াল</span>
+                    </div>
+                    <span v-if="pppoe?.username" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center gap-1">
+                        <span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                        কনফিগারেশন সক্রিয়
+                    </span>
+                </div>
+
+                <!-- Username Row -->
+                <div class="flex items-center justify-between gap-3 text-xs bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80">
+                    <span class="text-slate-400 font-medium flex items-center gap-1.5">
+                        <svg class="h-3.5 w-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        PPPoE ইউজারনেম:
+                    </span>
+                    <div class="flex items-center gap-2">
+                        <span class="font-mono font-bold text-white px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700/60 select-all">
+                            {{ pppoe?.username || 'None' }}
                         </span>
                         <button
-                            v-if="canViewPppoePassword && !revealedPassword"
+                            v-if="pppoe?.username"
+                            type="button"
+                            @click="copyUsername"
+                            class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-cyan-300 border border-slate-700 transition cursor-pointer active:scale-95"
+                            title="ইউজারনেম কপি করুন"
+                        >
+                            <svg v-if="!usernameCopied" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                            </svg>
+                            <span v-else class="text-[10px] text-emerald-400 font-bold px-0.5">✓</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Password Row -->
+                <div class="flex items-center justify-between gap-3 text-xs bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80">
+                    <span class="text-slate-400 font-medium flex items-center gap-1.5">
+                        <svg class="h-3.5 w-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                        PPPoE পাসওয়ার্ড:
+                    </span>
+
+                    <!-- When Revealed -->
+                    <div v-if="revealedPassword" class="flex items-center gap-2">
+                        <span class="font-mono font-bold text-emerald-300 text-xs px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 tracking-wider shadow-sm select-all">
+                            {{ revealedPassword }}
+                        </span>
+                        <button
+                            type="button"
+                            @click="copyPassword"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-500 hover:to-teal-500 text-white font-bold text-xs shadow-md shadow-cyan-900/30 transition active:scale-95 cursor-pointer"
+                            title="পাসওয়ার্ড ক্লিপবোর্ডে কপি করুন"
+                        >
+                            <svg v-if="!copied" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                            </svg>
+                            <svg v-else class="h-3.5 w-3.5 text-emerald-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                            <span>{{ copied ? '✓ কপি হয়েছে' : 'কপি' }}</span>
+                        </button>
+                        <button
+                            type="button"
+                            @click="revealedPassword = null"
+                            class="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-rose-300 border border-slate-700 transition cursor-pointer"
+                            title="পাসওয়ার্ড লুকান"
+                        >
+                            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- When Hidden -->
+                    <div v-else class="flex items-center gap-2">
+                        <span class="font-mono text-xs tracking-widest text-slate-400 bg-slate-900/80 px-2.5 py-1 rounded-lg border border-slate-800 select-none">
+                            ••••••••
+                        </span>
+                        <button
+                            v-if="canViewPppoePassword"
                             type="button"
                             @click="revealPassword"
                             :disabled="isRevealing"
-                            class="text-[11px] font-bold text-brand-orange hover:text-white underline cursor-pointer disabled:opacity-50"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-bold text-xs shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 hover:-translate-y-0.5 active:translate-y-0 active:scale-95 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            {{ isRevealing ? 'উন্মুক্ত হচ্ছে...' : 'পাসওয়ার্ড দেখুন' }}
+                            <svg v-if="!isRevealing" class="h-3.5 w-3.5 text-slate-950" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                            <svg v-else class="h-3.5 w-3.5 animate-spin text-slate-950" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span>{{ isRevealing ? 'উন্মুক্ত হচ্ছে...' : 'পাসওয়ার্ড দেখুন' }}</span>
                         </button>
-                        <button
-                            v-if="revealedPassword"
-                            type="button"
-                            @click="copyPassword"
-                            class="text-[11px] font-bold text-cyan-400 hover:text-white underline cursor-pointer flex items-center gap-1"
-                            title="পাসওয়ার্ড ক্লিপবোর্ডে কপি করুন"
-                        >
-                            <span>{{ copied ? '✓ কপি হয়েছে' : '📋 কপি' }}</span>
-                        </button>
+                        <span v-else class="text-[11px] font-medium text-slate-500 italic">
+                            অনুমতি প্রয়োজন
+                        </span>
                     </div>
                 </div>
             </div>

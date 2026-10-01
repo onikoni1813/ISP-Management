@@ -27,6 +27,7 @@ const pppoe = computed(() => primaryConnection.value?.pppoe_credential || null);
 // Reveal PPPoE Password Modal/State
 const revealedPassword = ref(null);
 const isRevealing = ref(false);
+const passwordCopied = ref(false);
 
 const revealPassword = async () => {
     if (!pppoe.value?.id) return;
@@ -38,6 +39,19 @@ const revealPassword = async () => {
         alert('Unauthorized or error revealing password.');
     } finally {
         isRevealing.value = false;
+    }
+};
+
+const copyPassword = async () => {
+    if (!revealedPassword.value) return;
+    try {
+        await navigator.clipboard.writeText(revealedPassword.value);
+        passwordCopied.value = true;
+        setTimeout(() => {
+            passwordCopied.value = false;
+        }, 2000);
+    } catch (e) {
+        // fallback
     }
 };
 
@@ -424,20 +438,52 @@ const executeDelete = () => {
                             </div>
                         </div>
 
-                        <div class="p-3 rounded-xl bg-slate-950/60 border border-slate-800/80">
-                            <div class="flex items-center justify-between">
-                                <span class="text-xs text-slate-400">Encrypted Password</span>
+                        <div class="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800/80 flex flex-col justify-between">
+                            <div class="flex items-center justify-between gap-2">
+                                <span class="text-xs text-slate-400 font-medium">Encrypted Password</span>
                                 <button
                                     v-if="canViewPppoePassword && !revealedPassword"
+                                    type="button"
                                     @click="revealPassword"
                                     :disabled="isRevealing"
-                                    class="text-[11px] font-bold text-indigo-400 hover:text-indigo-300 underline"
+                                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 border border-amber-500/40 text-amber-300 hover:text-white text-xs font-semibold shadow-sm transition active:scale-95 cursor-pointer disabled:opacity-50"
                                 >
-                                    {{ isRevealing ? 'Decrypting...' : 'Reveal (Audited)' }}
+                                    <svg v-if="!isRevealing" class="w-3.5 h-3.5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                    </svg>
+                                    <svg v-else class="w-3.5 h-3.5 animate-spin text-amber-400" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    <span>{{ isRevealing ? 'উন্মুক্ত হচ্ছে...' : 'পাসওয়ার্ড দেখুন' }}</span>
                                 </button>
                             </div>
-                            <div class="text-sm font-mono font-bold text-emerald-400 mt-1">
-                                {{ revealedPassword || '••••••••••••' }}
+                            <div class="mt-2 flex items-center justify-between gap-2">
+                                <span
+                                    class="text-sm font-mono font-bold"
+                                    :class="revealedPassword ? 'text-emerald-300 px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/30' : 'text-slate-500'"
+                                >
+                                    {{ revealedPassword || '••••••••••••' }}
+                                </span>
+                                <div v-if="revealedPassword" class="flex items-center gap-1.5">
+                                    <button
+                                        type="button"
+                                        @click="copyPassword"
+                                        class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/40 text-cyan-300 hover:text-white text-xs font-semibold transition active:scale-95 cursor-pointer"
+                                        title="পাসওয়ার্ড কপি করুন"
+                                    >
+                                        <span>{{ passwordCopied ? '✓ কপি হয়েছে' : '📋 কপি' }}</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        @click="revealedPassword = null"
+                                        class="p-1 px-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 border border-slate-700 text-xs transition cursor-pointer"
+                                        title="লুকান"
+                                    >
+                                        ✕
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
