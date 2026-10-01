@@ -9,6 +9,30 @@
   "background_color": "#020617",
   "theme_color": "#0f172a",
   "orientation": "portrait",
+  "categories": ["business", "utilities", "productivity"],
+  "shortcuts": [
+    {
+      "name": "Staff Portal",
+      "short_name": "Staff",
+      "description": "Open Staff Operations & Collections",
+      "url": "/staff/dashboard",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Customer Portal",
+      "short_name": "Portal",
+      "description": "Subscriber account and renewal",
+      "url": "/account/dashboard",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Admin Dashboard",
+      "short_name": "Admin",
+      "description": "ISP Admin Management Console",
+      "url": "/admin/dashboard",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ],
   "icons": [
     {
       "src": "/favicon-32x32.png",

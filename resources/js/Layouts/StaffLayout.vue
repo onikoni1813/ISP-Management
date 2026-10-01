@@ -134,7 +134,7 @@ let liveComplaintInterval = null;
 const cacheCurrentPageForOffline = async () => {
     if ('caches' in window && 'serviceWorker' in navigator) {
         try {
-            const cache = await caches.open('pirgacha-isp-cache-v5');
+            const cache = await caches.open('pirgacha-isp-cache-v6');
             const res = await fetch(window.location.href, { credentials: 'same-origin' });
             if (res && res.status === 200) {
                 await cache.put(window.location.href, res.clone());
