@@ -524,7 +524,7 @@ const executeCustomerDelete = () => {
 
                     <!-- Specific customers selected or all filtered -->
                     <button
-                        v-if="targetAllFiltered || (selectedCustomerIds.length > 0 && selectedCustomerIds.length !== customers.total)"
+                        v-if="targetAllFiltered || selectedCustomerIds.length > 0"
                         type="button"
                         @click="openBulkSmsModal(targetAllFiltered)"
                         class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-brand-sky via-cyan-500 to-brand-blue text-white shadow-md shadow-brand-sky/25 hover:shadow-brand-sky/40 hover:opacity-95 cursor-pointer transition transform active:scale-95"
