@@ -511,15 +511,15 @@ const executeCustomerDelete = () => {
                 </div>
 
                 <div class="flex items-center gap-2.5 flex-wrap">
-                    <!-- Bulk Move Button -->
+                    <!-- Move Button (Only when exactly 1 customer is selected) -->
                     <button
-                        v-if="targetAllFiltered || selectedCustomerIds.length > 0"
+                        v-if="!targetAllFiltered && selectedCustomerIds.length === 1"
                         type="button"
-                        @click="openBulkMoveModal(targetAllFiltered)"
+                        @click="openBulkMoveModal(false)"
                         class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-600 text-white shadow-md shadow-purple-600/25 hover:shadow-purple-600/40 hover:opacity-95 cursor-pointer transition transform active:scale-95"
                     >
                         <span>🔀</span>
-                        <span>{{ targetAllFiltered ? `ফিল্টারকৃত সকল (${customers.total}) জনকে মুভ করুন` : `নির্বাচিত (${selectedCustomerIds.length}) জনকে মুভ করুন` }}</span>
+                        <span>নির্বাচিত (1) জনকে মুভ করুন</span>
                     </button>
 
                     <!-- Specific customers selected or all filtered -->
