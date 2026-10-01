@@ -111,8 +111,6 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::resource('customers', CustomerController::class);
     Route::post('customers/{customer}/connections/{connection}/package', [CustomerController::class, 'changePackage'])
         ->name('customers.change-package');
-    Route::post('pppoe/{credential}/reveal-password', [CustomerController::class, 'revealPppoePassword'])
-        ->name('pppoe.reveal-password');
     Route::post('customers/{customer}/send-credentials-sms', [CustomerController::class, 'sendCredentialsSms'])
         ->name('customers.send-credentials-sms');
     Route::post('customers/{customer}/move-category', [CustomerController::class, 'moveCategory'])
@@ -239,6 +237,10 @@ Route::middleware(['auth', 'role:admin,staff'])->group(function () {
     // Customer Notes & Promise-To-Pay
     Route::post('customers/{customer}/notes', [\App\Http\Controllers\CustomerNoteController::class, 'store'])->name('customers.notes.store');
     Route::post('customer-notes/{note}/status', [\App\Http\Controllers\CustomerNoteController::class, 'updateStatus'])->name('customers.notes.status');
+
+    // PPPoE Password Reveal (Authorized Admin & Staff with pppoe.view_password permission)
+    Route::post('admin/pppoe/{credential}/reveal-password', [CustomerController::class, 'revealPppoePassword'])->name('admin.pppoe.reveal-password');
+    Route::post('staff/pppoe/{credential}/reveal-password', [CustomerController::class, 'revealPppoePassword'])->name('staff.pppoe.reveal-password');
 });
 
 // Staff Domain (/staff)

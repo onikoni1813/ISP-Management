@@ -12,23 +12,38 @@ const props = defineProps({
 
 const showComplaintModal = ref(false);
 
-const primaryConnection = props.customer.connections?.[0] || null;
-const pppoe = primaryConnection?.pppoe_credential || null;
+const primaryConnection = computed(() => props.customer.connections?.[0] || null);
+const pppoe = computed(() => primaryConnection.value?.pppoe_credential || primaryConnection.value?.pppoeCredential || null);
 
 // Reveal PPPoE Password Modal
 const revealedPassword = ref(null);
 const isRevealing = ref(false);
+const copied = ref(false);
 
 const revealPassword = async () => {
-    if (!pppoe?.id) return;
+    const credId = pppoe.value?.id;
+    if (!credId) return;
     isRevealing.value = true;
     try {
-        const res = await axios.post(route('admin.pppoe.reveal-password', pppoe.id));
+        const res = await axios.post(route('admin.pppoe.reveal-password', credId));
         revealedPassword.value = res.data.password;
     } catch (e) {
-        alert('Unauthorized to view password.');
+        alert('পাসওয়ার্ড দেখার অনুমতি নেই অথবা কোনো সমস্যা হয়েছে।');
     } finally {
         isRevealing.value = false;
+    }
+};
+
+const copyPassword = async () => {
+    if (!revealedPassword.value) return;
+    try {
+        await navigator.clipboard.writeText(revealedPassword.value);
+        copied.value = true;
+        setTimeout(() => {
+            copied.value = false;
+        }, 2000);
+    } catch (e) {
+        // fallback
     }
 };
 
@@ -272,13 +287,29 @@ const resolveNote = (noteId) => {
                 <div class="flex items-center justify-between mt-2">
                     <span class="text-xs text-slate-400">PPPoE Password:</span>
                     <div class="flex items-center gap-2">
-                        <span class="text-xs font-mono font-bold text-brand-sky">{{ revealedPassword || '••••••••' }}</span>
+                        <span
+                            class="text-xs font-mono font-bold transition"
+                            :class="revealedPassword ? 'text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20' : 'text-brand-sky'"
+                        >
+                            {{ revealedPassword || '••••••••' }}
+                        </span>
                         <button
                             v-if="canViewPppoePassword && !revealedPassword"
+                            type="button"
                             @click="revealPassword"
-                            class="text-[10px] font-bold text-brand-orange underline"
+                            :disabled="isRevealing"
+                            class="text-[11px] font-bold text-brand-orange hover:text-white underline cursor-pointer disabled:opacity-50"
                         >
-                            Reveal
+                            {{ isRevealing ? 'উন্মুক্ত হচ্ছে...' : 'পাসওয়ার্ড দেখুন' }}
+                        </button>
+                        <button
+                            v-if="revealedPassword"
+                            type="button"
+                            @click="copyPassword"
+                            class="text-[11px] font-bold text-cyan-400 hover:text-white underline cursor-pointer flex items-center gap-1"
+                            title="পাসওয়ার্ড ক্লিপবোর্ডে কপি করুন"
+                        >
+                            <span>{{ copied ? '✓ কপি হয়েছে' : '📋 কপি' }}</span>
                         </button>
                     </div>
                 </div>

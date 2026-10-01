@@ -209,4 +209,53 @@ class StaffOperationsTest extends TestCase
             'status' => 'assigned',
         ]);
     }
+
+    public function test_staff_pppoe_password_reveal_requires_permission_and_allows_when_granted(): void
+    {
+        $credential = \App\Models\PppoeCredential::create([
+            'connection_id' => $this->connection->id,
+            'username' => 'staff_test_pppoe',
+            'password' => 'mysecretpppoepass',
+        ]);
+
+        // 1. Staff without pppoe.view_password gets 403 Forbidden
+        $resForbidden = $this->actingAs($this->staff)->postJson(route('admin.pppoe.reveal-password', $credential->id));
+        $resForbidden->assertStatus(403);
+
+        // Also check staff details page canViewPppoePassword prop is false
+        $pageRes = $this->actingAs($this->staff)->get("/staff/customers/{$this->customer->id}");
+        $pageRes->assertOk();
+        $pageRes->assertInertia(fn($page) => $page
+            ->component('Staff/CustomerDetails')
+            ->where('canViewPppoePassword', false)
+        );
+
+        // 2. Grant pppoe.view_password permission to staff
+        $perm = Permission::firstOrCreate(['slug' => 'pppoe.view_password'], ['name' => 'pppoe.view_password']);
+        $staffRole = Role::where('slug', 'staff')->first();
+        $staffRole->permissions()->attach($perm);
+
+        // Now staff details page canViewPppoePassword prop is true
+        $pageResGranted = $this->actingAs($this->staff)->get("/staff/customers/{$this->customer->id}");
+        $pageResGranted->assertOk();
+        $pageResGranted->assertInertia(fn($page) => $page
+            ->component('Staff/CustomerDetails')
+            ->where('canViewPppoePassword', true)
+        );
+
+        // Now staff can reveal PPPoE password
+        $resOk = $this->actingAs($this->staff)->postJson(route('admin.pppoe.reveal-password', $credential->id));
+        $resOk->assertOk();
+        $resOk->assertJson([
+            'username' => 'staff_test_pppoe',
+            'password' => 'mysecretpppoepass',
+        ]);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'pppoe_password_viewed',
+            'user_id' => $this->staff->id,
+            'entity_id' => $credential->id,
+        ]);
+    }
 }
+

@@ -146,6 +146,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'customers.view', 'customers.create',
             'connections.view',
             'pppoe.view_username',
+            'pppoe.view_password',
             'packages.view',
             'areas.view',
             'billing.view', 'billing.collect',
