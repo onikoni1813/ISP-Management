@@ -53,10 +53,27 @@ class ComplaintController extends Controller
             'resolved' => (clone $countsQuery)->whereIn('status', ['resolved', 'closed'])->count(),
         ];
 
+        $staffUsers = User::whereHas('roles', fn($r) => $r->whereIn('slug', ['staff', 'admin']))
+            ->where('status', 'active')
+            ->get(['id', 'name']);
+
+        $customersList = Customer::where('status', '!=', 'archived')
+            ->with(['primaryContact', 'connections'])
+            ->get(['id', 'customer_code', 'name'])
+            ->map(fn($c) => [
+                'id' => $c->id,
+                'customer_code' => $c->customer_code,
+                'name' => $c->name,
+                'phone' => $c->primaryContact?->phone ?? '',
+                'connection_id' => $c->connections->first()?->id,
+            ]);
+
         return Inertia::render('Admin/Complaints/Index', [
             'complaints' => $complaints,
             'filters' => $request->only(['search', 'status', 'priority']),
             'counts' => $counts,
+            'staffUsers' => $staffUsers,
+            'customersList' => $customersList,
         ]);
     }
 
@@ -98,11 +115,12 @@ class ComplaintController extends Controller
     /**
      * Store new complaint ticket.
      */
-    public function store(Request $request, Customer $customer)
+    public function store(Request $request, ?Customer $customer = null)
     {
         Gate::authorize('complaints.create');
 
         $validated = $request->validate([
+            'customer_id' => $customer ? 'nullable|exists:customers,id' : 'required|exists:customers,id',
             'subject' => 'required|string|max:255',
             'description' => 'required|string|max:2000',
             'priority' => 'required|string|in:low,normal,high,urgent',
@@ -110,9 +128,11 @@ class ComplaintController extends Controller
             'connection_id' => 'nullable|exists:connections,id',
         ]);
 
-        $complaint = $this->complaintService->createComplaint($customer, $validated, $request->user()->id);
+        $targetCustomer = $customer ?: Customer::findOrFail($validated['customer_id']);
 
-        return back()->with('success', "Complaint {$complaint->complaint_number} logged successfully.");
+        $complaint = $this->complaintService->createComplaint($targetCustomer, $validated, $request->user()->id);
+
+        return back()->with('success', "কমপ্লেইন টিকেট #{$complaint->complaint_number} সফলভাবে তৈরি হয়েছে।");
     }
 
     /**

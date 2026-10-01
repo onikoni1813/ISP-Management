@@ -150,8 +150,9 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('audit/logs', [AuditLogController::class, 'index'])->name('audit.index');
     Route::get('audit/staff-report', [AuditLogController::class, 'staffReport'])->name('audit.staff-report');
 
-    // Complaint Management Routes (Admin view, assign, delete & history cleanup)
+    // Complaint Management Routes (Admin view, create, assign, delete & history cleanup)
     Route::get('complaints', [ComplaintController::class, 'index'])->name('complaints.index');
+    Route::post('complaints', [ComplaintController::class, 'store'])->name('complaints.store');
     Route::delete('complaints/bulk-destroy', [ComplaintController::class, 'bulkDestroy'])->name('complaints.bulk-destroy');
     Route::delete('complaints/clear-history', [ComplaintController::class, 'clearHistory'])->name('complaints.clear-history');
     Route::get('complaints/{complaint}', [ComplaintController::class, 'show'])->name('complaints.show');
@@ -228,6 +229,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
 
 // Shared Collection, Renewal & Complaint Actions for Admin & Staff
 Route::middleware(['auth', 'role:admin,staff'])->group(function () {
+    Route::post('complaints', [ComplaintController::class, 'store'])->name('complaints.store');
     Route::post('customers/{customer}/pay', [BillingController::class, 'storePayment'])->name('customers.pay');
     Route::post('customers/{customer}/connections/{connection}/renew', [RenewalController::class, 'store'])->name('customers.renew');
     Route::post('customers/{customer}/complaints', [ComplaintController::class, 'store'])->name('customers.complaints.store');

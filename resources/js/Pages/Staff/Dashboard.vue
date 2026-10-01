@@ -2,6 +2,7 @@
 import { ref, watch, onMounted, computed } from 'vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import StaffLayout from '@/Layouts/StaffLayout.vue';
+import ComplaintCreateModal from '@/Components/ComplaintCreateModal.vue';
 import { syncService } from '@/Services/syncService';
 import { formatDateTime } from '@/Utils/date';
 import axios from 'axios';
@@ -12,7 +13,10 @@ const props = defineProps({
     recent_collections: Array,
     open_complaints: Array,
     areas: Array,
+    customers_list: Array,
 });
+
+const showComplaintModal = ref(false);
 
 const page = usePage();
 const user = page.props.auth.user;
@@ -645,10 +649,21 @@ onMounted(() => {
             <div v-show="activeTab === 'complaints'" class="space-y-6">
                 <div class="rounded-3xl border border-white/10 bg-[#071527]/60 backdrop-blur-xl p-4 shadow-lg min-h-[400px]">
                     <div class="flex items-center justify-between mb-5">
-                        <h2 class="text-sm font-bold text-white uppercase tracking-wider">এসাইনড কমপ্লেইন</h2>
-                        <span class="bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[10px] px-2.5 py-1 rounded-full font-bold">
-                            {{ open_complaints?.length || 0 }} Active
-                        </span>
+                        <div class="flex items-center gap-2">
+                            <h2 class="text-sm font-bold text-white uppercase tracking-wider">এসাইনড কমপ্লেইন</h2>
+                            <span class="bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[10px] px-2.5 py-1 rounded-full font-bold">
+                                {{ open_complaints?.length || 0 }} Active
+                            </span>
+                        </div>
+
+                        <button
+                            @click="showComplaintModal = true"
+                            type="button"
+                            class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white font-bold text-xs shadow-lg shadow-rose-500/25 transition cursor-pointer"
+                        >
+                            <span>🚨</span>
+                            <span>+ নতুন কমপ্লেইন</span>
+                        </button>
                     </div>
 
                     <div v-if="open_complaints?.length > 0" class="space-y-4">
@@ -723,6 +738,13 @@ onMounted(() => {
             </div>
         </div>
 
+        <!-- New Complaint Modal for Staff -->
+        <ComplaintCreateModal
+            :isOpen="showComplaintModal"
+            :customers="props.customers_list || []"
+            @close="showComplaintModal = false"
+            @success="showComplaintModal = false"
+        />
     </StaffLayout>
 </template>
 

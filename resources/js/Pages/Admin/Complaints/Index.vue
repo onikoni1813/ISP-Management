@@ -2,12 +2,23 @@
 import { ref, computed, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import ComplaintCreateModal from '@/Components/ComplaintCreateModal.vue';
 
 const props = defineProps({
     complaints: Object,
     filters: Object,
     counts: Object,
+    staffUsers: {
+        type: Array,
+        default: () => [],
+    },
+    customersList: {
+        type: Array,
+        default: () => [],
+    },
 });
+
+const showCreateModal = ref(false);
 
 const search = ref(props.filters.search || '');
 const status = ref(props.filters.status || '');
@@ -152,6 +163,16 @@ const confirmClearHistory = () => {
                 </div>
 
                 <div class="flex items-center gap-2.5 shrink-0">
+                    <!-- New Complaint Button -->
+                    <button
+                        @click="showCreateModal = true"
+                        type="button"
+                        class="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 px-4 py-2.5 text-xs font-bold text-white transition shadow-lg shadow-rose-500/25 cursor-pointer"
+                    >
+                        <span>🚨</span>
+                        <span>+ নতুন কমপ্লেইন</span>
+                    </button>
+
                     <!-- Clear History Button -->
                     <button
                         @click="clearHistoryModal = true"
@@ -705,5 +726,14 @@ const confirmClearHistory = () => {
                 </div>
             </div>
         </div>
+
+        <!-- New Complaint Modal -->
+        <ComplaintCreateModal
+            :isOpen="showCreateModal"
+            :customers="props.customersList"
+            :staffUsers="props.staffUsers"
+            @close="showCreateModal = false"
+            @success="showCreateModal = false"
+        />
     </AdminLayout>
 </template>

@@ -4,14 +4,20 @@ import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import CustomerRenewalModal from '@/Components/CustomerRenewalModal.vue';
 import CustomerMoveModal from '@/Components/CustomerMoveModal.vue';
+import ComplaintCreateModal from '@/Components/ComplaintCreateModal.vue';
 import { formatDate, formatDateTime } from '@/Utils/date';
 
 const showRenewalModal = ref(false);
 const showMoveModal = ref(false);
+const showComplaintModal = ref(false);
 
 const props = defineProps({
     customer: Object,
     packages: Array,
+    staffUsers: {
+        type: Array,
+        default: () => [],
+    },
     canViewPppoePassword: Boolean,
 });
 
@@ -217,6 +223,15 @@ const executeDelete = () => {
                 >
                     <span>🔀</span>
                     <span>মুভ / ফিল্টার পরিবর্তন</span>
+                </button>
+                <button
+                    type="button"
+                    @click="showComplaintModal = true"
+                    class="rounded-xl border border-amber-500/40 bg-amber-500/15 hover:bg-amber-500/25 px-3.5 py-2 text-xs font-bold text-amber-300 hover:text-white transition cursor-pointer flex items-center gap-1.5 shadow-sm"
+                    title="গ্রাহকের জন্য নতুন কমপ্লেইন / সাপোর্ট টিকিট খুলুন"
+                >
+                    <span>🚨</span>
+                    <span>কমপ্লেইন</span>
                 </button>
                 <button
                     type="button"
@@ -860,6 +875,14 @@ const executeDelete = () => {
             :packages="packages"
             @close="showMoveModal = false"
             @success="router.reload()"
+        />
+
+        <!-- Reusable Complaint Create Modal -->
+        <ComplaintCreateModal
+            :is-open="showComplaintModal"
+            :customer="props.customer"
+            :staff-users="props.staffUsers"
+            @close="showComplaintModal = false"
         />
     </AdminLayout>
 </template>

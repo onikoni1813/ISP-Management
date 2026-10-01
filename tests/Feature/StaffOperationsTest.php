@@ -31,6 +31,7 @@ class StaffOperationsTest extends TestCase
             'customers.view',
             'billing.collect',
             'renewals.create',
+            'complaints.create',
         ];
 
         foreach ($perms as $slug) {
@@ -165,5 +166,47 @@ class StaffOperationsTest extends TestCase
         $paidRes->assertStatus(200);
         $this->assertCount(1, $paidRes->json('customers'));
         $this->assertEquals($this->customer->id, $paidRes->json('customers.0.id'));
+    }
+
+    public function test_staff_and_admin_can_create_complaints(): void
+    {
+        // 1. Staff creates complaint with generic customer_id payload
+        $response = $this->actingAs($this->staff)->post('/complaints', [
+            'customer_id' => $this->customer->id,
+            'subject' => 'লাল বাতি জ্বলছে (LOS Red Light)',
+            'description' => 'কাস্টমারের অনুতে লাল বাতি জ্বলছে, ফাইবার চেক করতে হবে।',
+            'priority' => 'high',
+        ]);
+
+        $response->assertStatus(302);
+        $this->assertDatabaseHas('complaints', [
+            'customer_id' => $this->customer->id,
+            'subject' => 'লাল বাতি জ্বলছে (LOS Red Light)',
+            'priority' => 'high',
+            'status' => 'open',
+        ]);
+
+        // 2. Admin creates complaint and assigns technician
+        $adminRole = Role::firstOrCreate(['slug' => 'admin'], ['name' => 'Admin']);
+        $admin = User::factory()->create();
+        $admin->roles()->attach($adminRole);
+        $complaintPerm = Permission::firstOrCreate(['slug' => 'complaints.create'], ['name' => 'complaints.create']);
+        $adminRole->permissions()->syncWithoutDetaching([$complaintPerm->id]);
+
+        $adminResponse = $this->actingAs($admin)->post('/complaints', [
+            'customer_id' => $this->customer->id,
+            'subject' => 'ইন্টারনেট খুব ধীরগতি (Slow Internet)',
+            'description' => 'ইউটিউব বাফারিং হচ্ছে, স্পিড চেক করুন।',
+            'priority' => 'normal',
+            'assigned_to' => $this->staff->id,
+        ]);
+
+        $adminResponse->assertStatus(302);
+        $this->assertDatabaseHas('complaints', [
+            'customer_id' => $this->customer->id,
+            'subject' => 'ইন্টারনেট খুব ধীরগতি (Slow Internet)',
+            'assigned_to' => $this->staff->id,
+            'status' => 'assigned',
+        ]);
     }
 }

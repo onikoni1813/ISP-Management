@@ -156,6 +156,16 @@ class StaffController extends Controller
             'recent_collections' => $recentCollections,
             'open_complaints' => $openComplaints,
             'areas' => $areas,
+            'customers_list' => Customer::where('status', '!=', 'archived')
+                ->with(['primaryContact', 'connections'])
+                ->get(['id', 'customer_code', 'name'])
+                ->map(fn($c) => [
+                    'id' => $c->id,
+                    'customer_code' => $c->customer_code,
+                    'name' => $c->name,
+                    'phone' => $c->primaryContact?->phone ?? '',
+                    'connection_id' => $c->connections->first()?->id,
+                ]),
         ]);
     }
 

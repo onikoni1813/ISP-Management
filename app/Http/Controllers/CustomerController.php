@@ -129,10 +129,14 @@ class CustomerController extends Controller
         }
 
         $packages = Package::with('currentPrice')->where('status', 'active')->get();
+        $staffUsers = \App\Models\User::whereHas('roles', fn($r) => $r->whereIn('slug', ['staff', 'admin']))
+            ->where('status', 'active')
+            ->get(['id', 'name']);
 
         return Inertia::render('Admin/Customers/Show', [
             'customer' => $customer,
             'packages' => $packages,
+            'staffUsers' => $staffUsers,
             'canViewPppoePassword' => Gate::allows('pppoe.view_password'),
         ]);
     }

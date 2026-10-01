@@ -2,12 +2,15 @@
 import { ref, computed } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import StaffLayout from '@/Layouts/StaffLayout.vue';
+import ComplaintCreateModal from '@/Components/ComplaintCreateModal.vue';
 import { formatDate, formatDateTime } from '@/Utils/date';
 
 const props = defineProps({
     customer: Object,
     canViewPppoePassword: Boolean,
 });
+
+const showComplaintModal = ref(false);
 
 const primaryConnection = props.customer.connections?.[0] || null;
 const pppoe = primaryConnection?.pppoe_credential || null;
@@ -159,18 +162,25 @@ const resolveNote = (noteId) => {
             </div>
 
             <!-- Quick Action Buttons on Field -->
-            <div class="mt-5 pt-4 border-t border-brand-navy grid grid-cols-2 gap-2.5">
+            <div class="mt-5 pt-4 border-t border-brand-navy grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                 <button
                     @click="openPayModal"
-                    class="rounded-2xl bg-gradient-to-r from-brand-orange to-brand-amber hover:opacity-95 p-3 text-center text-xs font-bold text-white shadow-lg shadow-brand-orange/25 transition"
+                    class="rounded-2xl bg-gradient-to-r from-brand-orange to-brand-amber hover:opacity-95 p-3 text-center text-xs font-bold text-white shadow-lg shadow-brand-orange/25 transition cursor-pointer"
                 >
                     💰 বিল আদায়
                 </button>
                 <button
-                    @click="showNoteModal = true"
-                    class="rounded-2xl bg-[#0B1E36] hover:bg-[#0B1E36]/80 border border-brand-sky/40 p-3 text-center text-xs font-bold text-brand-sky shadow-lg transition"
+                    @click="showComplaintModal = true"
+                    class="rounded-2xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 p-3 text-center text-xs font-bold text-rose-300 hover:text-white shadow-lg transition cursor-pointer flex items-center justify-center gap-1.5"
                 >
-                    📝 নোট / তারিখ যুক্ত করুন
+                    <span>🚨</span>
+                    <span>কমপ্লেইন করুন</span>
+                </button>
+                <button
+                    @click="showNoteModal = true"
+                    class="rounded-2xl bg-[#0B1E36] hover:bg-[#0B1E36]/80 border border-brand-sky/40 p-3 text-center text-xs font-bold text-brand-sky shadow-lg transition cursor-pointer"
+                >
+                    📝 নোট / তারিখ
                 </button>
             </div>
         </div>
@@ -447,5 +457,12 @@ const resolveNote = (noteId) => {
             </div>
         </div>
 
+        <!-- Complaint Modal for Staff -->
+        <ComplaintCreateModal
+            :isOpen="showComplaintModal"
+            :customer="props.customer"
+            @close="showComplaintModal = false"
+            @success="showComplaintModal = false"
+        />
     </StaffLayout>
 </template>
