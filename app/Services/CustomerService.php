@@ -10,6 +10,9 @@ use App\Models\CustomerContact;
 use App\Models\CustomerPackage;
 use App\Models\Package;
 use App\Models\PppoeCredential;
+use App\Models\Renewal;
+use Carbon\Carbon;
+use Exception;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
@@ -361,6 +364,282 @@ class CustomerService
                 $portalUser->delete();
             }
         });
+    }
+
+    /**
+     * Move a customer to a specific state or billing category with automatic ledger and expiry alignment.
+     */
+    public function moveCustomerCategory(Customer $customer, string $targetCategory, array $options, int $userId): array
+    {
+        return DB::transaction(function () use ($customer, $targetCategory, $options, $userId) {
+            $connections = $customer->connections;
+            $connection = $connections->first();
+            $package = $connection ? $connection->currentPackage()->with('currentPrice')->first() : null;
+            $today = Carbon::today();
+            $startOfMonth = now()->startOfMonth()->toDateTimeString();
+            $endOfMonth = now()->endOfMonth()->toDateTimeString();
+
+            switch ($targetCategory) {
+                case 'zero_charge_renewed':
+                    $days = (int) ($options['validity_days'] ?? 3);
+                    if ($days < 1) {
+                        $days = 3;
+                    }
+
+                    // 1. Reverse accidental paid renewals / payments made this month if requested
+                    if (!empty($options['reverse_accidental_payment'])) {
+                        $completedPayments = $customer->payments()
+                            ->whereBetween('paid_at', [$startOfMonth, $endOfMonth])
+                            ->where('status', 'completed')
+                            ->get();
+
+                        foreach ($completedPayments as $payment) {
+                            app(BillingService::class)->reversePayment(
+                                $payment,
+                                $options['notes'] ?? 'গ্রাহক মুভ: ভুলবশত পেইড রিনিউ রিভার্স করে গ্রেস প্রদান',
+                                $userId
+                            );
+                        }
+
+                        // 2. Void/cancel any unwanted unpaid invoices created during that accidental renewal
+                        if (!empty($options['void_renewal_invoice'])) {
+                            $unpaidInvoices = $customer->invoices()
+                                ->where('status', 'unpaid')
+                                ->whereBetween('created_at', [$startOfMonth, $endOfMonth])
+                                ->get();
+
+                            foreach ($unpaidInvoices as $inv) {
+                                if ($inv->due_amount > 0) {
+                                    $customer->decrement('balance', $inv->due_amount);
+                                }
+                                $inv->update(['status' => 'cancelled', 'due_amount' => 0]);
+                            }
+                        }
+
+                        // Ensure balance is clean
+                        if ($customer->fresh()->balance < 0) {
+                            $customer->update(['balance' => 0]);
+                        }
+                    }
+
+                    // 3. Set connection expiry to today + days
+                    $newExpiry = $today->copy()->addDays($days)->toDateString();
+                    if ($connections->isNotEmpty()) {
+                        foreach ($connections as $conn) {
+                            $conn->update([
+                                'expiry_date' => $newExpiry,
+                                'status' => 'active',
+                            ]);
+                        }
+                    }
+                    $customer->update(['status' => 'active']);
+
+                    // 4. Create zero-charge renewal record
+                    Renewal::create([
+                        'renewal_number' => 'REN-MV-' . date('Ymd') . '-' . strtoupper(substr(uniqid(), -6)),
+                        'customer_id' => $customer->id,
+                        'connection_id' => $connection?->id,
+                        'package_id' => $package?->id,
+                        'previous_expiry' => $connection?->getOriginal('expiry_date'),
+                        'new_expiry' => $newExpiry,
+                        'validity_days' => $days,
+                        'amount' => 0.00,
+                        'is_zero_charge' => true,
+                        'renewal_type' => 'grace_move',
+                        'renewed_by' => $userId,
+                        'renewed_at' => now(),
+                        'notes' => $options['notes'] ?? "ক্যাটাগরি মুভ: {$days} দিনের গ্রেস প্রদান",
+                    ]);
+                    break;
+
+                case 'paid_this_month':
+                    $validityDays = $package?->currentPrice?->validity_days ?? 30;
+                    $amount = (float) ($options['amount'] ?? ($package?->currentPrice?->price ?? 0));
+                    $paymentMethod = $options['payment_method'] ?? 'cash';
+
+                    // Determine new expiry date
+                    $currentExpiry = $connection?->expiry_date ? Carbon::parse($connection->expiry_date) : null;
+                    $baseDate = ($currentExpiry && $currentExpiry->greaterThanOrEqualTo($today)) ? $currentExpiry : $today;
+                    $newExpiry = $baseDate->copy()->addDays($validityDays)->toDateString();
+
+                    if ($connections->isNotEmpty()) {
+                        foreach ($connections as $conn) {
+                            $conn->update([
+                                'expiry_date' => $newExpiry,
+                                'status' => 'active',
+                            ]);
+                        }
+                    }
+                    $customer->update(['status' => 'active']);
+
+                    // Check if customer already has a completed payment this month
+                    $hasCompletedPayment = $customer->payments()
+                        ->whereBetween('paid_at', [$startOfMonth, $endOfMonth])
+                        ->where('status', 'completed')
+                        ->exists();
+
+                    if (!$hasCompletedPayment) {
+                        // Check if an unpaid invoice already exists to pay off
+                        $existingUnpaid = $customer->invoices()
+                            ->where('due_amount', '>', 0)
+                            ->first();
+
+                        if ($existingUnpaid) {
+                            app(BillingService::class)->collectPayment($customer, [
+                                'amount' => $existingUnpaid->due_amount,
+                                'payment_method' => $paymentMethod,
+                                'paid_at' => now()->addSecond(),
+                                'invoice_ids' => [$existingUnpaid->id],
+                                'notes' => 'মুভ টু চলতি বিল পরিশোধিত - বকেয়া পরিশোধ',
+                            ], $userId);
+                        } else {
+                            $invoice = app(BillingService::class)->createInvoice($customer, [
+                                'period_start' => now()->startOfMonth()->toDateString(),
+                                'period_end' => $newExpiry,
+                                'due_date' => now()->toDateString(),
+                                'items' => [
+                                    [
+                                        'item_type' => 'package',
+                                        'description' => "প্যাকেজ রিনিউ বিল: " . ($package?->name ?? 'ইন্টারনেট বিল') . " ({$validityDays} দিন)",
+                                        'unit_price' => $amount,
+                                        'quantity' => 1,
+                                    ]
+                                ],
+                                'notes' => 'মুভ টু চলতি বিল পরিশোধিত',
+                            ], $userId);
+
+                            app(BillingService::class)->collectPayment($customer, [
+                                'amount' => $amount,
+                                'payment_method' => $paymentMethod,
+                                'paid_at' => now()->addSecond(),
+                                'invoice_ids' => [$invoice->id],
+                                'notes' => 'মুভ টু চলতি বিল পরিশোধিত - আদায়কৃত বিল',
+                            ], $userId);
+                        }
+                    }
+
+                    // Settle any remaining due invoices so customer strictly qualifies for paid_this_month
+                    $remainingDueInvoices = $customer->invoices()->where('due_amount', '>', 0)->get();
+                    foreach ($remainingDueInvoices as $dueInv) {
+                        $customer->decrement('balance', $dueInv->due_amount);
+                        $dueInv->update([
+                            'paid_amount' => $dueInv->total,
+                            'due_amount' => 0,
+                            'status' => 'paid',
+                        ]);
+                    }
+                    if ($customer->fresh()->balance > 0) {
+                        $customer->update(['balance' => 0]);
+                    }
+                    break;
+
+                case 'due':
+                    // Reverse any completed payments made this month
+                    $completedPayments = $customer->payments()
+                        ->whereBetween('paid_at', [$startOfMonth, $endOfMonth])
+                        ->where('status', 'completed')
+                        ->get();
+
+                    foreach ($completedPayments as $payment) {
+                        app(BillingService::class)->reversePayment(
+                            $payment,
+                            $options['notes'] ?? 'গ্রাহক মুভ: বকেয়া তালিকায় স্থানান্তরের জন্য পেমেন্ট রিভার্স',
+                            $userId
+                        );
+                    }
+
+                    // Ensure customer has due amount / invoice
+                    $hasDue = $customer->invoices()->where('due_amount', '>', 0)->exists() || $customer->balance > 0;
+                    if (!$hasDue) {
+                        $amount = (float) ($options['amount'] ?? ($package?->currentPrice?->price ?? 500));
+                        app(BillingService::class)->createInvoice($customer, [
+                            'period_start' => now()->startOfMonth()->toDateString(),
+                            'period_end' => now()->endOfMonth()->toDateString(),
+                            'due_date' => now()->toDateString(),
+                            'items' => [
+                                [
+                                    'item_type' => 'package',
+                                    'description' => "মাসিক বিল বকেয়া: " . ($package?->name ?? 'ইন্টারনেট বিল'),
+                                    'unit_price' => $amount,
+                                    'quantity' => 1,
+                                ]
+                            ],
+                            'notes' => 'মুভ টু বকেয়া তালিকা',
+                        ], $userId);
+                    }
+                    break;
+
+                case 'expiring_3d':
+                    $days = (int) ($options['validity_days'] ?? 2);
+                    if ($days < 1 || $days > 3) {
+                        $days = 2;
+                    }
+                    $newExpiry = $today->copy()->addDays($days)->toDateString();
+                    if ($connections->isNotEmpty()) {
+                        foreach ($connections as $conn) {
+                            $conn->update([
+                                'expiry_date' => $newExpiry,
+                                'status' => 'active',
+                            ]);
+                        }
+                    }
+                    $customer->update(['status' => 'active']);
+                    break;
+
+                case 'expired':
+                    $yesterday = $today->copy()->subDay()->toDateString();
+                    if ($connections->isNotEmpty()) {
+                        foreach ($connections as $conn) {
+                            $conn->update([
+                                'expiry_date' => $yesterday,
+                                'status' => 'expired',
+                            ]);
+                        }
+                    }
+                    $customer->update(['status' => 'expired']);
+                    break;
+
+                default:
+                    throw new Exception("অজানা ক্যাটাগরি: {$targetCategory}");
+            }
+
+            AuditLog::log('customer_category_moved', 'customers', $customer, null, [
+                'target_category' => $targetCategory,
+                'options' => $options,
+                'admin_id' => $userId,
+            ]);
+
+            return [
+                'customer_id' => $customer->id,
+                'target_category' => $targetCategory,
+                'status' => 'success',
+            ];
+        });
+    }
+
+    /**
+     * Bulk move customers to a target category.
+     */
+    public function bulkMoveCustomerCategories(array $customerIds, string $targetCategory, array $options, int $userId): array
+    {
+        $customers = Customer::whereIn('id', $customerIds)->get();
+        $results = [];
+        $errors = [];
+
+        foreach ($customers as $customer) {
+            try {
+                $results[] = $this->moveCustomerCategory($customer, $targetCategory, $options, $userId);
+            } catch (\Throwable $e) {
+                $errors[] = "গ্রাহক #{$customer->customer_code}: " . $e->getMessage();
+            }
+        }
+
+        return [
+            'total' => count($customers),
+            'success_count' => count($results),
+            'error_count' => count($errors),
+            'errors' => $errors,
+        ];
     }
 }
 

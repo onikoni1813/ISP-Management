@@ -248,6 +248,87 @@ class CustomerController extends Controller
     }
 
     /**
+     * Move single customer to target category / state.
+     */
+    public function moveCategory(Request $request, Customer $customer)
+    {
+        Gate::authorize('customers.update');
+
+        $validated = $request->validate([
+            'target_category' => 'required|string|in:zero_charge_renewed,paid_this_month,due,expiring_3d,expired',
+            'validity_days' => 'nullable|integer|min:1|max:365',
+            'reverse_accidental_payment' => 'nullable|boolean',
+            'void_renewal_invoice' => 'nullable|boolean',
+            'amount' => 'nullable|numeric|min:0',
+            'payment_method' => 'nullable|string|in:cash,bkash,nagad,bank,other',
+            'notes' => 'nullable|string|max:500',
+        ]);
+
+        $this->customerService->moveCustomerCategory(
+            $customer,
+            $validated['target_category'],
+            $validated,
+            $request->user()->id
+        );
+
+        return back()->with('success', "গ্রাহক #{$customer->customer_code} সফলভাবে মুভ করা হয়েছে।");
+    }
+
+    /**
+     * Bulk move multiple customers to target category / state.
+     */
+    public function bulkMoveCategory(Request $request)
+    {
+        Gate::authorize('customers.update');
+
+        $validated = $request->validate([
+            'target_category' => 'required|string|in:zero_charge_renewed,paid_this_month,due,expiring_3d,expired',
+            'customer_ids' => 'nullable|array',
+            'customer_ids.*' => 'exists:customers,id',
+            'target_all_filtered' => 'nullable|boolean',
+            'search' => 'nullable|string',
+            'status' => 'nullable|string',
+            'area_id' => 'nullable',
+            'advanced_filter' => 'nullable|string',
+            'validity_days' => 'nullable|integer|min:1|max:365',
+            'reverse_accidental_payment' => 'nullable|boolean',
+            'void_renewal_invoice' => 'nullable|boolean',
+            'amount' => 'nullable|numeric|min:0',
+            'payment_method' => 'nullable|string|in:cash,bkash,nagad,bank,other',
+            'notes' => 'nullable|string|max:500',
+        ]);
+
+        if (!empty($validated['target_all_filtered'])) {
+            $customerIds = $this->customerService->searchCustomers(
+                query: $validated['search'] ?? null,
+                status: $validated['status'] ?? null,
+                areaId: !empty($validated['area_id']) ? (int) $validated['area_id'] : null,
+                advancedFilter: $validated['advanced_filter'] ?? null,
+                perPage: 10000
+            )->pluck('id')->toArray();
+        } else {
+            $customerIds = $validated['customer_ids'] ?? [];
+        }
+
+        if (empty($customerIds)) {
+            return back()->withErrors(['customer_ids' => 'কোনো গ্রাহক নির্বাচিত করা হয়নি।']);
+        }
+
+        $result = $this->customerService->bulkMoveCustomerCategories(
+            $customerIds,
+            $validated['target_category'],
+            $validated,
+            $request->user()->id
+        );
+
+        if ($result['error_count'] > 0 && $result['success_count'] === 0) {
+            return back()->with('error', "মুভ ব্যর্থ হয়েছে: " . implode(', ', array_slice($result['errors'], 0, 3)));
+        }
+
+        return back()->with('success', "মোট {$result['success_count']} জন গ্রাহককে সফলভাবে মুভ করা হয়েছে।");
+    }
+
+    /**
      * Remove the specified customer from database.
      */
     public function destroy(Customer $customer)

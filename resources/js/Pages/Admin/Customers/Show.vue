@@ -3,9 +3,11 @@ import { ref, computed } from 'vue';
 import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import CustomerRenewalModal from '@/Components/CustomerRenewalModal.vue';
+import CustomerMoveModal from '@/Components/CustomerMoveModal.vue';
 import { formatDate, formatDateTime } from '@/Utils/date';
 
 const showRenewalModal = ref(false);
+const showMoveModal = ref(false);
 
 const props = defineProps({
     customer: Object,
@@ -207,6 +209,15 @@ const executeDelete = () => {
                 >
                     Edit Profile
                 </Link>
+                <button
+                    type="button"
+                    @click="showMoveModal = true"
+                    class="rounded-xl border border-cyan-500/40 bg-cyan-500/15 hover:bg-cyan-500/25 px-3.5 py-2 text-xs font-bold text-cyan-300 hover:text-white transition cursor-pointer flex items-center gap-1.5 shadow-sm"
+                    title="গ্রাহককে অন্য ক্যাটাগরি বা ফিল্টারে মুভ করুন"
+                >
+                    <span>🔀</span>
+                    <span>মুভ / ফিল্টার পরিবর্তন</span>
+                </button>
                 <button
                     type="button"
                     @click="showRenewalModal = true"
@@ -839,6 +850,16 @@ const executeDelete = () => {
             :packages="packages"
             @close="showRenewalModal = false"
             @success="router.reload({ only: ['customer'] })"
+        />
+
+        <!-- Reusable Customer Move Modal -->
+        <CustomerMoveModal
+            :is-open="showMoveModal"
+            :customer="customer"
+            :is-bulk="false"
+            :packages="packages"
+            @close="showMoveModal = false"
+            @success="router.reload()"
         />
     </AdminLayout>
 </template>

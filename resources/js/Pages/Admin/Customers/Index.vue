@@ -3,6 +3,7 @@ import { ref, watch, computed } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import CustomerRenewalModal from '@/Components/CustomerRenewalModal.vue';
+import CustomerMoveModal from '@/Components/CustomerMoveModal.vue';
 import axios from 'axios';
 
 const props = defineProps({
@@ -23,6 +24,31 @@ const isRenewModalOpen = ref(false);
 const openRenewModal = (customer) => {
     customerToRenew.value = customer;
     isRenewModalOpen.value = true;
+};
+
+// Customer Move Modal State
+const isMoveModalOpen = ref(false);
+const customerToMove = ref(null);
+const isBulkMove = ref(false);
+
+const openSingleMoveModal = (customer) => {
+    customerToMove.value = customer;
+    isBulkMove.value = false;
+    isMoveModalOpen.value = true;
+};
+
+const openBulkMoveModal = (isAllFiltered = false) => {
+    targetAllFiltered.value = isAllFiltered;
+    customerToMove.value = null;
+    isBulkMove.value = true;
+    isMoveModalOpen.value = true;
+};
+
+const onMoveSuccess = () => {
+    selectedCustomerIds.value = [];
+    selectAllCurrentPage.value = false;
+    targetAllFiltered.value = false;
+    router.reload({ only: ['customers', 'filterCounts'] });
 };
 
 const search = ref(props.filters.search || '');
@@ -443,7 +469,18 @@ const executeCustomerDelete = () => {
                     </div>
                 </div>
 
-                <div class="flex items-center gap-2.5">
+                <div class="flex items-center gap-2.5 flex-wrap">
+                    <!-- Bulk Move Button -->
+                    <button
+                        v-if="targetAllFiltered || selectedCustomerIds.length > 0"
+                        type="button"
+                        @click="openBulkMoveModal(targetAllFiltered)"
+                        class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-600 text-white shadow-md shadow-purple-600/25 hover:shadow-purple-600/40 hover:opacity-95 cursor-pointer transition transform active:scale-95"
+                    >
+                        <span>🔀</span>
+                        <span>{{ targetAllFiltered ? `ফিল্টারকৃত সকল (${customers.total}) জনকে মুভ করুন` : `নির্বাচিত (${selectedCustomerIds.length}) জনকে মুভ করুন` }}</span>
+                    </button>
+
                     <!-- Specific customers selected or all filtered -->
                     <button
                         v-if="targetAllFiltered || (selectedCustomerIds.length > 0 && selectedCustomerIds.length !== customers.total)"
@@ -627,6 +664,14 @@ const executeCustomerDelete = () => {
                             </td>
                             <td class="px-5 py-3.5 text-right">
                                 <div class="inline-flex items-center gap-1.5">
+                                    <button
+                                        type="button"
+                                        @click="openSingleMoveModal(customer)"
+                                        class="inline-flex items-center gap-1 rounded-lg border border-cyan-500/40 bg-cyan-500/15 hover:bg-cyan-500/30 px-2.5 py-1.5 text-xs font-bold text-cyan-300 hover:text-white transition shadow-sm cursor-pointer"
+                                        title="ক্যাটাগরি বা ফিল্টার পরিবর্তন করুন"
+                                    >
+                                        🔀 মুভ
+                                    </button>
                                     <button
                                         type="button"
                                         @click="openRenewModal(customer)"
@@ -904,6 +949,20 @@ const executeCustomerDelete = () => {
             :packages="packages"
             @close="isRenewModalOpen = false; customerToRenew = null"
             @success="router.reload({ only: ['customers', 'filterCounts'] })"
+        />
+
+        <!-- Reusable Customer Move Modal -->
+        <CustomerMoveModal
+            :is-open="isMoveModalOpen"
+            :customer="customerToMove"
+            :is-bulk="isBulkMove"
+            :customer-ids="selectedCustomerIds"
+            :target-all-filtered="targetAllFiltered"
+            :total-filtered-count="customers.total"
+            :filter-params="{ search, status, area_id: areaId, advanced_filter: advancedFilter }"
+            :packages="packages"
+            @close="isMoveModalOpen = false; customerToMove = null; isBulkMove = false"
+            @success="onMoveSuccess"
         />
     </AdminLayout>
 </template>

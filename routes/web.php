@@ -115,6 +115,10 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
         ->name('pppoe.reveal-password');
     Route::post('customers/{customer}/send-credentials-sms', [CustomerController::class, 'sendCredentialsSms'])
         ->name('customers.send-credentials-sms');
+    Route::post('customers/{customer}/move-category', [CustomerController::class, 'moveCategory'])
+        ->name('customers.move-category');
+    Route::post('customers-bulk-move-category', [CustomerController::class, 'bulkMoveCategory'])
+        ->name('customers.bulk-move-category');
 
     // Packages & Coverage Areas Management
     Route::get('packages', [PackageAreaController::class, 'index'])->name('packages.index');
