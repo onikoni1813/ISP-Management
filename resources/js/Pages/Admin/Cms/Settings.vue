@@ -8,6 +8,7 @@ const props = defineProps({
 
 const form = useForm({
     noc_hotline: props.settings?.noc_hotline || '01711-000000 / 01722-000000',
+    admin_notification_phone: props.settings?.admin_notification_phone || '',
     support_email: props.settings?.support_email || 'support@pirgachainternet.com',
     working_hours: props.settings?.working_hours || '24 Hours Daily (7 Days a Week)',
     office_address: props.settings?.office_address || 'Town Center, Pirgacha Sadar, Rangpur',
@@ -76,6 +77,27 @@ const submit = () => {
                         />
                         <p class="text-[11px] text-slate-400 mt-1">
                             এই নম্বরটি গ্রাহকের <strong>Support & Complaints (/account/complaints)</strong> পেজের ব্যানারে এবং ওয়েবসাইটের কন্টাক্ট সেকশনে ডায়নামিক ভাবে প্রদর্শিত হবে।
+                        </p>
+                    </div>
+
+                    <!-- Admin Payment Notification Phone -->
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-300">
+                                🔔 অ্যাডমিন পেমেন্ট নোটিফিকেশন মোবাইল নম্বর (Payment Alert SMS)
+                            </label>
+                            <span class="text-[11px] text-emerald-400 font-mono font-bold">
+                                সাইট থেকে পেমেন্ট হলে SMS যাবে
+                            </span>
+                        </div>
+                        <input
+                            v-model="form.admin_notification_phone"
+                            type="text"
+                            placeholder="যেমন: 01711000000 (খালি রাখলে অ্যাডমিন প্রোফাইলের নম্বরে যাবে)"
+                            class="w-full rounded-2xl border-2 border-slate-800 bg-slate-950 p-3.5 text-sm text-white placeholder-slate-600 focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/30 font-mono font-bold outline-none transition"
+                        />
+                        <p class="text-[11px] text-slate-400 mt-1">
+                            গ্রাহক পোর্টাল অথবা সাইট থেকে বিল/রিনিউয়াল পেমেন্ট জমা দিলে এই নম্বরে তাৎক্ষণিক SMS অ্যালার্ট পাঠানো হবে। একাধিক নম্বর দিতে কমা (,) ব্যবহার করুন।
                         </p>
                     </div>
 

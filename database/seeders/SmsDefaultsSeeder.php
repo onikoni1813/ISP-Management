@@ -76,6 +76,12 @@ class SmsDefaultsSeeder extends Seeder
                 'template' => 'Dear {name}, your Pirgacha Internet account is ready. PPPoE User: {pppoe_username}, Pass: {pppoe_password}. Login portal: {login_url}',
                 'is_auto_enabled' => true,
             ],
+            [
+                'name' => 'Admin Payment Alert',
+                'code' => 'admin_payment_alert',
+                'template' => '[Pirgacha Internet] নতুন পেমেন্ট পাওয়া গেছে! কাস্টমার: {name} ({customer_code}), পরিমাণ: ৳{amount}, মেথড: {payment_method}, TrxID: {reference}. পেমেন্ট নং: {payment_number}.',
+                'is_auto_enabled' => true,
+            ],
         ];
 
         foreach ($templates as $tmpl) {

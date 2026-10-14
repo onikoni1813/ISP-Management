@@ -227,9 +227,24 @@
         </div>
 
         <div class="actions">
-            <a href="tel:{{ explode('/', $hotline ?? '01711000000')[0] }}" class="btn btn-primary">
-                📞 সরাসরি হটলাইনে কল করুন
-            </a>
+            @auth
+                @if(auth()->user()->hasRole('staff') && !auth()->user()->hasRole('admin'))
+                    <a href="{{ route('staff.dashboard') }}" class="btn btn-primary">
+                        👔 স্টাফ ড্যাশবোর্ড
+                    </a>
+                @elseif(auth()->user()->hasRole('customer'))
+                    <a href="{{ route('account.dashboard') }}" class="btn btn-primary">
+                        👤 আমার একাউন্ট / বিলিং
+                    </a>
+                @endif
+            @else
+                <a href="{{ route('login') }}" class="btn btn-primary">
+                    👤 গ্রাহক পোর্টাল (PPPoE Login)
+                </a>
+                <a href="{{ route('admin.login') }}" class="btn btn-secondary">
+                    👔 কর্মী ও অ্যাডমিন লগইন
+                </a>
+            @endauth
         </div>
 
         <div class="footer-credit">

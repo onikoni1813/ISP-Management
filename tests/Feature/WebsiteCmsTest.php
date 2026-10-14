@@ -257,7 +257,7 @@ class WebsiteCmsTest extends TestCase
 
         $this->assertEquals('1', \App\Models\Setting::get('maintenance_mode'));
 
-        // 2. Public visitor (unauthenticated) is blocked and sees 503 Maintenance page
+        // 2. Public visitor (unauthenticated) on homepage (/) is blocked and sees 503 Maintenance page
         \Illuminate\Support\Facades\Auth::logout();
         $this->app['auth']->forgetGuards();
 
@@ -266,16 +266,41 @@ class WebsiteCmsTest extends TestCase
         $publicResponse->assertSee('Scheduled Upgrades in Progress');
         $publicResponse->assertSee('Network maintenance window active.');
 
-        // 3. Admin login page is always accessible
+        // 3. Other public pages and login remain accessible (only homepage is in maintenance)
+        $this->get('/packages')->assertOk();
+        $this->get('/about')->assertOk();
         $loginResponse = $this->get(route('admin.login'));
         $loginResponse->assertOk();
+        $customerLogin = $this->get(route('login'));
+        $customerLogin->assertOk();
 
-        // 4. Admin logged in can still access admin panel and browse public website
+        // 4. Admin logged in can still access admin panel and preview homepage
         $adminDashboard = $this->actingAs($this->admin)->get(route('admin.dashboard'));
         $adminDashboard->assertOk();
 
-        $adminWebsiteAccess = $this->actingAs($this->admin)->get('/');
-        $adminWebsiteAccess->assertOk();
+        $adminWebsitePreview = $this->actingAs($this->admin)->get('/?preview=1');
+        $adminWebsitePreview->assertOk();
+
+        // 5. Staff user can access staff dashboard
+        $staffRole = \App\Models\Role::firstOrCreate(['slug' => 'staff'], ['name' => 'Staff']);
+        $staffUser = \App\Models\User::factory()->create();
+        $staffUser->roles()->sync([$staffRole->id]);
+        $this->actingAs($staffUser)->get(route('staff.dashboard'))->assertOk();
+
+        // 6. PPPoE / Customer user can access customer account dashboard
+        $customerRole = \App\Models\Role::firstOrCreate(['slug' => 'customer'], ['name' => 'Customer']);
+        $customerUser = \App\Models\User::factory()->create();
+        $customerUser->roles()->sync([$customerRole->id]);
+        $customer = \App\Models\Customer::create([
+            'customer_code' => 'CUST-TEST-001',
+            'user_id' => $customerUser->id,
+            'name' => 'Test PPPoE Customer',
+            'status' => 'active',
+            'join_date' => now(),
+            'billing_day' => 1,
+            'balance' => 0,
+        ]);
+        $this->actingAs($customerUser)->get(route('account.dashboard'))->assertOk();
     }
 }
 

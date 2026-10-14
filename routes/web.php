@@ -135,6 +135,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::post('billing/payments/{payment}/approve', [BillingController::class, 'approve'])->name('billing.payments.approve');
     Route::post('billing/payments/{payment}/reverse', [BillingController::class, 'reverse'])->name('billing.payments.reverse');
     Route::get('billing/receipts/{payment}', [BillingController::class, 'receipt'])->name('billing.receipt');
+    Route::get('api/live-counts', [BillingController::class, 'liveCounts'])->name('api.live-counts');
 
     // Renewal Routes
     Route::get('billing/renewals', [RenewalController::class, 'index'])->name('billing.renewals');

@@ -28,7 +28,26 @@ const isSyncing = ref(false);
 const syncMessage = ref('');
 const assignedComplaintsCount = ref(0);
 const hasNewTaskAlert = ref(false);
+const isStandalone = ref(false);
+const canInstallPwa = ref(false);
 let lastKnownComplaintId = null;
+
+const handlePwaInstall = async () => {
+    if (window.deferredPwaPrompt) {
+        window.deferredPwaPrompt.prompt();
+        const choice = await window.deferredPwaPrompt.userChoice;
+        if (choice && choice.outcome === 'accepted') {
+            canInstallPwa.value = false;
+        }
+        window.deferredPwaPrompt = null;
+    } else {
+        alert('অ্যাপটি মোবাইলে ইনস্টল করতে ব্রাউজারের ৩-ডট (⋮) মেনু ওপেন করে "Install app" অথবা "Add to Home screen" চাপুন।');
+    }
+};
+
+const onPwaInstallable = () => {
+    canInstallPwa.value = true;
+};
 
 const playNotificationSound = () => {
     try {
@@ -134,7 +153,7 @@ let liveComplaintInterval = null;
 const cacheCurrentPageForOffline = async () => {
     if ('caches' in window && 'serviceWorker' in navigator) {
         try {
-            const cache = await caches.open('pirgacha-isp-cache-v6');
+            const cache = await caches.open('pirgacha-isp-cache-v7');
             const res = await fetch(window.location.href, { credentials: 'same-origin' });
             if (res && res.status === 200) {
                 await cache.put(window.location.href, res.clone());
@@ -148,6 +167,12 @@ const cacheCurrentPageForOffline = async () => {
 };
 
 onMounted(() => {
+    isStandalone.value = window.matchMedia('(display-mode: standalone)').matches || Boolean(window.navigator.standalone);
+    if (window.deferredPwaPrompt) {
+        canInstallPwa.value = true;
+    }
+    window.addEventListener('pwa-installable', onPwaInstallable);
+
     window.addEventListener('online', updateOnlineStatus);
     window.addEventListener('offline', updateOnlineStatus);
     
@@ -172,6 +197,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+    window.removeEventListener('pwa-installable', onPwaInstallable);
     window.removeEventListener('online', updateOnlineStatus);
     window.removeEventListener('offline', updateOnlineStatus);
     if (syncInterval) clearInterval(syncInterval);
@@ -236,6 +262,20 @@ onUnmounted(() => {
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                     </svg>
                     <span v-if="syncMessage" class="text-[10px] text-brand-cyan pr-1">{{ syncMessage }}</span>
+                </button>
+
+                <!-- PWA Install Button for mobile / desktop browsers -->
+                <button
+                    v-if="!isStandalone"
+                    type="button"
+                    @click="handlePwaInstall"
+                    class="rounded-xl border border-brand-sky/40 bg-brand-sky/10 hover:bg-brand-sky/20 text-brand-sky hover:text-white px-2.5 py-1.5 transition flex items-center gap-1.5 text-xs font-bold shadow-sm"
+                    title="অ্যাপ মোবাইলে ইনস্টল করুন (Install PWA App)"
+                >
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    <span class="hidden sm:inline">ইনস্টল</span>
                 </button>
 
                 <!-- Live Complaint Notification Bell -->

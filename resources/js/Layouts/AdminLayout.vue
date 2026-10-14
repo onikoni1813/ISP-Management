@@ -1,7 +1,8 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
 import ApplicationLogo from '@/Components/ApplicationLogo.vue';
+import PwaInstallButton from '@/Components/PwaInstallButton.vue';
 
 defineProps({
     title: {
@@ -14,6 +15,96 @@ const page = usePage();
 const user = page.props.auth.user;
 const isSidebarOpen = ref(true);
 const isMobileMenuOpen = ref(false);
+
+// Live payment notifications
+const pendingPayments = ref(page.props.pending_payments_count || 0);
+const latestPayment = ref(null);
+const showPaymentDropdown = ref(false);
+const newPaymentToast = ref(null);
+let lastKnownPaymentId = page.props.latest_payment_id || 0;
+let pollInterval = null;
+let toastTimeout = null;
+
+const playPaymentChime = () => {
+    try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        // Tone 1: pleasant crisp chime
+        const osc1 = audioCtx.createOscillator();
+        const gain1 = audioCtx.createGain();
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
+        osc1.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.12); // A5
+        gain1.gain.setValueAtTime(0.25, audioCtx.currentTime);
+        gain1.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.35);
+        osc1.connect(gain1);
+        gain1.connect(audioCtx.destination);
+        osc1.start();
+        osc1.stop(audioCtx.currentTime + 0.35);
+
+        // Tone 2: cash shimmer harmonic
+        const osc2 = audioCtx.createOscillator();
+        const gain2 = audioCtx.createGain();
+        osc2.type = 'triangle';
+        osc2.frequency.setValueAtTime(1174.66, audioCtx.currentTime + 0.12); // D6
+        osc2.frequency.exponentialRampToValueAtTime(1760, audioCtx.currentTime + 0.3); // A6
+        gain2.gain.setValueAtTime(0.2, audioCtx.currentTime + 0.12);
+        gain2.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+        osc2.connect(gain2);
+        gain2.connect(audioCtx.destination);
+        osc2.start(audioCtx.currentTime + 0.12);
+        osc2.stop(audioCtx.currentTime + 0.5);
+    } catch (e) {
+        // audio might be restricted until first user interaction
+    }
+};
+
+const checkLiveCounts = async () => {
+    if (!navigator.onLine) return;
+    try {
+        const res = await fetch(route('admin.api.live-counts'));
+        if (res.ok) {
+            const data = await res.json();
+            pendingPayments.value = data.pending_payments_count || 0;
+
+            if (data.latest_payment) {
+                latestPayment.value = data.latest_payment;
+
+                // When a new payment ID arrives that is greater than last known
+                if (lastKnownPaymentId && data.latest_payment.id > lastKnownPaymentId) {
+                    newPaymentToast.value = data.latest_payment;
+                    playPaymentChime();
+
+                    if (toastTimeout) clearTimeout(toastTimeout);
+                    toastTimeout = setTimeout(() => {
+                        newPaymentToast.value = null;
+                    }, 10000);
+                }
+                lastKnownPaymentId = data.latest_payment.id;
+            }
+        }
+    } catch (e) {
+        // silent fail on network interruption
+    }
+};
+
+const handleClickOutside = (e) => {
+    if (showPaymentDropdown.value && !e.target.closest('#payment-notification-container')) {
+        showPaymentDropdown.value = false;
+    }
+};
+
+onMounted(() => {
+    checkLiveCounts();
+    pollInterval = setInterval(checkLiveCounts, 12000);
+    document.addEventListener('click', handleClickOutside);
+});
+
+onUnmounted(() => {
+    if (pollInterval) clearInterval(pollInterval);
+    if (toastTimeout) clearTimeout(toastTimeout);
+    document.removeEventListener('click', handleClickOutside);
+});
 
 const navItems = [
     { name: 'Dashboard', href: route('admin.dashboard'), active: 'admin.dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
@@ -62,6 +153,9 @@ const navItems = [
             </div>
 
             <div class="flex items-center gap-2 sm:gap-3">
+                <!-- PWA Install Button for Admin Console -->
+                <PwaInstallButton variant="navbar" label="অ্যাপ ইনস্টল" />
+
                 <!-- System Status Indicator -->
                 <div class="hidden sm:flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-400">
                     <span class="relative flex h-2 w-2">
@@ -69,6 +163,86 @@ const navItems = [
                         <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                     </span>
                     System Live
+                </div>
+
+                <!-- Admin Payment Notification Bell & Dropdown -->
+                <div class="relative" id="payment-notification-container">
+                    <button
+                        type="button"
+                        @click="showPaymentDropdown = !showPaymentDropdown"
+                        class="relative rounded-xl border border-brand-navy bg-[#0B1E36] p-2 text-emerald-400 hover:text-white transition flex items-center justify-center cursor-pointer hover:border-emerald-500/40"
+                        title="পেমেন্ট নোটিফিকেশন"
+                    >
+                        <!-- Currency / Receipt Icon -->
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <!-- Badge for Pending Payments -->
+                        <span 
+                            v-if="pendingPayments > 0" 
+                            class="absolute -top-1 -right-1 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-emerald-500 text-[10px] font-black text-slate-950 shadow-md animate-pulse"
+                        >
+                            {{ pendingPayments }}
+                        </span>
+                    </button>
+
+                    <!-- Dropdown Content -->
+                    <div
+                        v-if="showPaymentDropdown"
+                        class="absolute right-0 mt-2 w-80 rounded-2xl border border-brand-navy bg-[#071527] shadow-2xl p-3.5 z-50 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-xl"
+                    >
+                        <div class="flex items-center justify-between pb-2.5 mb-2.5 border-b border-brand-navy">
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm">💰</span>
+                                <span class="text-xs font-bold text-white uppercase tracking-wider">পেমেন্ট নোটিফিকেশন</span>
+                            </div>
+                            <span 
+                                v-if="pendingPayments > 0" 
+                                class="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] font-black"
+                            >
+                                {{ pendingPayments }} টি অপেক্ষমাণ
+                            </span>
+                            <span v-else class="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                                আপ-টু-ডেট
+                            </span>
+                        </div>
+
+                        <!-- Latest payment preview card -->
+                        <div v-if="latestPayment" class="rounded-xl bg-[#040D18] border border-brand-navy/70 p-3 mb-3">
+                            <div class="flex items-center justify-between text-[11px] mb-1">
+                                <span class="text-slate-400 font-medium">সর্বশেষ আদায়:</span>
+                                <span
+                                    :class="[
+                                        latestPayment.status === 'pending' ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' : 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10',
+                                        'font-bold uppercase text-[9px] px-1.5 py-0.5 rounded-full border'
+                                    ]"
+                                >
+                                    {{ latestPayment.status === 'pending' ? 'অনুমোদন অপেক্ষমাণ' : 'সম্পন্ন' }}
+                                </span>
+                            </div>
+                            <div class="font-bold text-white text-xs truncate">{{ latestPayment.customer_name }}</div>
+                            <div class="text-[10px] text-slate-400 font-mono">{{ latestPayment.customer_code }}</div>
+                            <div class="flex items-center justify-between mt-2 pt-2 border-t border-brand-navy/60 text-xs">
+                                <span class="font-mono text-emerald-400 font-black text-sm">৳{{ latestPayment.amount }}</span>
+                                <span class="text-[11px] text-slate-300 font-medium capitalize">{{ latestPayment.payment_method }}</span>
+                            </div>
+                            <div v-if="latestPayment.reference" class="text-[10px] text-slate-400 mt-1 font-mono truncate">
+                                TrxID: <span class="text-slate-200">{{ latestPayment.reference }}</span>
+                            </div>
+                        </div>
+                        <div v-else class="text-center py-4 text-xs text-slate-400">
+                            কোনো সাম্প্রতিক পেমেন্ট পাওয়া যায়নি
+                        </div>
+
+                        <Link
+                            :href="route('admin.billing.payments', { status: 'pending' })"
+                            @click="showPaymentDropdown = false"
+                            class="block w-full text-center rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:opacity-95 px-3 py-2 text-xs font-bold text-white shadow-md transition"
+                        >
+                            অপেক্ষমাণ পেমেন্ট অনুমোদন করুন →
+                        </Link>
+                    </div>
                 </div>
 
                 <!-- Admin Complaint Notification Bell -->
@@ -109,6 +283,56 @@ const navItems = [
                 </div>
             </div>
         </header>
+
+        <!-- Floating Live Payment Alert Toast -->
+        <transition
+            enter-active-class="transform transition ease-out duration-300"
+            enter-from-class="translate-y-2 opacity-0 sm:translate-y-0 sm:translate-x-4"
+            enter-to-class="translate-y-0 opacity-100 sm:translate-x-0"
+            leave-active-class="transition ease-in duration-200"
+            leave-from-class="opacity-100"
+            leave-to-class="opacity-0"
+        >
+            <div
+                v-if="newPaymentToast"
+                class="fixed top-16 right-4 sm:right-6 z-50 max-w-sm w-full rounded-2xl border-2 border-emerald-500/70 bg-[#071527]/95 p-4 shadow-2xl shadow-emerald-500/25 backdrop-blur-xl"
+            >
+                <div class="flex items-start gap-3">
+                    <div class="h-10 w-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-lg shrink-0">
+                        💰
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-black uppercase tracking-wide text-emerald-400">নতুন পেমেন্ট এসেছে!</span>
+                            <button
+                                @click="newPaymentToast = null"
+                                class="text-slate-400 hover:text-white text-xs px-1 cursor-pointer"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                        <div class="text-sm font-bold text-white mt-1 truncate">
+                            {{ newPaymentToast.customer_name }}
+                        </div>
+                        <div class="text-xs font-mono text-emerald-300 mt-0.5">
+                            ৳{{ newPaymentToast.amount }} via {{ newPaymentToast.payment_method }}
+                        </div>
+                        <div v-if="newPaymentToast.reference" class="text-[10px] text-slate-400 font-mono mt-0.5 truncate">
+                            TrxID: {{ newPaymentToast.reference }}
+                        </div>
+                        <div class="mt-3 flex items-center gap-2">
+                            <Link
+                                :href="route('admin.billing.payments', { status: 'pending' })"
+                                @click="newPaymentToast = null"
+                                class="rounded-xl bg-emerald-500 hover:bg-emerald-600 px-3.5 py-1.5 text-xs font-black text-slate-950 transition shadow-md"
+                            >
+                                অনুমোদন / চেক করুন →
+                            </Link>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </transition>
 
         <!-- Main Wrapper -->
         <div class="flex flex-1 overflow-hidden">
@@ -159,7 +383,13 @@ const navItems = [
                             </svg>
                         </button>
                     </div>
-                    <div class="mt-4 space-y-1.5 overflow-y-auto flex-1">
+
+                    <!-- Mobile PWA Install Button inside menu -->
+                    <div class="mt-3 mb-2">
+                        <PwaInstallButton variant="drawer" label="অ্যাডমিন অ্যাপ ইনস্টল" />
+                    </div>
+
+                    <div class="mt-2 space-y-1.5 overflow-y-auto flex-1">
                         <Link
                             v-for="item in navItems"
                             :key="item.name"

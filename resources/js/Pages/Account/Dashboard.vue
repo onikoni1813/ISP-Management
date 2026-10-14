@@ -2,6 +2,7 @@
 import { ref } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import CustomerLayout from '@/Layouts/CustomerLayout.vue';
+import PwaInstallButton from '@/Components/PwaInstallButton.vue';
 import { formatDate, formatDateTime } from '@/Utils/date';
 
 const props = defineProps({
@@ -24,6 +25,15 @@ const dueAmount = Math.max(0, -balance);
     <Head title="My Subscriber Account - Pirgacha Internet" />
 
     <CustomerLayout>
+        <!-- PPPoE User PWA Install Option Banner -->
+        <PwaInstallButton
+            variant="banner"
+            label="অ্যাপ ইনস্টল করুন"
+            title="Pirgacha Internet গ্রাহক অ্যাপ ইনস্টল করুন"
+            description="মোবাইল বা কম্পিউটারে এক ক্লিকে ইনস্টল করে সরাসরি বিল পরিশোধ, রিনিউয়াল ও PPPoE কানেকশন পরিচালনা করুন (Online Access)।"
+            storageKey="customer_pwa_banner_dismissed"
+        />
+
         <!-- Welcome Hero & Connection Health Status -->
         <div class="relative overflow-hidden rounded-3xl border border-brand-navy bg-[#071527] p-6 md:p-8 shadow-2xl mb-6">
             <div class="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">

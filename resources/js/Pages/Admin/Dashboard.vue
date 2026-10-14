@@ -3,6 +3,7 @@ import { ref } from 'vue';
 import { Head, Link, usePage, useForm } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import ConfirmModal from '@/Components/ConfirmModal.vue';
+import PwaInstallButton from '@/Components/PwaInstallButton.vue';
 import { formatDateTime } from '@/Utils/date';
 
 const props = defineProps({
@@ -44,6 +45,9 @@ const formatTaka = (amount) => {
     <Head title="Admin Dashboard - Pirgacha Internet" />
 
     <AdminLayout>
+        <!-- PWA Installation Banner for Admin App -->
+        <PwaInstallButton variant="banner" title="Pirgacha Internet Admin App ইনস্টল করুন" />
+
         <!-- Welcome Hero -->
         <div class="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3.5">
             <div>

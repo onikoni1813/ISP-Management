@@ -77,14 +77,17 @@ class StaffController extends Controller
             ->take(15)
             ->get();
 
-        // Active assigned complaints for this staff member
+        // Active assigned complaints for this staff member as well as unassigned open complaints
         $openComplaints = Complaint::with([
             'customer.primaryContact',
             'customer.installationAddress',
             'customer.connections.currentPackage',
             'creator',
         ])
-            ->where('assigned_to', $userId)
+            ->where(function ($q) use ($userId) {
+                $q->where('assigned_to', $userId)
+                  ->orWhereNull('assigned_to');
+            })
             ->whereIn('status', ['open', 'assigned', 'in_progress'])
             ->latest('id')
             ->get();
@@ -240,13 +243,15 @@ class StaffController extends Controller
             });
         };
 
-        // 2. Paid ("বিল জমা" / চলতি মাসে আদায়):
-        // Customers who have zero balance, no unpaid invoices, and completed a payment this month.
-        $paidQueryModifier = function ($q) use ($startOfMonthStr, $endOfMonthStr) {
+        $twentyFourHoursAgo = Carbon::now()->subHours(24)->toDateTimeString();
+
+        // 2. Paid ("বিল জমা" / ২৪ ঘণ্টায় আদায়):
+        // Customers who have zero balance, no unpaid invoices, and completed a payment within the last 24 hours.
+        $paidQueryModifier = function ($q) use ($twentyFourHoursAgo) {
             $q->where('balance', '<=', 0)
               ->whereDoesntHave('invoices', fn($inv) => $inv->where('due_amount', '>', 0))
-              ->whereHas('payments', function ($p) use ($startOfMonthStr, $endOfMonthStr) {
-                  $p->whereBetween('paid_at', [$startOfMonthStr, $endOfMonthStr])
+              ->whereHas('payments', function ($p) use ($twentyFourHoursAgo) {
+                  $p->where('paid_at', '>=', $twentyFourHoursAgo)
                     ->where('status', 'completed');
               });
         };
@@ -364,7 +369,10 @@ class StaffController extends Controller
         $userId = $request->user()->id;
 
         $openComplaints = Complaint::with(['customer.primaryContact'])
-            ->where('assigned_to', $userId)
+            ->where(function ($q) use ($userId) {
+                $q->where('assigned_to', $userId)
+                  ->orWhereNull('assigned_to');
+            })
             ->whereIn('status', ['open', 'assigned', 'in_progress'])
             ->latest('id')
             ->get();

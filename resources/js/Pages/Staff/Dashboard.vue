@@ -57,15 +57,6 @@ const currentMetrics = computed(() => {
             digital: props.metrics?.month_digital || 0,
         };
     }
-    if (p === 'year') {
-        return {
-            collection: props.metrics?.year_collection || 0,
-            count: props.metrics?.year_collection_count || 0,
-            renewals: props.metrics?.year_renewals_count || 0,
-            cash: props.metrics?.year_cash || 0,
-            digital: props.metrics?.year_digital || 0,
-        };
-    }
     return {
         collection: props.metrics?.today_collection || 0,
         count: props.metrics?.today_collection_count || 0,
@@ -282,13 +273,12 @@ onMounted(() => {
                 <div class="space-y-4">
                     <!-- Period Filter Tabs (Centered & Balanced Layout) -->
                     <div class="flex justify-center w-full">
-                        <div class="grid grid-cols-4 w-full p-1 bg-[#0B1E36]/90 rounded-2xl border border-white/10 backdrop-blur-xl shadow-inner gap-1">
+                        <div class="grid grid-cols-3 w-full p-1 bg-[#0B1E36]/90 rounded-2xl border border-white/10 backdrop-blur-xl shadow-inner gap-1">
                             <button
                                 v-for="period in [
                                     { key: 'today', label: 'আজ' },
                                     { key: 'week', label: 'এই সপ্তাহ' },
-                                    { key: 'month', label: 'এই মাস' },
-                                    { key: 'year', label: 'এই বছর' }
+                                    { key: 'month', label: 'এই মাস' }
                                 ]"
                                 :key="period.key"
                                 @click="selectedPeriod = period.key"
@@ -314,7 +304,7 @@ onMounted(() => {
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                                 </div>
                                 <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                                    {{ selectedPeriod === 'today' ? 'আজকের আদায়' : (selectedPeriod === 'week' ? 'সাপ্তাহিক আদায়' : (selectedPeriod === 'month' ? 'মাসিক আদায়' : 'বার্ষিক আদায়')) }}
+                                    {{ selectedPeriod === 'today' ? 'আজকের আদায়' : (selectedPeriod === 'week' ? 'সাপ্তাহিক আদায়' : 'মাসিক আদায়') }}
                                 </div>
                             </div>
                             <div class="text-2xl md:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-brand-cyan to-brand-sky mt-1 font-mono drop-shadow-md relative z-10">
@@ -492,7 +482,7 @@ onMounted(() => {
                                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
                             </div>
                             <div class="text-lg font-black font-mono text-emerald-400 mt-0.5">{{ filterCounts.paid }}</div>
-                            <div class="text-[10px] text-emerald-300/80 mt-0.5">চলতি মাসে আদায়</div>
+                            <div class="text-[10px] text-emerald-300/80 mt-0.5">২৪ ঘণ্টায় আদায়</div>
                         </button>
 
                         <!-- 4. Expiring in 72h -->
@@ -541,7 +531,7 @@ onMounted(() => {
                         <div>
                             <h2 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
                                 <span v-if="activeFilter === 'due'" class="text-rose-400">🔴 আদায় বাকি গ্রাহক তালিকা</span>
-                                <span v-else-if="activeFilter === 'paid'" class="text-emerald-400">🟢 বিল পরিশোধিত গ্রাহক তালিকা</span>
+                                <span v-else-if="activeFilter === 'paid'" class="text-emerald-400">🟢 ২৪ ঘণ্টায় বিল পরিশোধিত তালিকা</span>
                                 <span v-else-if="activeFilter === 'expiring_72h'" class="text-amber-400">⚠️ ৭২ ঘণ্টায় মেয়াদ শেষ তালিকা</span>
                                 <span v-else-if="activeFilter === 'renewed'" class="text-brand-cyan">🔵 চলতি মাসে রিনিউ তালিকা</span>
                                 <span v-else>গ্রাহক তালিকা</span>
@@ -686,7 +676,16 @@ onMounted(() => {
                                         {{ complaint.subject }}
                                     </Link>
                                 </div>
-                                <span class="bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px] px-2 py-0.5 rounded-md font-bold uppercase shadow-sm">
+                                <span 
+                                    v-if="!complaint.assigned_to"
+                                    class="bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[10px] px-2 py-0.5 rounded-md font-bold uppercase shadow-sm animate-pulse"
+                                >
+                                    🚨 ওপেন / নতুন
+                                </span>
+                                <span 
+                                    v-else
+                                    class="bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px] px-2 py-0.5 rounded-md font-bold uppercase shadow-sm"
+                                >
                                     {{ complaint.status }}
                                 </span>
                             </div>
@@ -700,8 +699,8 @@ onMounted(() => {
                                             {{ complaint.customer.customer_code }}
                                         </span>
                                     </div>
-                                    <div v-if="complaint.customer?.installation_address?.address" class="text-[11px] text-slate-400 mt-0.5 truncate max-w-xs">
-                                        📍 {{ complaint.customer.installation_address.address }}
+                                    <div v-if="complaint.customer?.installation_address?.full_address || complaint.customer?.installation_address?.address" class="text-[11px] text-slate-400 mt-0.5 truncate max-w-xs">
+                                        📍 {{ complaint.customer.installation_address.full_address || complaint.customer.installation_address.address }}
                                     </div>
                                 </div>
 

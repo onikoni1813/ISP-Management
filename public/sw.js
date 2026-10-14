@@ -1,9 +1,9 @@
-// Pirgacha Internet PWA Service Worker v6.0
-const CACHE_NAME = 'pirgacha-isp-cache-v6';
+// Pirgacha Internet PWA Service Worker v8.0
+const CACHE_NAME = 'pirgacha-isp-cache-v8';
 const STATIC_ASSETS = [
     '/',
     '/staff/login',
-    '/staff/dashboard',
+    '/admin/login',
     '/manifest.json',
     '/logo.png',
     '/icon-192.png',
@@ -14,11 +14,17 @@ const STATIC_ASSETS = [
     '/apple-touch-icon.png',
 ];
 
-// Install: Pre-cache static app shell and critical resources
+// Install: Pre-cache static app shell and critical resources safely
 self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
-            return cache.addAll(STATIC_ASSETS);
+            return Promise.all(
+                STATIC_ASSETS.map((url) => {
+                    return cache.add(url).catch((err) => {
+                        console.warn('PWA pre-cache skipped for:', url, err);
+                    });
+                })
+            );
         })
     );
     self.skipWaiting();
@@ -46,8 +52,8 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // Never cache admin routes or admin API calls in Service Worker
-    if (url.pathname.startsWith('/admin')) {
+    // Skip heavy dynamic downloads or exports
+    if (url.pathname.includes('/export') || url.pathname.includes('/backup')) {
         return;
     }
 
@@ -101,6 +107,9 @@ self.addEventListener('fetch', (event) => {
                         if (url.pathname.startsWith('/staff')) {
                             return caches.match('/staff/dashboard') || caches.match('/staff/login');
                         }
+                        if (url.pathname.startsWith('/admin')) {
+                            return caches.match('/admin/dashboard') || caches.match('/admin/login');
+                        }
                         return caches.match('/');
                     });
                 })
@@ -125,4 +134,3 @@ self.addEventListener('fetch', (event) => {
         })
     );
 });
-

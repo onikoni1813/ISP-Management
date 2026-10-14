@@ -87,6 +87,7 @@ const clearCustomerSelection = () => {
 };
 
 const subjectPresets = [
+    { label: '🔌 নতুন সংযোগ (New Setup)', val: 'নতুন সংযোগ স্থাপন ও কনফিগারেশন (New Connection Setup)' },
     { label: '🔴 ইন্টারনেট নেই (No Internet)', val: 'ইন্টারনেট সম্পূর্ণ বন্ধ (No Internet Connection)' },
     { label: '🐢 স্পিড কম (Slow Speed)', val: 'ধীরগতির ইন্টারনেট ও হাই পিং (Slow Internet Speed)' },
     { label: '🚨 লাল বাতি (Red LOS Light)', val: 'ONU/রাউটারে লাল বাতি জ্বলছে (Red LOS Light on ONU)' },
@@ -335,7 +336,7 @@ const submit = () => {
                     </button>
                     <button
                         type="submit"
-                        :disabled="form.processing || !form.customer_id || !form.subject || !form.description"
+                        :disabled="form.processing || !form.customer_id || !form.subject"
                         class="flex-1 py-3 rounded-2xl bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-xs font-bold text-white shadow-lg shadow-rose-500/25 transition disabled:opacity-50 flex items-center justify-center gap-2"
                     >
                         <span v-if="form.processing">সংরক্ষণ হচ্ছে...</span>

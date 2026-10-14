@@ -59,6 +59,12 @@ class HandleInertiaRequests extends Middleware
                     ? \App\Models\Complaint::where('status', 'open')->count()
                     : \App\Models\Complaint::where('assigned_to', $user->id)->whereIn('status', ['open', 'assigned', 'in_progress'])->count()
             ) : 0,
+            'pending_payments_count' => $user && $user->hasRole('admin')
+                ? \App\Models\Payment::where('status', 'pending')->count()
+                : 0,
+            'latest_payment_id' => $user && $user->hasRole('admin')
+                ? (\App\Models\Payment::latest('id')->value('id') ?? 0)
+                : 0,
         ];
     }
 }

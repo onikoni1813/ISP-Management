@@ -166,6 +166,12 @@ class StaffOperationsTest extends TestCase
         $paidRes->assertStatus(200);
         $this->assertCount(1, $paidRes->json('customers'));
         $this->assertEquals($this->customer->id, $paidRes->json('customers.0.id'));
+
+        // If payment was made more than 24 hours ago, it does not appear in 24h paid filter
+        $payment->update(['paid_at' => now()->subHours(25)]);
+        $paidResOld = $this->actingAs($this->staff)->getJson('/staff/api/filtered-customers?filter=paid');
+        $paidResOld->assertJsonPath('counts.paid', 0);
+        $this->assertCount(0, $paidResOld->json('customers'));
     }
 
     public function test_staff_and_admin_can_create_complaints(): void
@@ -223,6 +229,47 @@ class StaffOperationsTest extends TestCase
             'description' => null,
             'status' => 'open',
         ]);
+    }
+
+    public function test_admin_assigns_connection_ticket_and_staff_receives_live_alert_and_view(): void
+    {
+        // 1. Customer installation address
+        \App\Models\CustomerAddress::create([
+            'customer_id' => $this->customer->id,
+            'address_type' => 'installation',
+            'full_address' => 'পীরগাছা কলেজ রোড, রংপুর',
+            'is_default' => true,
+        ]);
+
+        // 2. Admin creates and assigns complaint for new connection setup
+        $adminRole = Role::firstOrCreate(['slug' => 'admin'], ['name' => 'Admin']);
+        $admin = User::factory()->create();
+        $admin->roles()->attach($adminRole);
+        $complaintPerm = Permission::firstOrCreate(['slug' => 'complaints.create'], ['name' => 'complaints.create']);
+        $adminRole->permissions()->syncWithoutDetaching([$complaintPerm->id]);
+
+        $this->actingAs($admin)->post('/complaints', [
+            'customer_id' => $this->customer->id,
+            'subject' => 'নতুন সংযোগ স্থাপন ও কনফিগারেশন (New Connection Setup)',
+            'description' => 'কাস্টমারের বাড়িতে অপটিক্যাল ফাইবার তার টেনে রাউটার কনফিগার করে দিন।',
+            'priority' => 'high',
+            'assigned_to' => $this->staff->id,
+        ]);
+
+        // 3. Staff live polling API returns open complaint count 1
+        $liveRes = $this->actingAs($this->staff)->getJson(route('staff.api.live-counts'));
+        $liveRes->assertOk();
+        $liveRes->assertJsonPath('open_complaints_count', 1);
+        $liveRes->assertJsonPath('latest_complaint.subject', 'নতুন সংযোগ স্থাপন ও কনফিগারেশন (New Connection Setup)');
+
+        // 4. Staff loads dashboard complaints tab
+        $dashRes = $this->actingAs($this->staff)->get('/staff/dashboard?tab=complaints');
+        $dashRes->assertOk();
+        $dashRes->assertInertia(fn($page) => $page
+            ->component('Staff/Dashboard')
+            ->has('open_complaints', 1)
+            ->where('open_complaints.0.customer.installation_address.full_address', 'পীরগাছা কলেজ রোড, রংপুর')
+        );
     }
 
     public function test_staff_pppoe_password_reveal_requires_permission_and_allows_when_granted(): void

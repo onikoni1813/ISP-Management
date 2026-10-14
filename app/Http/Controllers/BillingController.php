@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\Account;
+use App\Models\Complaint;
 use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Services\BillingService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -184,5 +186,35 @@ class BillingController extends Controller
         $this->billingService->reversePayment($payment, $validated['reason'], $request->user()->id);
 
         return back()->with('success', "Payment {$payment->payment_number} reversed successfully.");
+    }
+
+    /**
+     * API for live background polling of pending payments, newest payment, and open complaints for Admin.
+     */
+    public function liveCounts(Request $request): JsonResponse
+    {
+        $pendingPaymentsCount = Payment::where('status', 'pending')->count();
+
+        $latestPayment = Payment::with('customer')
+            ->latest('id')
+            ->first();
+
+        $unreadComplaints = Complaint::where('status', 'open')->count();
+
+        return response()->json([
+            'pending_payments_count' => $pendingPaymentsCount,
+            'unread_complaints' => $unreadComplaints,
+            'latest_payment' => $latestPayment ? [
+                'id' => $latestPayment->id,
+                'payment_number' => $latestPayment->payment_number,
+                'amount' => (float) $latestPayment->amount,
+                'payment_method' => $latestPayment->payment_method,
+                'reference' => $latestPayment->reference,
+                'status' => $latestPayment->status,
+                'customer_name' => $latestPayment->customer?->name ?? 'Customer',
+                'customer_code' => $latestPayment->customer?->customer_code ?? '',
+                'paid_at' => $latestPayment->paid_at?->toIso8601String() ?? $latestPayment->created_at?->toIso8601String(),
+            ] : null,
+        ]);
     }
 }

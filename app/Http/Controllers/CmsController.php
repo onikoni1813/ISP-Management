@@ -365,6 +365,7 @@ class CmsController extends Controller
 
         $validated = $request->validate([
             'noc_hotline' => 'required|string|max:255',
+            'admin_notification_phone' => 'nullable|string|max:255',
             'support_email' => 'nullable|email|max:255',
             'office_address' => 'nullable|string|max:500',
             'working_hours' => 'nullable|string|max:255',

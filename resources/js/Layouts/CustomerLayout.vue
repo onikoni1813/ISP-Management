@@ -1,7 +1,8 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
 import ApplicationLogo from '@/Components/ApplicationLogo.vue';
+import PwaInstallButton from '@/Components/PwaInstallButton.vue';
 
 defineProps({
     title: {
@@ -12,6 +13,21 @@ defineProps({
 
 const page = usePage();
 const user = page.props.auth.user;
+
+// Online-only state tracking for PPPoE / Subscriber portal
+const isOnline = ref(typeof navigator !== 'undefined' ? navigator.onLine : true);
+const handleOnline = () => { isOnline.value = true; };
+const handleOffline = () => { isOnline.value = false; };
+
+onMounted(() => {
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+});
+
+onUnmounted(() => {
+    window.removeEventListener('online', handleOnline);
+    window.removeEventListener('offline', handleOffline);
+});
 
 const navLinks = [
     { 
@@ -62,7 +78,10 @@ const navLinks = [
                 </div>
 
                 <!-- Right Actions -->
-                <div class="flex items-center gap-3">
+                <div class="flex items-center gap-2 sm:gap-3">
+                    <!-- PPPoE User / Subscriber PWA Install Button -->
+                    <PwaInstallButton variant="navbar" label="অ্যাপ ইনস্টল" />
+
                     <Link
                         v-if="user?.roles?.includes('admin')"
                         :href="route('admin.dashboard')"
@@ -106,6 +125,12 @@ const navLinks = [
                 </Link>
             </div>
         </header>
+
+        <!-- Offline Warning Banner for PPPoE User (Only Online Access) -->
+        <div v-if="!isOnline" class="bg-amber-500/15 border-b border-amber-500/40 px-4 py-2.5 text-center text-xs font-bold text-amber-300 flex items-center justify-center gap-2 backdrop-blur-md">
+            <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+            <span>⚠️ ইন্টারনেট সংযোগ বিচ্ছিন্ন (Offline)। গ্রাহক পোর্টাল ও রিনিউয়াল সেবা শুধুমাত্র অনলাইন এক্সেসে (Online Only) কার্যকর।</span>
+        </div>
 
         <!-- Main Content Area -->
         <main class="flex-1 max-w-6xl mx-auto w-full p-4 md:p-6 pb-24 md:pb-12">

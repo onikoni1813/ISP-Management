@@ -110,6 +110,10 @@ class ComplaintService
                 }
             }
 
+            if (empty($complaint->assigned_to)) {
+                $updateData['assigned_to'] = $userId;
+            }
+
             $complaint->update($updateData);
 
             ComplaintStatusHistory::create([

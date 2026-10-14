@@ -129,6 +129,7 @@ class BillingService
             // If field staff, keep as pending approval - Do not alter accounts or generate paid invoice yet
             if ($isFieldStaff) {
                 AuditLog::log('payment_collected_pending_approval', 'billing', $payment, null, $payment->toArray());
+                \App\Jobs\SendAdminPaymentNotificationJob::dispatch($payment->id, $userId);
                 return $payment;
             }
 
@@ -190,6 +191,9 @@ class BillingService
                 \App\Models\Payment::class,
                 $payment->id
             );
+
+            // Automated Payment Notification to Admin
+            \App\Jobs\SendAdminPaymentNotificationJob::dispatch($payment->id, $userId);
 
             return $payment;
         });

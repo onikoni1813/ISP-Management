@@ -18,7 +18,7 @@
         <link rel="icon" type="image/png" href="/logo.png?v=3">
 
         <!-- PWA Manifest -->
-        <link rel="manifest" href="/manifest.json?v=3">
+        <link rel="manifest" href="/manifest.json?v=4">
 
         <!-- Primary Meta Tags & Open Graph (Social Sharing) -->
         <title inertia>Pirgacha Internet</title>
@@ -49,11 +49,29 @@
         @inertiaHead
 
         <script>
-            // Register Service Worker only for staff operations and customer portal, bypass admin
-            if ('serviceWorker' in navigator && !window.location.pathname.startsWith('/admin')) {
-                window.addEventListener('load', () => {
-                    navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW registration error:', err));
-                });
+            // Capture beforeinstallprompt for Android & Desktop PWA installability
+            window.deferredPwaPrompt = null;
+            window.addEventListener('beforeinstallprompt', (e) => {
+                e.preventDefault();
+                window.deferredPwaPrompt = e;
+                window.dispatchEvent(new CustomEvent('pwa-installable'));
+            });
+
+            // Register Service Worker across all devices and all routes (Admin, Staff, Customer)
+            if ('serviceWorker' in navigator) {
+                const registerSW = () => {
+                    navigator.serviceWorker.register('/sw.js', { scope: '/' })
+                        .then((reg) => {
+                            reg.update().catch(() => {});
+                        })
+                        .catch((err) => console.warn('PWA SW registration error:', err));
+                };
+
+                if (document.readyState === 'complete' || document.readyState === 'interactive') {
+                    registerSW();
+                } else {
+                    window.addEventListener('load', registerSW);
+                }
             }
         </script>
     </head>
