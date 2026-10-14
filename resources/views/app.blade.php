@@ -18,7 +18,7 @@
         <link rel="icon" type="image/png" href="/logo.png?v=3">
 
         <!-- PWA Manifest -->
-        <link rel="manifest" href="/manifest.json?v=4">
+        <link rel="manifest" href="/manifest.json?v=5">
 
         <!-- Primary Meta Tags & Open Graph (Social Sharing) -->
         <title inertia>Pirgacha Internet</title>

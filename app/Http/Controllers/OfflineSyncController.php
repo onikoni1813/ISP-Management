@@ -119,10 +119,10 @@ class OfflineSyncController extends Controller
             'timestamp' => now()->toIso8601String(),
             'server_version' => 1,
             'data' => [
-                'customers' => $customers,
-                'packages' => $packages,
-                'areas' => $areas,
-                'complaints' => $complaints,
+                'customers' => $customers->values()->all(),
+                'packages' => $packages->values()->all(),
+                'areas' => $areas->values()->all(),
+                'complaints' => $complaints->values()->all(),
             ],
         ]);
     }

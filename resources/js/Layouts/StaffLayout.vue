@@ -71,7 +71,8 @@ const playNotificationSound = () => {
 const checkLiveAssignedComplaints = async () => {
     if (!navigator.onLine) return;
     try {
-        const res = await fetch(route('staff.api.live-counts'));
+        const url = typeof route === 'function' ? route('staff.api.live-counts', undefined, false) : '/staff/api/live-counts';
+        const res = await fetch(url);
         if (res.ok) {
             const data = await res.json();
             const prevCount = assignedComplaintsCount.value;
@@ -153,7 +154,7 @@ let liveComplaintInterval = null;
 const cacheCurrentPageForOffline = async () => {
     if ('caches' in window && 'serviceWorker' in navigator) {
         try {
-            const cache = await caches.open('pirgacha-isp-cache-v7');
+            const cache = await caches.open('pirgacha-isp-cache-v9');
             const res = await fetch(window.location.href, { credentials: 'same-origin' });
             if (res && res.status === 200) {
                 await cache.put(window.location.href, res.clone());

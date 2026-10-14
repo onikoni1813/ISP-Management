@@ -1,5 +1,5 @@
-// Pirgacha Internet PWA Service Worker v8.0
-const CACHE_NAME = 'pirgacha-isp-cache-v8';
+// Pirgacha Internet PWA Service Worker v9.0
+const CACHE_NAME = 'pirgacha-isp-cache-v9';
 const STATIC_ASSETS = [
     '/',
     '/staff/login',
@@ -52,8 +52,15 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // Skip heavy dynamic downloads or exports
-    if (url.pathname.includes('/export') || url.pathname.includes('/backup')) {
+    // Always bypass dynamic APIs, auth routes, and exports directly to network
+    if (
+        url.pathname.includes('/api/') ||
+        url.pathname.includes('/export') ||
+        url.pathname.includes('/backup') ||
+        url.pathname.includes('/sanctum/') ||
+        url.pathname.includes('/login') ||
+        url.pathname.includes('/logout')
+    ) {
         return;
     }
 

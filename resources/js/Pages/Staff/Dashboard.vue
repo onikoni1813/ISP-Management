@@ -99,7 +99,8 @@ watch(searchQuery, (newVal) => {
     debounceTimeout = setTimeout(async () => {
         try {
             if (navigator.onLine) {
-                const res = await axios.get(route('staff.api.search'), { params: { q: newVal } });
+                const searchUrl = typeof route === 'function' ? route('staff.api.search', undefined, false) : '/staff/api/search';
+                const res = await axios.get(searchUrl, { params: { q: newVal } });
                 searchResults.value = res.data;
                 isOfflineResult.value = false;
             } else {
@@ -128,7 +129,8 @@ const loadFilteredCustomers = async () => {
     isFiltering.value = true;
     try {
         if (navigator.onLine) {
-            const res = await axios.get(route('staff.api.filtered-customers'), {
+            const filterUrl = typeof route === 'function' ? route('staff.api.filtered-customers', undefined, false) : '/staff/api/filtered-customers';
+            const res = await axios.get(filterUrl, {
                 params: {
                     area_id: selectedArea.value || undefined,
                     filter: activeFilter.value,

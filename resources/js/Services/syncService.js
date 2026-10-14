@@ -25,32 +25,37 @@ export const syncService = {
         }
 
         try {
-            const res = await axios.get(route('staff.sync.bootstrap'));
+            const url = typeof route === 'function' ? route('staff.sync.bootstrap', undefined, false) : '/staff/api/sync/bootstrap';
+            const res = await axios.get(url);
             if (res.data && res.data.success) {
-                const { customers, packages, areas, complaints } = res.data.data;
+                const data = res.data.data || {};
+                const customers = Array.isArray(data.customers) ? data.customers : Object.values(data.customers || {});
+                const packages = Array.isArray(data.packages) ? data.packages : Object.values(data.packages || {});
+                const areas = Array.isArray(data.areas) ? data.areas : Object.values(data.areas || {});
+                const complaints = Array.isArray(data.complaints) ? data.complaints : Object.values(data.complaints || {});
 
-                if (customers?.length) await saveToStore('customers', customers);
-                if (packages?.length) await saveToStore('packages', packages);
-                if (areas?.length) await saveToStore('areas', areas);
-                if (complaints?.length) await saveToStore('complaints', complaints);
+                if (customers.length) await saveToStore('customers', customers);
+                if (packages.length) await saveToStore('packages', packages);
+                if (areas.length) await saveToStore('areas', areas);
+                if (complaints.length) await saveToStore('complaints', complaints);
 
                 await setMeta('last_sync', res.data.timestamp);
-                await setMeta('server_version', res.data.server_version);
+                await setMeta('server_version', res.data.server_version || 1);
 
                 return {
                     success: true,
                     timestamp: res.data.timestamp,
                     counts: {
-                        customers: customers?.length || 0,
-                        packages: packages?.length || 0,
-                        areas: areas?.length || 0,
-                        complaints: complaints?.length || 0,
+                        customers: customers.length,
+                        packages: packages.length,
+                        areas: areas.length,
+                        complaints: complaints.length,
                     },
                 };
             }
             throw new Error('Invalid sync payload from server.');
         } catch (error) {
-            console.error('Bootstrap sync failed:', error);
+            console.error('Bootstrap sync failed:', error?.response?.data || error?.message || error);
             throw error;
         }
     },
@@ -76,7 +81,8 @@ export const syncService = {
         }
 
         try {
-            const res = await axios.post(route('staff.sync.mutations'), {
+            const url = typeof route === 'function' ? route('staff.sync.mutations', undefined, false) : '/staff/api/sync/mutations';
+            const res = await axios.post(url, {
                 mutations: pending.map(m => ({
                     uuid: m.uuid,
                     action: m.action,

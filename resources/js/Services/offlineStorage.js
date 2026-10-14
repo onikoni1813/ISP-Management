@@ -4,7 +4,7 @@
  */
 
 const DB_NAME = 'PirgachaIspOfflineDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let dbInstance = null;
 
@@ -27,7 +27,7 @@ export function openOfflineDatabase() {
             // 1. Customers Store
             if (!db.objectStoreNames.contains('customers')) {
                 const customerStore = db.createObjectStore('customers', { keyPath: 'id' });
-                customerStore.createIndex('customer_code', 'customer_code', { unique: true });
+                customerStore.createIndex('customer_code', 'customer_code', { unique: false });
                 customerStore.createIndex('name', 'name', { unique: false });
                 customerStore.createIndex('phone', 'phone', { unique: false });
                 customerStore.createIndex('pppoe_username', 'pppoe_username', { unique: false });
@@ -78,17 +78,35 @@ export function openOfflineDatabase() {
  * Save collection of records to an Object Store.
  */
 export async function saveToStore(storeName, items) {
+    if (!items || !Array.isArray(items) || items.length === 0) {
+        return true;
+    }
+
     const db = await openOfflineDatabase();
     return new Promise((resolve, reject) => {
-        const tx = db.transaction(storeName, 'readwrite');
-        const store = tx.objectStore(storeName);
+        try {
+            const tx = db.transaction(storeName, 'readwrite');
+            const store = tx.objectStore(storeName);
 
-        items.forEach((item) => {
-            store.put(item);
-        });
+            items.forEach((item) => {
+                if (item && item.id !== undefined) {
+                    store.put(item);
+                }
+            });
 
-        tx.oncomplete = () => resolve(true);
-        tx.onerror = () => reject(tx.error);
+            tx.oncomplete = () => resolve(true);
+            tx.onerror = () => {
+                console.error(`saveToStore error in ${storeName}:`, tx.error);
+                reject(tx.error);
+            };
+            tx.onabort = () => {
+                console.error(`saveToStore aborted in ${storeName}:`, tx.error);
+                reject(tx.error);
+            };
+        } catch (e) {
+            console.error(`Transaction failed for store ${storeName}:`, e);
+            reject(e);
+        }
     });
 }
 
@@ -98,12 +116,17 @@ export async function saveToStore(storeName, items) {
 export async function getAllFromStore(storeName) {
     const db = await openOfflineDatabase();
     return new Promise((resolve, reject) => {
-        const tx = db.transaction(storeName, 'readonly');
-        const store = tx.objectStore(storeName);
-        const req = store.getAll();
+        try {
+            const tx = db.transaction(storeName, 'readonly');
+            const store = tx.objectStore(storeName);
+            const req = store.getAll();
 
-        req.onsuccess = () => resolve(req.result || []);
-        req.onerror = () => reject(req.error);
+            req.onsuccess = () => resolve(req.result || []);
+            req.onerror = () => reject(req.error);
+        } catch (e) {
+            console.warn(`Error reading from store ${storeName}:`, e);
+            resolve([]);
+        }
     });
 }
 
@@ -113,12 +136,17 @@ export async function getAllFromStore(storeName) {
 export async function getFromStore(storeName, key) {
     const db = await openOfflineDatabase();
     return new Promise((resolve, reject) => {
-        const tx = db.transaction(storeName, 'readonly');
-        const store = tx.objectStore(storeName);
-        const req = store.get(key);
+        try {
+            const tx = db.transaction(storeName, 'readonly');
+            const store = tx.objectStore(storeName);
+            const req = store.get(key);
 
-        req.onsuccess = () => resolve(req.result || null);
-        req.onerror = () => reject(req.error);
+            req.onsuccess = () => resolve(req.result || null);
+            req.onerror = () => reject(req.error);
+        } catch (e) {
+            console.warn(`Error getting key ${key} from store ${storeName}:`, e);
+            resolve(null);
+        }
     });
 }
 
