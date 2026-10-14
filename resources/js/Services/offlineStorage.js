@@ -4,13 +4,18 @@
  */
 
 const DB_NAME = 'PirgachaIspOfflineDB';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 let dbInstance = null;
 
 export function openOfflineDatabase() {
-    if (dbInstance) {
+    if (dbInstance && dbInstance.version >= DB_VERSION) {
         return Promise.resolve(dbInstance);
+    }
+
+    if (dbInstance) {
+        try { dbInstance.close(); } catch (e) {}
+        dbInstance = null;
     }
 
     return new Promise((resolve, reject) => {
@@ -21,15 +26,35 @@ export function openOfflineDatabase() {
 
         const request = indexedDB.open(DB_NAME, DB_VERSION);
 
+        request.onblocked = () => {
+            console.warn('IndexedDB upgrade blocked. Please reload any other open tabs.');
+        };
+
         request.onupgradeneeded = (event) => {
             const db = event.target.result;
+            const transaction = event.target.transaction;
 
             // 1. Customers Store
+            let customerStore;
             if (!db.objectStoreNames.contains('customers')) {
-                const customerStore = db.createObjectStore('customers', { keyPath: 'id' });
-                customerStore.createIndex('customer_code', 'customer_code', { unique: false });
+                customerStore = db.createObjectStore('customers', { keyPath: 'id' });
+            } else {
+                customerStore = transaction.objectStore('customers');
+            }
+
+            // Ensure customer_code index is strictly NON-UNIQUE
+            if (customerStore.indexNames.contains('customer_code')) {
+                customerStore.deleteIndex('customer_code');
+            }
+            customerStore.createIndex('customer_code', 'customer_code', { unique: false });
+
+            if (!customerStore.indexNames.contains('name')) {
                 customerStore.createIndex('name', 'name', { unique: false });
+            }
+            if (!customerStore.indexNames.contains('phone')) {
                 customerStore.createIndex('phone', 'phone', { unique: false });
+            }
+            if (!customerStore.indexNames.contains('pppoe_username')) {
                 customerStore.createIndex('pppoe_username', 'pppoe_username', { unique: false });
             }
 
@@ -77,8 +102,8 @@ export function openOfflineDatabase() {
 /**
  * Save collection of records to an Object Store.
  */
-export async function saveToStore(storeName, items) {
-    if (!items || !Array.isArray(items) || items.length === 0) {
+export async function saveToStore(storeName, items, clearFirst = false) {
+    if (!items || !Array.isArray(items)) {
         return true;
     }
 
@@ -87,6 +112,10 @@ export async function saveToStore(storeName, items) {
         try {
             const tx = db.transaction(storeName, 'readwrite');
             const store = tx.objectStore(storeName);
+
+            if (clearFirst) {
+                store.clear();
+            }
 
             items.forEach((item) => {
                 if (item && item.id !== undefined) {

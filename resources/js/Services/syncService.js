@@ -34,10 +34,10 @@ export const syncService = {
                 const areas = Array.isArray(data.areas) ? data.areas : Object.values(data.areas || {});
                 const complaints = Array.isArray(data.complaints) ? data.complaints : Object.values(data.complaints || {});
 
-                if (customers.length) await saveToStore('customers', customers);
-                if (packages.length) await saveToStore('packages', packages);
-                if (areas.length) await saveToStore('areas', areas);
-                if (complaints.length) await saveToStore('complaints', complaints);
+                if (customers.length) await saveToStore('customers', customers, true);
+                if (packages.length) await saveToStore('packages', packages, true);
+                if (areas.length) await saveToStore('areas', areas, true);
+                if (complaints.length) await saveToStore('complaints', complaints, true);
 
                 await setMeta('last_sync', res.data.timestamp);
                 await setMeta('server_version', res.data.server_version || 1);
