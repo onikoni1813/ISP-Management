@@ -175,4 +175,33 @@ class BillingEngineTest extends TestCase
         $this->assertEquals('completed', $payment->fresh()->status);
         $this->assertEquals($this->admin->id, $payment->fresh()->approved_by);
     }
+
+    public function test_admin_can_view_payments_listing_with_trx_id_and_search_by_reference(): void
+    {
+        $staffRole = Role::create(['name' => 'Staff', 'slug' => 'staff']);
+        $staff = User::factory()->create();
+        $staff->roles()->attach($staffRole);
+
+        $payment = $this->billingService->collectPayment($this->customer, [
+            'amount' => 1200.00,
+            'payment_method' => 'bkash',
+            'reference' => 'BKASH987654321',
+        ], $staff->id);
+
+        $response = $this->actingAs($this->admin)->get(route('admin.billing.payments', ['status' => 'pending']));
+        $response->assertStatus(200);
+        $response->assertInertia(fn ($page) => $page
+            ->component('Admin/Billing/Payments')
+            ->has('payments.data', 1)
+            ->where('payments.data.0.reference', 'BKASH987654321')
+        );
+
+        // Search by TrxID / reference
+        $searchResponse = $this->actingAs($this->admin)->get(route('admin.billing.payments', ['search' => 'BKASH987654321']));
+        $searchResponse->assertStatus(200);
+        $searchResponse->assertInertia(fn ($page) => $page
+            ->has('payments.data', 1)
+            ->where('payments.data.0.payment_number', $payment->payment_number)
+        );
+    }
 }

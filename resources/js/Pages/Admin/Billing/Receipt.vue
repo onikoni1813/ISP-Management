@@ -79,11 +79,15 @@ const handleBack = () => {
                 </div>
                 <div>
                     <span class="text-slate-500 print:text-slate-600">Mobile:</span>
-                    <div class="font-mono text-slate-300 print:text-black">{{ payment.customer?.primary_contact?.phone }}</div>
+                    <div class="font-mono text-slate-300 print:text-black">{{ payment.customer?.primary_contact?.phone || 'N/A' }}</div>
                 </div>
                 <div class="text-right">
                     <span class="text-slate-500 print:text-slate-600">Payment Method:</span>
                     <div class="capitalize font-semibold text-slate-200 print:text-black">{{ payment.payment_method }} ({{ payment.account?.name }})</div>
+                </div>
+                <div v-if="payment.reference" class="col-span-2 pt-1 border-t border-slate-800/60 print:border-slate-200 flex justify-between items-center">
+                    <span class="text-slate-500 print:text-slate-600">TrxID / Reference:</span>
+                    <span class="font-mono font-bold text-sky-400 print:text-black">{{ payment.reference }}</span>
                 </div>
             </div>
 

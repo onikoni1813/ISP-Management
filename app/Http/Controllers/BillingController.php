@@ -66,14 +66,30 @@ class BillingController extends Controller
     {
         Gate::authorize('payments.view');
 
-        $payments = Payment::with(['customer', 'account', 'collector', 'approver', 'generatedInvoice', 'allocations.invoice'])
+        $payments = Payment::with([
+                'customer.connections.pppoeCredential',
+                'customer.user',
+                'account',
+                'collector',
+                'approver',
+                'generatedInvoice',
+                'allocations.invoice'
+            ])
             ->when($request->status, fn($q) => $q->where('status', $request->status))
             ->when($request->search, function ($q, $search) {
-                $q->where('payment_number', 'like', "%{$search}%")
-                    ->orWhereHas('customer', fn($c) => $c->where('name', 'like', "%{$search}%")->orWhere('customer_code', 'like', "%{$search}%"));
+                $q->where(function ($sub) use ($search) {
+                    $sub->where('payment_number', 'like', "%{$search}%")
+                        ->orWhere('reference', 'like', "%{$search}%")
+                        ->orWhereHas('customer', function ($c) use ($search) {
+                            $c->where('name', 'like', "%{$search}%")
+                                ->orWhere('customer_code', 'like', "%{$search}%")
+                                ->orWhereHas('connections.pppoeCredential', fn($p) => $p->where('username', 'like', "%{$search}%"));
+                        });
+                });
             })
             ->latest('id')
-            ->paginate(15);
+            ->paginate(15)
+            ->withQueryString();
 
         return Inertia::render('Admin/Billing/Payments', [
             'payments' => $payments,
