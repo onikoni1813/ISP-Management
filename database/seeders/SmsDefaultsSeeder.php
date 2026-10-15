@@ -73,7 +73,7 @@ class SmsDefaultsSeeder extends Seeder
             [
                 'name' => 'PPPoE Credentials & Login Info',
                 'code' => 'pppoe_credentials',
-                'template' => 'Dear {name}, your Pirgacha Internet account is ready. PPPoE User: {pppoe_username}, Pass: {pppoe_password}. Login portal: {login_url}',
+                'template' => 'Welcome to Pirgacha Internet! Dear {name}, your account is ready. PPPoE User: {pppoe_username}, Pass: {pppoe_password}. Login portal: {login_url}',
                 'is_auto_enabled' => true,
             ],
             [

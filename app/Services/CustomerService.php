@@ -173,7 +173,7 @@ class CustomerService
                 'name' => $data['name'],
                 'phone' => $data['phone'],
                 'email' => $data['email'] ?? null,
-                'is_primary' => true,
+                'contact_type' => 'primary',
             ]);
 
             // Create Installation Address if provided

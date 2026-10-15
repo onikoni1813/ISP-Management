@@ -11,6 +11,7 @@ use App\Models\CustomerPackage;
 use App\Models\Package;
 use App\Models\PackagePrice;
 use App\Models\Payment;
+use App\Models\PppoeCredential;
 use App\Models\Role;
 use App\Models\Setting;
 use App\Models\SmsLog;
@@ -174,6 +175,13 @@ class AdminPaymentNotificationTest extends TestCase
 
     public function test_admin_api_live_counts_returns_accurate_pending_payments_and_latest_payment(): void
     {
+        PppoeCredential::create([
+            'connection_id' => $this->connection->id,
+            'username' => 'rashed_pppoe',
+            'password' => 'secret123',
+            'status' => 'active',
+        ]);
+
         // Staff collects payment (becomes pending)
         $billingService = app(BillingService::class);
         $payment = $billingService->collectPayment($this->customer, [
@@ -197,6 +205,7 @@ class AdminPaymentNotificationTest extends TestCase
                     'status' => 'pending',
                     'customer_name' => 'Customer Rashed',
                     'customer_code' => 'CUST-00999',
+                    'pppoe_username' => 'rashed_pppoe',
                 ],
             ]);
     }

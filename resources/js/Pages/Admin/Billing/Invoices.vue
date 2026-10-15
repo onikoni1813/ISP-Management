@@ -1,7 +1,8 @@
 <script setup>
 import { ref, watch } from 'vue';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import ConfirmModal from '@/Components/ConfirmModal.vue';
 import { formatDate } from '@/Utils/date';
 
 const props = defineProps({
@@ -13,6 +14,7 @@ const props = defineProps({
             paid_invoices: 0,
             partial_invoices: 0,
             unpaid_invoices: 0,
+            pending_invoices: 0,
             total_billed: 0,
             total_collected: 0,
             total_due: 0,
@@ -79,6 +81,27 @@ const openDetailModal = (inv) => {
 const closeDetailModal = () => {
     isDetailModalOpen.value = false;
     selectedInvoice.value = null;
+};
+
+// Approval State for Pending Invoices
+const approveForm = useForm({});
+const showApproveConfirm = ref(false);
+const invoiceToApprove = ref(null);
+
+const handleApprove = (inv) => {
+    invoiceToApprove.value = inv;
+    showApproveConfirm.value = true;
+};
+
+const confirmApproveInvoice = () => {
+    if (!invoiceToApprove.value) return;
+    approveForm.post(route('admin.billing.invoices.approve', invoiceToApprove.value.id), {
+        preserveScroll: true,
+        onFinish: () => {
+            showApproveConfirm.value = false;
+            invoiceToApprove.value = null;
+        }
+    });
 };
 </script>
 
@@ -232,6 +255,19 @@ const closeDetailModal = () => {
                         All ({{ metrics.total_invoices }})
                     </button>
                     <button
+                        @click="filterStatus('pending')"
+                        type="button"
+                        :class="[
+                            status === 'pending'
+                                ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 font-bold shadow-md'
+                                : 'bg-[#061220] text-slate-400 hover:text-amber-400 border-brand-navy/80',
+                            'px-2.5 py-1 rounded-xl text-[11px] sm:text-xs font-semibold border transition cursor-pointer active:scale-95 flex items-center gap-1.5'
+                        ]"
+                    >
+                        <span class="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+                        Pending ({{ metrics.pending_invoices || 0 }})
+                    </button>
+                    <button
                         @click="filterStatus('paid')"
                         type="button"
                         :class="[
@@ -293,13 +329,14 @@ const closeDetailModal = () => {
                         <span
                             :class="[
                                 inv.status === 'paid' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : '',
+                                inv.status === 'pending' ? 'bg-amber-500/10 text-amber-400 border-amber-500/30 animate-pulse' : '',
                                 inv.status === 'partial' ? 'bg-amber-500/10 text-amber-400 border-amber-500/30' : '',
                                 inv.status === 'unpaid' ? 'bg-rose-500/10 text-rose-400 border-rose-500/30' : '',
                                 'inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider'
                             ]"
                         >
-                            <span class="h-1.5 w-1.5 rounded-full" :class="inv.status === 'paid' ? 'bg-emerald-400' : (inv.status === 'partial' ? 'bg-amber-400' : 'bg-rose-400')"></span>
-                            {{ inv.status }}
+                            <span class="h-1.5 w-1.5 rounded-full" :class="inv.status === 'paid' ? 'bg-emerald-400' : (inv.status === 'pending' || inv.status === 'partial' ? 'bg-amber-400' : 'bg-rose-400')"></span>
+                            {{ inv.status === 'pending' ? 'অপেক্ষমাণ' : inv.status }}
                         </span>
                     </div>
 
@@ -339,8 +376,19 @@ const closeDetailModal = () => {
 
                     <!-- Billing Period & Action Button -->
                     <div class="flex items-center justify-between text-[11px] text-slate-400 pt-1">
-                        <span class="truncate max-w-[150px]">Period: {{ formatDate(inv.period_start) }} - {{ formatDate(inv.period_end) }}</span>
+                        <span class="truncate max-w-[140px]">Period: {{ formatDate(inv.period_start) }} - {{ formatDate(inv.period_end) }}</span>
                         <div class="flex items-center gap-1.5">
+                            <button
+                                v-if="inv.status === 'pending'"
+                                @click="handleApprove(inv)"
+                                :disabled="approveForm.processing"
+                                type="button"
+                                class="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md shadow-emerald-600/30 transition flex items-center gap-1 active:scale-95 cursor-pointer"
+                                title="Approve invoice and complete renewal"
+                            >
+                                <span>✓</span>
+                                <span>এপ্রুভ করুন</span>
+                            </button>
                             <a
                                 :href="route('admin.billing.invoices.show', inv.id)"
                                 target="_blank"
@@ -432,17 +480,30 @@ const closeDetailModal = () => {
                                     <span
                                         :class="[
                                             inv.status === 'paid' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : '',
+                                            inv.status === 'pending' ? 'bg-amber-500/10 text-amber-400 border-amber-500/30 animate-pulse' : '',
                                             inv.status === 'partial' ? 'bg-amber-500/10 text-amber-400 border-amber-500/30' : '',
                                             inv.status === 'unpaid' ? 'bg-rose-500/10 text-rose-400 border-rose-500/30' : '',
                                             'inline-flex items-center gap-1 rounded-md border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider'
                                         ]"
                                     >
-                                        <span class="h-1.5 w-1.5 rounded-full" :class="inv.status === 'paid' ? 'bg-emerald-400' : (inv.status === 'partial' ? 'bg-amber-400' : 'bg-rose-400')"></span>
-                                        {{ inv.status }}
+                                        <span class="h-1.5 w-1.5 rounded-full" :class="inv.status === 'paid' ? 'bg-emerald-400' : (inv.status === 'pending' || inv.status === 'partial' ? 'bg-amber-400' : 'bg-rose-400')"></span>
+                                        {{ inv.status === 'pending' ? 'অপেক্ষমাণ (Pending)' : inv.status }}
                                     </span>
                                 </td>
                                 <td class="px-5 py-4 text-right">
                                     <div class="flex items-center justify-end gap-2">
+                                        <!-- Approve Button for Pending Invoices -->
+                                        <button
+                                            v-if="inv.status === 'pending'"
+                                            @click="handleApprove(inv)"
+                                            :disabled="approveForm.processing"
+                                            type="button"
+                                            class="inline-flex items-center gap-1 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 text-xs font-bold text-white shadow-md shadow-emerald-600/30 transition cursor-pointer active:scale-95"
+                                            title="Approve invoice and complete renewal"
+                                        >
+                                            <span>✓</span>
+                                            <span>এপ্রুভ করুন</span>
+                                        </button>
                                         <a
                                             :href="route('admin.billing.invoices.show', inv.id)"
                                             target="_blank"
@@ -648,5 +709,18 @@ const closeDetailModal = () => {
                 </div>
             </div>
         </div>
+
+        <!-- Confirm Approve Invoice Modal -->
+        <ConfirmModal
+            :show="showApproveConfirm"
+            :title="'ইনভয়েস ও পেমেন্ট অনুমোদন (Approve Invoice)'"
+            :message="`আপনি কি গ্রাহক &quot;${invoiceToApprove?.customer?.name}&quot;-এর ইনভয়েস #${invoiceToApprove?.invoice_number} (৳${invoiceToApprove?.total}) অনুমোদন করতে চান? অনুমোদনের সাথে সাথে ইনভয়েসটি পেইড হবে এবং গ্রাহকের ইন্টারনেট সেবা চালু/রিনিউ হবে।`"
+            :confirm-text="'হ্যাঁ, অনুমোদন করুন'"
+            :cancel-text="'বাতিল'"
+            type="success"
+            :processing="approveForm.processing"
+            @confirm="confirmApproveInvoice"
+            @cancel="showApproveConfirm = false; invoiceToApprove = null;"
+        />
     </AdminLayout>
 </template>

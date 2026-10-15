@@ -16,14 +16,14 @@ const monthlyPrice = parseFloat(currentPackage?.current_price?.price || 500);
 // Default fallback accounts if none configured
 const defaultFallbackAccounts = [
     { 
-        id: 'bangla_qr', 
+        id: null, 
         name: 'বাংলা QR (All Bank & MFS)', 
         type: 'Bangla QR', 
         account_number: '01711223344', 
         qr_image: '/uploads/qr/bangla_qr_merchant.svg' 
     },
-    { id: 3, name: 'bKash Merchant Account', type: 'Mobile Banking', account_number: '01711223344' },
-    { id: 4, name: 'Nagad Business AC', type: 'Mobile Banking', account_number: '01811223344' },
+    { id: null, name: 'bKash Merchant Account', type: 'Mobile Banking', account_number: '01711223344' },
+    { id: null, name: 'Nagad Business AC', type: 'Mobile Banking', account_number: '01811223344' },
 ];
 
 const availableAccounts = computed(() => {
@@ -37,8 +37,8 @@ const availableAccounts = computed(() => {
 const initialAccount = availableAccounts.value[0] || {};
 const form = useForm({
     validity_days: 30,
-    account_id: initialAccount.id || '',
-    payment_method: initialAccount.name || 'Bangla QR',
+    account_id: initialAccount.id || null,
+    payment_method: initialAccount.name || 'বাংলা QR (All Bank & MFS)',
     reference: '',
 });
 
@@ -50,12 +50,19 @@ const calculateTotal = () => {
     return (monthlyPrice * mult).toFixed(2);
 };
 
+const isSelectedAccount = (acc) => {
+    if (acc.id && form.account_id) {
+        return form.account_id === acc.id;
+    }
+    return form.payment_method === acc.name;
+};
+
 const activeAccount = computed(() => {
-    return availableAccounts.value.find(a => a.id === form.account_id) || availableAccounts.value[0] || {};
+    return availableAccounts.value.find(a => isSelectedAccount(a)) || availableAccounts.value[0] || {};
 });
 
 const selectAccount = (acc) => {
-    form.account_id = acc.id;
+    form.account_id = acc.id || null;
     form.payment_method = acc.name;
 };
 
@@ -282,10 +289,10 @@ const submitRenewal = () => {
                         <!-- Dynamic Account Cards -->
                         <div 
                             v-for="acc in availableAccounts"
-                            :key="acc.id"
+                            :key="acc.id || acc.name"
                             @click="selectAccount(acc)"
                             :class="[
-                                form.account_id === acc.id 
+                                isSelectedAccount(acc) 
                                     ? getTheme(acc.name, acc.type).activeClass 
                                     : 'border-[#1C3A5E] bg-[#0B1E36] hover:border-slate-500 hover:bg-[#0E2442]',
                                 'rounded-2xl border p-3.5 cursor-pointer transition relative flex flex-col justify-between select-none'
@@ -307,10 +314,10 @@ const submitRenewal = () => {
                                     </div>
                                 </div>
                                 <div :class="[
-                                    form.account_id === acc.id ? 'bg-emerald-500 text-white' : 'border border-slate-600',
+                                    isSelectedAccount(acc) ? 'bg-emerald-500 text-white' : 'border border-slate-600',
                                     'w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0'
                                 ]">
-                                    <span v-if="form.account_id === acc.id">✓</span>
+                                    <span v-if="isSelectedAccount(acc)">✓</span>
                                 </div>
                             </div>
                             

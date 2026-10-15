@@ -215,15 +215,48 @@ class CustomerPortalTest extends TestCase
 
         $response->assertRedirect(route('account.dashboard'));
 
-        $this->connection->refresh();
-
-        // Must extend from current expiry date
-        $this->assertNotEquals($initialExpiry, $this->connection->expiry_date);
-
         $this->assertDatabaseHas('renewals', [
             'customer_id' => $this->customer->id,
             'connection_id' => $this->connection->id,
             'validity_days' => 30,
+        ]);
+
+        // Payment and Invoice must be pending approval
+        $this->assertDatabaseHas('payments', [
+            'customer_id' => $this->customer->id,
+            'status' => 'pending',
+        ]);
+
+        $this->assertDatabaseHas('invoices', [
+            'customer_id' => $this->customer->id,
+            'status' => 'pending',
+        ]);
+
+        // Expiry date should NOT change before admin approval
+        $this->connection->refresh();
+        $this->assertEquals($initialExpiry, $this->connection->expiry_date);
+
+        // When Admin approves the pending payment/invoice:
+        $adminRole = Role::firstOrCreate(['name' => 'Admin', 'slug' => 'admin']);
+        $admin = User::factory()->create();
+        $admin->roles()->attach($adminRole);
+
+        $payment = \App\Models\Payment::where('customer_id', $this->customer->id)->where('status', 'pending')->first();
+        app(BillingService::class)->approvePayment($payment, $admin->id);
+
+        $this->connection->refresh();
+
+        // Must extend from current expiry date after admin approval
+        $this->assertNotEquals($initialExpiry, $this->connection->expiry_date);
+
+        $this->assertDatabaseHas('payments', [
+            'id' => $payment->id,
+            'status' => 'completed',
+        ]);
+
+        $this->assertDatabaseHas('invoices', [
+            'customer_id' => $this->customer->id,
+            'status' => 'paid',
         ]);
     }
 

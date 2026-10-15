@@ -22,6 +22,7 @@ const form = useForm({
     router_model: '',
     billing_day: 1,
     notes: '',
+    send_welcome_sms: true,
 });
 
 const submit = () => {
@@ -189,6 +190,39 @@ const submit = () => {
                             class="w-full rounded-xl border-slate-800 bg-slate-950/80 p-3 text-sm text-white focus:border-emerald-500 focus:ring-emerald-500 font-mono"
                         />
                     </div>
+                </div>
+            </div>
+
+            <!-- Automated Welcome SMS Notification -->
+            <div class="rounded-2xl border border-brand-sky/30 bg-gradient-to-r from-brand-sky/15 via-[#0A1F36]/90 to-[#071322] p-5 backdrop-blur-sm shadow-xl shadow-black/25 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div class="flex items-start gap-3.5">
+                    <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-sky/20 text-brand-sky border border-brand-sky/30 text-xl shadow-inner">
+                        ✉️
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <h3 class="text-sm font-bold text-white tracking-wide">স্বয়ংক্রিয় ওয়েলকাম SMS নোটিফিকেশন</h3>
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                                অটোমেটিক চালু
+                            </span>
+                        </div>
+                        <p class="text-xs text-slate-300 mt-1 leading-relaxed">
+                            নতুন কাস্টমার সেভ করার সাথে সাথে তার মোবাইলে <span class="text-brand-sky font-semibold">PPPoE ইউজারনেম</span>, <span class="text-brand-sky font-semibold">পাসওয়ার্ড</span> এবং <span class="text-emerald-400 font-semibold">লগইন পোর্টাল লিংক</span> সহ ওয়েলকাম SMS স্বয়ংক্রিয়ভাবে পাঠানো হবে।
+                        </p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3 shrink-0 self-end sm:self-center">
+                    <label class="relative inline-flex items-center cursor-pointer select-none">
+                        <input
+                            v-model="form.send_welcome_sms"
+                            type="checkbox"
+                            class="sr-only peer"
+                        />
+                        <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-brand-sky peer-checked:to-brand-blue border border-brand-navy"></div>
+                        <span class="ml-2.5 text-xs font-bold" :class="form.send_welcome_sms ? 'text-brand-sky' : 'text-slate-400'">
+                            {{ form.send_welcome_sms ? 'SMS চালু' : 'SMS বন্ধ' }}
+                        </span>
+                    </label>
                 </div>
             </div>
 

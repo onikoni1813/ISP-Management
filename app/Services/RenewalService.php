@@ -117,11 +117,16 @@ class RenewalService
 
             // 3. If standard paid renewal: Generate Invoice and process Payment
             if (!$isZeroCharge && $amount > 0) {
+                $user = \App\Models\User::find($userId);
+                $isAdmin = $user && $user->hasRole('admin');
+                $invoiceStatus = $isAdmin ? 'unpaid' : 'pending';
+
                 $invoice = $this->billingService->createInvoice($customer, [
                     'billing_cycle_id' => $data['billing_cycle_id'] ?? null,
                     'period_start' => now()->toDateString(),
                     'period_end' => $expiryData['new_expiry'],
                     'due_date' => now()->toDateString(),
+                    'status' => $invoiceStatus,
                     'items' => [
                         [
                             'item_type' => 'package',
@@ -147,14 +152,20 @@ class RenewalService
             }
 
             // 4. Update Connection Expiry & Package
-            $connection->update([
-                'current_package_id' => $package->id,
-                'expiry_date' => $expiryData['new_expiry'],
-                'status' => 'active',
-            ]);
+            // If admin, or zero charge renewal, or payment already completed: activate immediately
+            // For customer portal pending payment: do not extend until approved by admin
+            $user = \App\Models\User::find($userId);
+            $isAdmin = $user && $user->hasRole('admin');
+            $isPaymentPending = $payment && $payment->status === 'pending';
 
-            // Update customer status to active
-            $customer->update(['status' => 'active']);
+            if ($isAdmin || $isZeroCharge || !$isPaymentPending) {
+                $connection->update([
+                    'current_package_id' => $package->id,
+                    'expiry_date' => $expiryData['new_expiry'],
+                    'status' => 'active',
+                ]);
+                $customer->update(['status' => 'active']);
+            }
 
             // 5. Create Immutable Renewal Record
             $renewal = Renewal::create([

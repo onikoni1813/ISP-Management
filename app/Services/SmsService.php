@@ -115,7 +115,7 @@ class SmsService
         }
 
         // Master Plan Rule 30: Prevent duplicate automatic SMS for the same event
-        if ($entityType && $entityId) {
+        if ($entityType && $entityId && !$force) {
             $alreadySent = SmsLog::where('template_id', $template->id)
                 ->where('entity_type', $entityType)
                 ->where('entity_id', $entityId)

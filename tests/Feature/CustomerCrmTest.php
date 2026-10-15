@@ -224,5 +224,92 @@ class CustomerCrmTest extends TestCase
             'module' => 'customer',
         ]);
     }
+
+    public function test_customer_creation_automatically_sends_welcome_sms_with_pppoe_credentials_and_login_link(): void
+    {
+        $this->seed(\Database\Seeders\SmsDefaultsSeeder::class);
+        \App\Models\SmsGateway::create([
+            'name' => 'Log Gateway',
+            'driver' => 'log',
+            'is_active' => true,
+        ]);
+
+        $area = Area::create(['name' => 'Main Bazaar', 'code' => 'AREA-03']);
+        $package = Package::create(['name' => '20M', 'code' => 'P20', 'speed_mbps' => 20]);
+        PackagePrice::create([
+            'package_id' => $package->id,
+            'price' => 1000.00,
+            'validity_days' => 30,
+            'effective_from' => now()->subMonth(),
+            'status' => 'active',
+        ]);
+
+        $response = $this->actingAs($this->admin)->post('/admin/customers', [
+            'name' => 'Anisur Rahman',
+            'phone' => '01812345678',
+            'area_id' => $area->id,
+            'address' => 'Main Road, Pirgacha',
+            'package_id' => $package->id,
+            'pppoe_username' => 'anisur_pppoe',
+            'pppoe_password' => 'pass@1234',
+            'send_welcome_sms' => true,
+        ]);
+
+        $customer = Customer::where('name', 'Anisur Rahman')->first();
+        $this->assertNotNull($customer);
+
+        $response->assertRedirect("/admin/customers/{$customer->id}");
+        $response->assertSessionHas('success');
+
+        // Verify that Welcome SMS was dispatched and logged
+        $smsLog = \App\Models\SmsLog::where('customer_id', $customer->id)->first();
+        $this->assertNotNull($smsLog);
+        $this->assertEquals('01812345678', $smsLog->recipient);
+        $this->assertEquals('sent', $smsLog->status);
+        $this->assertStringContainsString('Welcome to Pirgacha Internet', $smsLog->message);
+        $this->assertStringContainsString('anisur_pppoe', $smsLog->message);
+        $this->assertStringContainsString('pass@1234', $smsLog->message);
+        $this->assertStringContainsString('/login', $smsLog->message);
+    }
+
+    public function test_customer_creation_does_not_send_welcome_sms_when_toggled_off(): void
+    {
+        $this->seed(\Database\Seeders\SmsDefaultsSeeder::class);
+        \App\Models\SmsGateway::create([
+            'name' => 'Log Gateway',
+            'driver' => 'log',
+            'is_active' => true,
+        ]);
+
+        $area = Area::create(['name' => 'College Road', 'code' => 'AREA-04']);
+        $package = Package::create(['name' => '10M', 'code' => 'P10', 'speed_mbps' => 10]);
+        PackagePrice::create([
+            'package_id' => $package->id,
+            'price' => 500.00,
+            'validity_days' => 30,
+            'effective_from' => now()->subMonth(),
+            'status' => 'active',
+        ]);
+
+        $response = $this->actingAs($this->admin)->post('/admin/customers', [
+            'name' => 'Silent Customer',
+            'phone' => '01899887766',
+            'area_id' => $area->id,
+            'address' => 'College Road',
+            'package_id' => $package->id,
+            'pppoe_username' => 'silent_pppoe',
+            'pppoe_password' => 'secret99',
+            'send_welcome_sms' => false,
+        ]);
+
+        $customer = Customer::where('name', 'Silent Customer')->first();
+        $this->assertNotNull($customer);
+
+        $response->assertRedirect("/admin/customers/{$customer->id}");
+
+        // Verify that no SMS was sent
+        $smsCount = \App\Models\SmsLog::where('customer_id', $customer->id)->count();
+        $this->assertEquals(0, $smsCount);
+    }
 }
 

@@ -249,6 +249,38 @@ class CustomerPortalController extends Controller
         $customer->load(['connections.currentPackage.currentPrice']);
         $primaryConnection = $customer->connections->first();
 
+        // Ensure default MFS and Bangla QR accounts exist if none are found in database
+        if (Account::whereIn('type', ['Mobile Banking', 'Bangla QR'])->count() === 0) {
+            Account::firstOrCreate(
+                ['name' => 'বাংলা QR (All Bank & MFS)'],
+                [
+                    'type' => 'Bangla QR',
+                    'account_number' => '01711223344',
+                    'balance' => 0.00,
+                    'status' => 'active',
+                    'qr_image' => '/uploads/qr/bangla_qr_merchant.svg',
+                ]
+            );
+            Account::firstOrCreate(
+                ['name' => 'bKash Merchant Account'],
+                [
+                    'type' => 'Mobile Banking',
+                    'account_number' => '01711223344',
+                    'balance' => 0.00,
+                    'status' => 'active',
+                ]
+            );
+            Account::firstOrCreate(
+                ['name' => 'Nagad Business AC'],
+                [
+                    'type' => 'Mobile Banking',
+                    'account_number' => '01811223344',
+                    'balance' => 0.00,
+                    'status' => 'active',
+                ]
+            );
+        }
+
         $paymentAccounts = Account::where('status', 'active')
             ->whereIn('type', ['Mobile Banking', 'Bangla QR'])
             ->get(['id', 'name', 'account_number', 'type', 'qr_image']);
@@ -272,9 +304,17 @@ class CustomerPortalController extends Controller
             return back()->withErrors(['error' => 'No active connection found to renew.']);
         }
 
+        // Sanitize account_id: If non-numeric, string identifier (e.g. 'bangla_qr'), or non-existent in accounts table, normalize to null
+        $rawAccountId = $request->input('account_id');
+        if (!empty($rawAccountId)) {
+            if (!is_numeric($rawAccountId) || !Account::where('id', (int) $rawAccountId)->where('status', 'active')->exists()) {
+                $request->merge(['account_id' => null]);
+            }
+        }
+
         $validated = $request->validate([
             'validity_days' => 'required|integer|in:30,60,90',
-            'account_id' => 'nullable|exists:accounts,id',
+            'account_id' => 'nullable|integer|exists:accounts,id',
             'payment_method' => 'nullable|string|max:100',
             'reference' => 'nullable|string|max:100',
         ]);
@@ -282,6 +322,21 @@ class CustomerPortalController extends Controller
         $account = null;
         if (!empty($validated['account_id'])) {
             $account = Account::where('id', $validated['account_id'])->where('status', 'active')->first();
+        }
+
+        // Fallback: If no valid account_id was resolved, match active account by payment method name or default to active MFS/Cash account
+        if (!$account) {
+            $method = $validated['payment_method'] ?? '';
+            $account = Account::where('status', 'active')
+                ->where(function ($q) use ($method) {
+                    if (!empty($method)) {
+                        $q->where('name', 'like', "%{$method}%")
+                          ->orWhere('type', 'like', "%{$method}%");
+                    }
+                })
+                ->first()
+                ?? Account::where('status', 'active')->whereIn('type', ['Bangla QR', 'Mobile Banking'])->first()
+                ?? Account::where('status', 'active')->first();
         }
 
         $paymentMethod = $account ? strtolower($account->name) : ($validated['payment_method'] ?? 'Online Payment');
@@ -299,6 +354,11 @@ class CustomerPortalController extends Controller
             'reference' => $validated['reference'] ?? 'Online Self-Renewal',
             'notes' => 'Customer self-service portal renewal' . ($account ? " via {$account->name}" : ''),
         ], $request->user()->id);
+
+        $payment = !empty($renewal->payment_id) ? Payment::find($renewal->payment_id) : null;
+        if ($payment && $payment->status === 'pending') {
+            return redirect()->route('account.dashboard')->with('success', "আপনার রিনিউয়াল ও পেমেন্ট রিকোয়েস্টটি (TrxID: " . ($validated['reference'] ?? 'N/A') . ") সফলভাবে জমা হয়েছে। অ্যাডমিন ভেরিফাই করে অনুমোদন করলেই মেয়াদ বৃদ্ধি পাবে।");
+        }
 
         return redirect()->route('account.dashboard')->with('success', "Renewal successful! Your internet validity has been extended to {$renewal->new_expiry}.");
     }

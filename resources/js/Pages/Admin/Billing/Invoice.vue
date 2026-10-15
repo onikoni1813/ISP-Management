@@ -81,12 +81,14 @@ const handleBack = () => {
                         :class="[
                             invoice.status === 'paid' 
                                 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 print:text-emerald-700 print:border-emerald-600' 
-                                : (invoice.status === 'partial' 
-                                    ? 'bg-amber-500/10 text-amber-400 border-amber-500/30 print:text-amber-700 print:border-amber-600' 
-                                    : 'bg-rose-500/10 text-rose-400 border-rose-500/30 print:text-rose-700 print:border-rose-600')
+                                : (invoice.status === 'pending'
+                                    ? 'bg-amber-500/10 text-amber-400 border-amber-500/30 print:text-amber-700 print:border-amber-600 animate-pulse'
+                                    : (invoice.status === 'partial' 
+                                        ? 'bg-amber-500/10 text-amber-400 border-amber-500/30 print:text-amber-700 print:border-amber-600' 
+                                        : 'bg-rose-500/10 text-rose-400 border-rose-500/30 print:text-rose-700 print:border-rose-600'))
                         ]"
                     >
-                        INVOICE: {{ invoice.status }}
+                        INVOICE: {{ invoice.status === 'pending' ? 'PENDING APPROVAL' : invoice.status }}
                     </div>
                     <div class="font-mono text-xs font-bold text-slate-200 print:text-black mt-1">
                         {{ invoice.invoice_number }}

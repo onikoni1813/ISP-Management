@@ -146,4 +146,33 @@ class BillingEngineTest extends TestCase
         $this->assertEquals(0.00, (float) $account->fresh()->balance);
         $this->assertEquals(500.00, (float) $this->customer->fresh()->balance);
     }
+
+    public function test_admin_can_approve_pending_invoice_from_invoices_endpoint(): void
+    {
+        $staffRole = Role::create(['name' => 'Staff', 'slug' => 'staff']);
+        $staff = User::factory()->create();
+        $staff->roles()->attach($staffRole);
+
+        $inv = $this->billingService->createInvoice($this->customer, [
+            'items' => [['description' => 'Package', 'unit_price' => 500.00, 'quantity' => 1]],
+        ], $this->admin->id);
+
+        // Staff collects payment: status is pending, invoice status becomes pending
+        $payment = $this->billingService->collectPayment($this->customer, [
+            'amount' => 500.00,
+            'payment_method' => 'cash',
+            'invoice_ids' => [$inv->id],
+        ], $staff->id);
+
+        $this->assertEquals('pending', $payment->status);
+        $this->assertEquals('pending', $inv->fresh()->status);
+
+        // Admin approves invoice via route
+        $response = $this->actingAs($this->admin)->post(route('admin.billing.invoices.approve', $inv->id));
+        $response->assertRedirect();
+
+        $this->assertEquals('paid', $inv->fresh()->status);
+        $this->assertEquals('completed', $payment->fresh()->status);
+        $this->assertEquals($this->admin->id, $payment->fresh()->approved_by);
+    }
 }

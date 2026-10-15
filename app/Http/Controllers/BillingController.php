@@ -27,7 +27,7 @@ class BillingController extends Controller
     {
         Gate::authorize('billing.view');
 
-        $query = Invoice::with(['customer', 'items'])
+        $query = Invoice::with(['customer', 'items', 'allocations.payment'])
             ->when($request->status, fn($q) => $q->where('status', $request->status))
             ->when($request->search, function ($q, $search) {
                 $q->where(function ($sub) use ($search) {
@@ -46,6 +46,7 @@ class BillingController extends Controller
             'paid_invoices' => Invoice::where('status', 'paid')->count(),
             'partial_invoices' => Invoice::where('status', 'partial')->count(),
             'unpaid_invoices' => Invoice::where('status', 'unpaid')->count(),
+            'pending_invoices' => Invoice::where('status', 'pending')->count(),
             'total_billed' => (float) Invoice::sum('total'),
             'total_collected' => (float) Invoice::sum('paid_amount'),
             'total_due' => (float) Invoice::sum('due_amount'),
@@ -139,6 +140,35 @@ class BillingController extends Controller
     }
 
     /**
+     * Admin approve pending invoice.
+     */
+    public function approveInvoice(Request $request, Invoice $invoice)
+    {
+        Gate::authorize('billing.collect');
+
+        // Look for associated pending payment
+        $payment = Payment::where('generated_invoice_id', $invoice->id)
+            ->orWhereHas('allocations', fn($q) => $q->where('invoice_id', $invoice->id))
+            ->where('status', 'pending')
+            ->first();
+
+        if ($payment) {
+            $this->billingService->approvePayment($payment, $request->user()->id);
+        } else {
+            $invoice->update([
+                'status' => 'paid',
+                'paid_amount' => $invoice->total,
+                'due_amount' => 0.00,
+            ]);
+            $customer = $invoice->customer;
+            $customer?->connections()->update(['status' => 'active']);
+            $customer?->update(['status' => 'active']);
+        }
+
+        return back()->with('success', "ইনভয়েস #{$invoice->invoice_number} সফলভাবে অনুমোদিত ও পেইড হিসেবে চিহ্নিত হয়েছে।");
+    }
+
+    /**
      * Printable Payment Money Receipt.
      */
     public function receipt(Payment $payment): Response
@@ -195,11 +225,23 @@ class BillingController extends Controller
     {
         $pendingPaymentsCount = Payment::where('status', 'pending')->count();
 
-        $latestPayment = Payment::with('customer')
+        $latestPayment = Payment::with([
+                'customer.connections.pppoeCredential',
+                'customer.user',
+            ])
             ->latest('id')
             ->first();
 
         $unreadComplaints = Complaint::where('status', 'open')->count();
+
+        $customer = $latestPayment?->customer;
+        $pppoeUsername = null;
+        if ($customer) {
+            $connWithPppoe = $customer->connections->first(fn($c) => $c->status === 'active' && !empty($c->pppoeCredential?->username))
+                ?? $customer->connections->first(fn($c) => !empty($c->pppoeCredential?->username));
+
+            $pppoeUsername = $connWithPppoe?->pppoeCredential?->username ?: $customer->user?->username;
+        }
 
         return response()->json([
             'pending_payments_count' => $pendingPaymentsCount,
@@ -211,8 +253,9 @@ class BillingController extends Controller
                 'payment_method' => $latestPayment->payment_method,
                 'reference' => $latestPayment->reference,
                 'status' => $latestPayment->status,
-                'customer_name' => $latestPayment->customer?->name ?? 'Customer',
-                'customer_code' => $latestPayment->customer?->customer_code ?? '',
+                'customer_name' => $customer?->name ?? 'Customer',
+                'customer_code' => $customer?->customer_code ?? '',
+                'pppoe_username' => $pppoeUsername,
                 'paid_at' => $latestPayment->paid_at?->toIso8601String() ?? $latestPayment->created_at?->toIso8601String(),
             ] : null,
         ]);

@@ -49,7 +49,7 @@ class BillingService
                 'total' => $total,
                 'paid_amount' => 0.00,
                 'due_amount' => $total,
-                'status' => 'unpaid',
+                'status' => $data['status'] ?? 'unpaid',
                 'created_by' => $userId,
                 'notes' => $data['notes'] ?? null,
             ]);
@@ -99,10 +99,10 @@ class BillingService
 
             $discount = (float) ($data['discount'] ?? 0.00);
 
-            // Check if user is staff (non-admin) collecting in the field
+            // Check if user is admin (admin collections complete immediately, field staff & customer portal require approval)
             $user = \App\Models\User::find($userId);
-            $isFieldStaff = $user && $user->hasRole('staff') && !$user->hasRole('admin');
-            $status = $isFieldStaff ? 'pending' : 'completed';
+            $isAdmin = $user && $user->hasRole('admin');
+            $status = $isAdmin ? 'completed' : 'pending';
 
             // Target Account (if pending, account balance increments upon admin approval)
             $account = !empty($data['account_id']) 
@@ -121,13 +121,23 @@ class BillingService
                 'paid_at' => $data['paid_at'] ?? now(),
                 'collected_by' => $userId,
                 'status' => $status,
-                'approved_by' => !$isFieldStaff ? $userId : null,
-                'approved_at' => !$isFieldStaff ? now() : null,
+                'approved_by' => $isAdmin ? $userId : null,
+                'approved_at' => $isAdmin ? now() : null,
                 'notes' => $data['notes'] ?? null,
             ]);
 
-            // If field staff, keep as pending approval - Do not alter accounts or generate paid invoice yet
-            if ($isFieldStaff) {
+            // If non-admin (field staff or customer portal self-renewal), keep as pending approval - Do not alter accounts or mark invoice paid yet
+            if (!$isAdmin) {
+                if (!empty($data['invoice_ids'])) {
+                    foreach ($data['invoice_ids'] as $invId) {
+                        PaymentAllocation::create([
+                            'payment_id' => $payment->id,
+                            'invoice_id' => $invId,
+                            'allocated_amount' => $amount,
+                        ]);
+                        Invoice::where('id', $invId)->update(['status' => 'pending']);
+                    }
+                }
                 AuditLog::log('payment_collected_pending_approval', 'billing', $payment, null, $payment->toArray());
                 \App\Jobs\SendAdminPaymentNotificationJob::dispatch($payment->id, $userId);
                 return $payment;
@@ -229,48 +239,70 @@ class BillingService
             $packageName = $package?->name ?? 'Internet Package';
             $speed = $package?->speed_mbps ?? 0;
 
-            // 3. Generate Official Paid Invoice associated with Customer & PPPoE Service
-            $lastInvoice = Invoice::lockForUpdate()->latest('id')->first();
-            $nextNumber = $lastInvoice ? ($lastInvoice->id + 1) : 1;
-            $invoiceNumber = 'INV-' . date('Y') . '-' . str_pad((string) $nextNumber, 6, '0', STR_PAD_LEFT);
+            // 3. Find or Generate Official Paid Invoice associated with Customer & PPPoE Service
+            $existingInvoice = $payment->generatedInvoice 
+                ?? $payment->allocations()->with('invoice')->first()?->invoice 
+                ?? Renewal::where('payment_id', $payment->id)->first()?->invoice;
 
-            $periodStart = now()->startOfMonth()->toDateString();
-            $periodEnd = now()->endOfMonth()->toDateString();
+            if ($existingInvoice) {
+                $invoice = $existingInvoice;
+                $invoice->update([
+                    'status' => 'paid',
+                    'paid_amount' => $amount,
+                    'due_amount' => 0.00,
+                ]);
 
-            $invoice = Invoice::create([
-                'invoice_number' => $invoiceNumber,
-                'customer_id' => $customer->id,
-                'billing_cycle_id' => null,
-                'period_start' => $periodStart,
-                'period_end' => $periodEnd,
-                'due_date' => now()->toDateString(),
-                'subtotal' => $amount + $discount,
-                'discount' => $discount,
-                'tax' => 0.00,
-                'total' => $amount,
-                'paid_amount' => $amount,
-                'due_amount' => 0.00,
-                'status' => 'paid',
-                'created_by' => $adminId,
-                'notes' => "Auto-generated upon payment approval. PPPoE: {$pppoeUsername}, Package: {$packageName} ({$speed} Mbps)",
-            ]);
+                // Ensure allocation exists
+                PaymentAllocation::firstOrCreate(
+                    [
+                        'payment_id' => $payment->id,
+                        'invoice_id' => $invoice->id,
+                    ],
+                    [
+                        'allocated_amount' => $amount,
+                    ]
+                );
+            } else {
+                $lastInvoice = Invoice::lockForUpdate()->latest('id')->first();
+                $nextNumber = $lastInvoice ? ($lastInvoice->id + 1) : 1;
+                $invoiceNumber = 'INV-' . date('Y') . '-' . str_pad((string) $nextNumber, 6, '0', STR_PAD_LEFT);
 
-            // Create Invoice Item
-            InvoiceItem::create([
-                'invoice_id' => $invoice->id,
-                'item_type' => 'package',
-                'description' => "Internet Service: {$packageName} ({$speed} Mbps) - PPPoE: {$pppoeUsername}",
-                'unit_price' => $amount + $discount,
-                'quantity' => 1,
-                'total' => $amount + $discount,
-            ]);
+                $periodStart = now()->startOfMonth()->toDateString();
+                $periodEnd = now()->endOfMonth()->toDateString();
 
-            // Allocate Payment to this Generated Invoice
-            PaymentAllocation::create([
-                'payment_id' => $payment->id,
-                'invoice_id' => $invoice->id,
-                'allocated_amount' => $amount,
-            ]);
+                $invoice = Invoice::create([
+                    'invoice_number' => $invoiceNumber,
+                    'customer_id' => $customer->id,
+                    'billing_cycle_id' => null,
+                    'period_start' => $periodStart,
+                    'period_end' => $periodEnd,
+                    'due_date' => now()->toDateString(),
+                    'subtotal' => $amount + $discount,
+                    'discount' => $discount,
+                    'tax' => 0.00,
+                    'total' => $amount,
+                    'paid_amount' => $amount,
+                    'due_amount' => 0.00,
+                    'status' => 'paid',
+                    'created_by' => $adminId,
+                    'notes' => "Auto-generated upon payment approval. PPPoE: {$pppoeUsername}, Package: {$packageName} ({$speed} Mbps)",
+                ]);
+
+                InvoiceItem::create([
+                    'invoice_id' => $invoice->id,
+                    'item_type' => 'package',
+                    'description' => "Internet Service: {$packageName} ({$speed} Mbps) - PPPoE: {$pppoeUsername}",
+                    'unit_price' => $amount + $discount,
+                    'quantity' => 1,
+                    'total' => $amount + $discount,
+                ]);
+
+                PaymentAllocation::create([
+                    'payment_id' => $payment->id,
+                    'invoice_id' => $invoice->id,
+                    'allocated_amount' => $amount,
+                ]);
+            }
 
             // Update Payment to completed with approval audit info & invoice link
             $payment->update([
@@ -287,37 +319,46 @@ class BillingService
 
             // 4. Update Connection Expiry & Record Renewal
             if ($connection) {
-                $validityDays = (int) ($package?->currentPrice?->validity_days ?? 30);
-                $prevExpiry = $connection->expiry_date ? Carbon::parse($connection->expiry_date) : null;
-                $today = Carbon::today();
-                $baseDate = ($prevExpiry && $prevExpiry->greaterThanOrEqualTo($today)) ? $prevExpiry : $today;
-                $newExpiry = $baseDate->copy()->addDays($validityDays)->toDateString();
+                $renewal = Renewal::where('payment_id', $payment->id)->first();
+                if ($renewal) {
+                    $connection->update([
+                        'expiry_date' => $renewal->new_expiry,
+                        'status' => 'active',
+                    ]);
+                } else {
+                    $validityDays = (int) ($package?->currentPrice?->validity_days ?? 30);
+                    $prevExpiry = $connection->expiry_date ? Carbon::parse($connection->expiry_date) : null;
+                    $today = Carbon::today();
+                    $baseDate = ($prevExpiry && $prevExpiry->greaterThanOrEqualTo($today)) ? $prevExpiry : $today;
+                    $newExpiry = $baseDate->copy()->addDays($validityDays)->toDateString();
 
-                $connection->update([
-                    'expiry_date' => $newExpiry,
-                    'status' => 'active',
-                ]);
+                    $connection->update([
+                        'expiry_date' => $newExpiry,
+                        'status' => 'active',
+                    ]);
 
-                // Create Renewal Record for metrics and history tracking
-                $lastRenewal = Renewal::lockForUpdate()->latest('id')->first();
-                $nextRenNumber = $lastRenewal ? ($lastRenewal->id + 1) : 1;
-                $renewalNumber = 'REN-' . date('Y') . '-' . str_pad((string) $nextRenNumber, 6, '0', STR_PAD_LEFT);
+                    // Create Renewal Record for metrics and history tracking
+                    $lastRenewal = Renewal::lockForUpdate()->latest('id')->first();
+                    $nextRenNumber = $lastRenewal ? ($lastRenewal->id + 1) : 1;
+                    $renewalNumber = 'REN-' . date('Y') . '-' . str_pad((string) $nextRenNumber, 6, '0', STR_PAD_LEFT);
 
-                Renewal::create([
-                    'renewal_number' => $renewalNumber,
-                    'customer_id' => $customer->id,
-                    'connection_id' => $connection->id,
-                    'package_id' => $package?->id,
-                    'invoice_id' => $invoice->id,
-                    'renewed_by' => $payment->collected_by ?? $adminId,
-                    'previous_expiry' => $prevExpiry?->toDateString(),
-                    'new_expiry' => $newExpiry,
-                    'validity_days' => $validityDays,
-                    'amount' => $amount,
-                    'mode' => 'standard',
-                    'is_zero_charge' => false,
-                    'renewed_at' => now(),
-                ]);
+                    Renewal::create([
+                        'renewal_number' => $renewalNumber,
+                        'customer_id' => $customer->id,
+                        'connection_id' => $connection->id,
+                        'package_id' => $package?->id,
+                        'invoice_id' => $invoice->id,
+                        'payment_id' => $payment->id,
+                        'renewed_by' => $payment->collected_by ?? $adminId,
+                        'previous_expiry' => $prevExpiry?->toDateString(),
+                        'new_expiry' => $newExpiry,
+                        'validity_days' => $validityDays,
+                        'amount' => $amount,
+                        'mode' => 'standard',
+                        'is_zero_charge' => false,
+                        'renewed_at' => now(),
+                    ]);
+                }
             }
 
             // Ensure customer status is active

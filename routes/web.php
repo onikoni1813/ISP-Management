@@ -130,6 +130,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
 
     // Billing & Payment Routes
     Route::get('billing/invoices', [BillingController::class, 'invoices'])->name('billing.invoices');
+    Route::post('billing/invoices/{invoice}/approve', [BillingController::class, 'approveInvoice'])->name('billing.invoices.approve');
     Route::get('billing/invoices/{invoice}', [BillingController::class, 'showInvoice'])->name('billing.invoices.show');
     Route::get('billing/payments', [BillingController::class, 'payments'])->name('billing.payments');
     Route::post('billing/payments/{payment}/approve', [BillingController::class, 'approve'])->name('billing.payments.approve');

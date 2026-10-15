@@ -65,12 +65,13 @@ defineProps({
                                 <span
                                     :class="[
                                         inv.status === 'paid' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : '',
+                                        inv.status === 'pending' ? 'bg-amber-500/10 text-amber-400 border-amber-500/30 animate-pulse' : '',
                                         inv.status === 'partial' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : '',
                                         inv.status === 'unpaid' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : '',
                                         'rounded-full border px-2.5 py-0.5 text-[10px] font-extrabold uppercase'
                                     ]"
                                 >
-                                    {{ inv.status }}
+                                    {{ inv.status === 'pending' ? 'অপেক্ষমাণ' : inv.status }}
                                 </span>
                             </td>
                             <td class="p-4 text-right">

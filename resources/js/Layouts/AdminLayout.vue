@@ -221,8 +221,15 @@ const navItems = [
                                     {{ latestPayment.status === 'pending' ? 'অনুমোদন অপেক্ষমাণ' : 'সম্পন্ন' }}
                                 </span>
                             </div>
-                            <div class="font-bold text-white text-xs truncate">{{ latestPayment.customer_name }}</div>
-                            <div class="text-[10px] text-slate-400 font-mono">{{ latestPayment.customer_code }}</div>
+                            <div class="font-bold text-white text-xs truncate" :title="latestPayment.customer_name">
+                                {{ latestPayment.pppoe_username || latestPayment.customer_name }}
+                            </div>
+                            <div class="text-[10px] text-slate-400 font-mono truncate" :title="latestPayment.customer_code + (latestPayment.customer_name ? ' • ' + latestPayment.customer_name : '')">
+                                {{ latestPayment.customer_code }}
+                                <span v-if="latestPayment.pppoe_username && latestPayment.customer_name && latestPayment.customer_name !== latestPayment.pppoe_username" class="text-slate-500 font-sans">
+                                    • {{ latestPayment.customer_name }}
+                                </span>
+                            </div>
                             <div class="flex items-center justify-between mt-2 pt-2 border-t border-brand-navy/60 text-xs">
                                 <span class="font-mono text-emerald-400 font-black text-sm">৳{{ latestPayment.amount }}</span>
                                 <span class="text-[11px] text-slate-300 font-medium capitalize">{{ latestPayment.payment_method }}</span>
@@ -311,8 +318,11 @@ const navItems = [
                                 ✕
                             </button>
                         </div>
-                        <div class="text-sm font-bold text-white mt-1 truncate">
-                            {{ newPaymentToast.customer_name }}
+                        <div class="text-sm font-bold text-white mt-1 truncate" :title="newPaymentToast.customer_name">
+                            {{ newPaymentToast.pppoe_username || newPaymentToast.customer_name }}
+                        </div>
+                        <div v-if="newPaymentToast.pppoe_username && newPaymentToast.customer_name && newPaymentToast.customer_name !== newPaymentToast.pppoe_username" class="text-[11px] text-slate-400 truncate">
+                            {{ newPaymentToast.customer_name }} ({{ newPaymentToast.customer_code }})
                         </div>
                         <div class="text-xs font-mono text-emerald-300 mt-0.5">
                             ৳{{ newPaymentToast.amount }} via {{ newPaymentToast.payment_method }}

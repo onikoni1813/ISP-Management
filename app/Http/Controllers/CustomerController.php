@@ -96,12 +96,42 @@ class CustomerController extends Controller
             'router_model' => 'nullable|string|max:100',
             'billing_day' => 'nullable|integer|min:1|max:31',
             'notes' => 'nullable|string',
+            'send_welcome_sms' => 'nullable|boolean',
         ]);
 
         $customer = $this->customerService->createCustomer($validated, $request->user()->id);
 
+        $sendWelcomeSms = $request->boolean('send_welcome_sms', true);
+        $smsNote = '';
+
+        if ($sendWelcomeSms && !empty($validated['pppoe_username'])) {
+            try {
+                $customer->load(['primaryContact', 'connections.pppoeCredential']);
+                $smsLog = $this->smsService->sendByTemplate(
+                    templateCode: 'pppoe_credentials',
+                    customer: $customer,
+                    extraVariables: [
+                        'pppoe_username' => $validated['pppoe_username'],
+                        'pppoe_password' => $validated['pppoe_password'],
+                    ],
+                    userId: $request->user()->id,
+                    entityType: 'customer',
+                    entityId: $customer->id,
+                    force: true
+                );
+
+                if ($smsLog && $smsLog->status === 'sent') {
+                    $smsNote = " এবং গ্রাহকের নম্বরে PPPoE আইডি, পাসওয়ার্ড ও লগইন লিংক SMS করা হয়েছে।";
+                } elseif ($smsLog && $smsLog->status === 'failed') {
+                    $smsNote = " (SMS গেটওয়ে বার্তা: {$smsLog->error_message})";
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error("Welcome SMS failed for customer {$customer->id}: " . $e->getMessage());
+            }
+        }
+
         return redirect()->route('admin.customers.show', $customer->id)
-            ->with('success', "Customer {$customer->customer_code} created successfully.");
+            ->with('success', "Customer {$customer->customer_code} created successfully{$smsNote}");
     }
 
     /**
